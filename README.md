@@ -220,11 +220,14 @@ GitHub Actions, in `.github/workflows/verify.yml`.
 | backend unit | go unit with `-race` and the 80% coverage floor |
 | frontend unit | vitest |
 | integration | the acceptance suite and the replay gate against a real PostgreSQL |
-| end to end | Playwright, including performance and visual parity |
 | parser fuzz | **scheduled only**, 10 minutes per target |
 
+The end-to-end suite is not a pipeline job: Playwright with performance budgets
+and visual parity needs more than a hosted runner reliably gives. It runs
+locally, as part of `make verify`.
+
 Three things run only here: the coverage floor, because nothing local reads that
-number; integration and end to end, because they need the whole stack; and the
+number; integration, because it needs the whole stack; and the
 fuzz targets, because ten minutes each is not a per-commit cost.
 
 There is no separate Go build job, and that is deliberate: `go vet` and

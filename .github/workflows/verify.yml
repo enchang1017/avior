@@ -78,31 +78,6 @@ jobs:
       - if: failure()
         run: docker compose logs --tail=200 || true
 
-  end-to-end:
-    if: github.event_name != 'schedule'
-    runs-on: ubuntu-latest
-    timeout-minutes: 40
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          package_json_file: frontend/package.json
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 23
-          cache: pnpm
-          cache-dependency-path: frontend/pnpm-lock.yaml
-      - run: cd frontend && pnpm install --frozen-lockfile
-      - run: cd frontend && pnpm exec playwright install --with-deps chromium
-      - run: make test-e2e
-      - if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report
-          path: frontend/test-results
-      - if: failure()
-        run: docker compose logs --tail=200 || true
-
   parser-fuzz:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
