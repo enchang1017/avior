@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Installed by `make hooks`, which points core.hooksPath here.
+#
+# Everything that survives without a database: both builds and both unit
+# suites, plus the drift check, because generated code landing out of step with
+# its source is the failure nobody can read their way out of.
+#
+# A convenience, not a gate: `git push --no-verify` skips it. The pipeline runs
+# these again.
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+
+echo "pre-push: build and unit tests"
+if ! make verify-prepush; then
+	echo
+	echo "pre-push: refused. Fix the above, or 'git push --no-verify' to skip"
+	echo "          and let the pipeline tell you instead."
+	exit 1
+fi

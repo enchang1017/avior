@@ -1,0 +1,54 @@
+{
+  "_note": "Hand-written ground truth, written from the seed SQL before the analyzer ran. Mode: read | write | delete (row-level). Column '*' on delete means the whole row. Calls are direct only; dynamic is the number of dynamic-SQL sites.",
+  "public.trg_bet_audit": {
+    "access": ["read public.bet.status", "read public.bet.id",
+               "write public.bet_audit.bet_id", "write public.bet_audit.old_status", "write public.bet_audit.new_status"],
+    "calls": [], "dynamic": 0 },
+  "public.bet_defaults": {
+    "access": ["read public.bet.status", "write public.bet.status"],
+    "calls": [], "dynamic": 0 },
+  "public.settle_bet": {
+    "access": ["read public.bet.member_id", "read public.bet.stake", "read public.bet.id", "read public.bet.status",
+               "write public.bet.status", "write public.bet.payout", "write public.bet.settled_at",
+               "read public.member.balance", "read public.member.id", "write public.member.balance",
+               "write public.ledger.member_id", "write public.ledger.amount", "write public.ledger.kind", "write public.ledger.booked_on"],
+    "calls": ["public.log_event"], "dynamic": 0 },
+  "public.log_event": {
+    "access": ["write public.legacy_log.id", "write public.legacy_log.msg"],
+    "calls": [], "dynamic": 0 },
+  "public.close_member": {
+    "access": ["read public.bet.id", "read public.bet.member_id", "read public.bet.status",
+               "delete public.account.*", "read public.account.member_id",
+               "write public.member.closed", "read public.member.id"],
+    "calls": ["public.settle_bet"], "dynamic": 0 },
+  "public.campaign_report": {
+    "access": ["read public.member_bets.name", "read public.member_bets.member_id",
+               "read promo.grant_log.amount", "read promo.grant_log.member_id", "read promo.grant_log.campaign_id"],
+    "calls": [], "dynamic": 0 },
+  "public.purge_table": { "access": [], "calls": [], "dynamic": 2 },
+  "public.member_total_stake": {
+    "access": ["read public.bet.stake", "read public.bet.member_id"],
+    "calls": [], "dynamic": 0 },
+  "public.grant_bonus": {
+    "access": ["write promo.grant_log.campaign_id", "write promo.grant_log.member_id", "write promo.grant_log.amount",
+               "write promo.campaign.budget", "read promo.campaign.budget", "read promo.campaign.id"],
+    "calls": [], "dynamic": 0 },
+  "public.open_bet_count": {
+    "access": ["read public.bet.member_id", "read public.bet.status"],
+    "calls": [], "dynamic": 0 },
+  "public.default_currency": { "access": [], "calls": [], "dynamic": 0 },
+  "public.promo_touch": {
+    "access": ["write promo.campaign.title", "read promo.campaign.title", "read promo.campaign.id", "read promo.grant_log.campaign_id"],
+    "calls": [], "dynamic": 0 },
+  "public.upsert_account": {
+    "access": ["write public.account.id", "write public.account.member_id", "write public.account.currency", "read public.account.currency"],
+    "calls": [], "dynamic": 0 },
+  "public.archive_bets": {
+    "access": ["write public.legacy_log.id", "write public.legacy_log.msg", "read public.bet.id", "read public.bet.status",
+               "delete public.bet.*", "read public.bet.member_id", "read public.member.id", "read public.member.closed"],
+    "calls": [], "dynamic": 0 },
+  "public.all_members": {
+    "access": ["read public.member.id", "read public.member.name", "read public.member.email", "read public.member.closed",
+               "read public.member.balance", "read public.member.name_lc"],
+    "calls": [], "dynamic": 0 }
+}

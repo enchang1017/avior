@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark light" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <title>Avior</title>
+    <!-- The boot loader (FEAT-074 AC-1): VLoader at page size, drawn before any
+         script has run, in the night palette's values from base.css. -->
+    <style>
+      .boot {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        background: #060913;
+      }
+      .boot-orb {
+        position: relative;
+        width: 160px;
+        height: 160px;
+      }
+      .boot-orb > *,
+      .boot-comet > * {
+        position: absolute;
+        border-radius: 50%;
+      }
+      .boot-bloom,
+      .boot-comet {
+        inset: 0;
+      }
+      .boot-bloom {
+        background: radial-gradient(#ffb5478c, #ffb5471f 25%, #0000 62%);
+      }
+      .boot-comet {
+        border-radius: 0;
+        animation: boot-orbit 1.6s linear infinite;
+        will-change: transform;
+      }
+      .boot-tail {
+        inset: 4%;
+        background: conic-gradient(#0000 150deg, #7cc4ffd9 356deg, #0000);
+        mask: radial-gradient(closest-side, #0000 calc(100% - 2.9%), #000 0);
+      }
+      .boot-head {
+        left: 50%;
+        top: 4.67%;
+        width: 7%;
+        aspect-ratio: 1;
+        translate: -50% -50%;
+        background: radial-gradient(#fff6e0, #7cc4ff 42%, #0000 72%);
+        box-shadow: 0 0 8px #7cc4ff;
+      }
+      .boot-mark {
+        inset: 22%;
+        overflow: visible;
+        filter: drop-shadow(0 0 4px #ffb547);
+      }
+      @keyframes boot-orbit {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .boot-comet {
+          animation: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div class="boot" role="status" aria-label="Loading Avior">
+        <div class="boot-orb" aria-hidden="true">
+          <div class="boot-bloom"></div>
+          <div class="boot-comet">
+            <div class="boot-tail"></div>
+            <div class="boot-head"></div>
+          </div>
+          <svg class="boot-mark" viewBox="10 6 34 55">
+            <path
+              fill="#ffb547"
+              d="M27 6 L30.394 21.606 L44 25 L30.394 28.394 L27 61 L23.606 28.394 L10 25 L23.606 21.606 Z"
+            />
+            <circle fill="#fff6e0" cx="27" cy="25" r="1.6" />
+          </svg>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

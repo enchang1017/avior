@@ -1,0 +1,7 @@
+{
+  "enabledPlugins": {
+    "gopls-lsp@claude-plugins-official": true,
+    "vue-lsp@claude-community": true,
+    "adr-writer@claude-community": true
+  }
+}

@@ -1,0 +1,34 @@
+[
+  {
+    "Plan": {
+      "Node Type": "Result",
+      "Parallel Aware": false,
+      "Async Capable": false,
+      "Startup Cost": 0.03,
+      "Total Cost": 0.04,
+      "Plan Rows": 1,
+      "Plan Width": 1,
+      "Disabled": false,
+      "Output": [
+        "(InitPlan 1).col1"
+      ],
+      "Plans": [
+        {
+          "Node Type": "Seq Scan",
+          "Parent Relationship": "InitPlan",
+          "Subplan Name": "InitPlan 1",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Relation Name": "bet",
+          "Schema": "public",
+          "Alias": "bet",
+          "Startup Cost": 0.0,
+          "Total Cost": 16.6,
+          "Plan Rows": 660,
+          "Plan Width": 0,
+          "Disabled": false
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,12 @@
+# Generates the server interface the handlers must satisfy. Adding a path to
+# api/openapi.yaml therefore breaks the build until a handler exists for it:
+# the contract cannot drift ahead of the implementation.
+package: gen
+output: internal/gen/api.gen.go
+generate:
+  std-http-server: true
+  strict-server: true
+  models: true
+  embedded-spec: true
+output-options:
+  nullable-type: true

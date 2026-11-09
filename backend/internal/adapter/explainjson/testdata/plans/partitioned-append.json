@@ -1,0 +1,53 @@
+[
+  {
+    "Plan": {
+      "Node Type": "Append",
+      "Parallel Aware": false,
+      "Async Capable": false,
+      "Startup Cost": 0.0,
+      "Total Cost": 44.3,
+      "Plan Rows": 1620,
+      "Plan Width": 36,
+      "Disabled": false,
+      "Subplans Removed": 0,
+      "Plans": [
+        {
+          "Node Type": "Seq Scan",
+          "Parent Relationship": "Member",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Relation Name": "rounds_p202609",
+          "Schema": "public",
+          "Alias": "rounds_1",
+          "Startup Cost": 0.0,
+          "Total Cost": 18.1,
+          "Plan Rows": 810,
+          "Plan Width": 36,
+          "Disabled": false,
+          "Output": [
+            "rounds_1.id",
+            "rounds_1.server_seed"
+          ]
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Parent Relationship": "Member",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Relation Name": "rounds_p202610",
+          "Schema": "public",
+          "Alias": "rounds_2",
+          "Startup Cost": 0.0,
+          "Total Cost": 18.1,
+          "Plan Rows": 810,
+          "Plan Width": 36,
+          "Disabled": false,
+          "Output": [
+            "rounds_2.id",
+            "rounds_2.server_seed"
+          ]
+        }
+      ]
+    }
+  }
+]

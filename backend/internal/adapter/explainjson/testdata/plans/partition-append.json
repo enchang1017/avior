@@ -1,0 +1,76 @@
+[
+  {
+    "Plan": {
+      "Node Type": "Limit",
+      "Parallel Aware": false,
+      "Async Capable": false,
+      "Startup Cost": 0.00,
+      "Total Cost": 0.25,
+      "Plan Rows": 10,
+      "Plan Width": 48,
+      "Disabled": false,
+      "Output": ["rounds.id", "rounds.stake"],
+      "Plans": [
+        {
+          "Node Type": "Append",
+          "Parent Relationship": "Outer",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Startup Cost": 0.00,
+          "Total Cost": 73.65,
+          "Plan Rows": 2910,
+          "Plan Width": 48,
+          "Disabled": false,
+          "Subplans Removed": 0,
+          "Plans": [
+            {
+              "Node Type": "Seq Scan",
+              "Parent Relationship": "Member",
+              "Parallel Aware": false,
+              "Async Capable": false,
+              "Relation Name": "rounds_2026_08",
+              "Schema": "public",
+              "Alias": "rounds_1",
+              "Startup Cost": 0.00,
+              "Total Cost": 19.70,
+              "Plan Rows": 970,
+              "Plan Width": 48,
+              "Disabled": false,
+              "Output": ["rounds_1.id", "rounds_1.stake"]
+            },
+            {
+              "Node Type": "Seq Scan",
+              "Parent Relationship": "Member",
+              "Parallel Aware": false,
+              "Async Capable": false,
+              "Relation Name": "rounds_2026_09",
+              "Schema": "public",
+              "Alias": "rounds_2",
+              "Startup Cost": 0.00,
+              "Total Cost": 19.70,
+              "Plan Rows": 970,
+              "Plan Width": 48,
+              "Disabled": false,
+              "Output": ["rounds_2.id", "rounds_2.stake"]
+            },
+            {
+              "Node Type": "Seq Scan",
+              "Parent Relationship": "Member",
+              "Parallel Aware": false,
+              "Async Capable": false,
+              "Relation Name": "rounds_default",
+              "Schema": "public",
+              "Alias": "rounds_3",
+              "Startup Cost": 0.00,
+              "Total Cost": 19.70,
+              "Plan Rows": 970,
+              "Plan Width": 48,
+              "Disabled": false,
+              "Output": ["rounds_3.id", "rounds_3.stake"]
+            }
+          ]
+        }
+      ]
+    }
+  }
+]

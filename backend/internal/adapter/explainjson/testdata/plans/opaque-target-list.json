@@ -1,0 +1,77 @@
+[
+  {
+    "Plan": {
+      "Node Type": "Aggregate",
+      "Strategy": "Sorted",
+      "Partial Mode": "Simple",
+      "Parallel Aware": false,
+      "Async Capable": false,
+      "Startup Cost": 0.15,
+      "Total Cost": 8107.40,
+      "Plan Rows": 680,
+      "Plan Width": 68,
+      "Output": ["fn_member_stake(m.member_id)", "total_stake(b.stake)", "m.member_id"],
+      "Group Key": ["m.member_id"],
+      "Plans": [
+        {
+          "Node Type": "Nested Loop",
+          "Parent Relationship": "Outer",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Join Type": "Inner",
+          "Startup Cost": 0.15,
+          "Total Cost": 5686.60,
+          "Plan Rows": 448800,
+          "Plan Width": 24,
+          "Output": ["m.member_id", "b.stake"],
+          "Inner Unique": false,
+          "Plans": [
+            {
+              "Node Type": "Index Only Scan",
+              "Parent Relationship": "Outer",
+              "Parallel Aware": false,
+              "Async Capable": false,
+              "Scan Direction": "Forward",
+              "Index Name": "member_pkey",
+              "Relation Name": "member",
+              "Schema": "public",
+              "Alias": "m",
+              "Startup Cost": 0.15,
+              "Total Cost": 58.35,
+              "Plan Rows": 680,
+              "Plan Width": 4,
+              "Output": ["m.member_id"]
+            },
+            {
+              "Node Type": "Materialize",
+              "Parent Relationship": "Inner",
+              "Parallel Aware": false,
+              "Async Capable": false,
+              "Startup Cost": 0.00,
+              "Total Cost": 19.90,
+              "Plan Rows": 660,
+              "Plan Width": 20,
+              "Output": ["b.stake"],
+              "Plans": [
+                {
+                  "Node Type": "Seq Scan",
+                  "Parent Relationship": "Outer",
+                  "Parallel Aware": false,
+                  "Async Capable": false,
+                  "Relation Name": "bet",
+                  "Schema": "public",
+                  "Alias": "b",
+                  "Startup Cost": 0.00,
+                  "Total Cost": 16.60,
+                  "Plan Rows": 660,
+                  "Plan Width": 20,
+                  "Output": ["b.stake"]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+]

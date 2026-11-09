@@ -1,0 +1,72 @@
+{
+ "public.bet_simple": {
+  "Columns": {
+   "bet_id": {
+    "Schema": "",
+    "Table": "bet",
+    "Column": "id"
+   },
+   "stake": {
+    "Schema": "",
+    "Table": "bet",
+    "Column": "stake"
+   },
+   "status": {
+    "Schema": "",
+    "Table": "bet",
+    "Column": "status"
+   }
+  }
+ },
+ "public.big_open_bets": {
+  "Columns": {
+   "member_id": {
+    "Schema": "",
+    "Table": "member_bets",
+    "Column": "member_id"
+   },
+   "name": {
+    "Schema": "",
+    "Table": "member_bets",
+    "Column": "name"
+   },
+   "stake": {
+    "Schema": "",
+    "Table": "member_bets",
+    "Column": "stake"
+   }
+  }
+ },
+ "public.daily_stake": {
+  "Columns": {}
+ },
+ "public.member_bets": {
+  "Columns": {
+   "bet_id": {
+    "Schema": "",
+    "Table": "bet",
+    "Column": "id"
+   },
+   "member_id": {
+    "Schema": "",
+    "Table": "member",
+    "Column": "id"
+   },
+   "name": {
+    "Schema": "",
+    "Table": "member",
+    "Column": "name"
+   },
+   "stake": {
+    "Schema": "",
+    "Table": "bet",
+    "Column": "stake"
+   },
+   "status": {
+    "Schema": "",
+    "Table": "bet",
+    "Column": "status"
+   }
+  }
+ }
+}

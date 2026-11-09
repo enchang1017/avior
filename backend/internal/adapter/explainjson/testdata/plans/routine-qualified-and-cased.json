@@ -1,0 +1,17 @@
+[
+  {
+    "Plan": {
+      "Node Type": "Seq Scan",
+      "Parallel Aware": false,
+      "Async Capable": false,
+      "Relation Name": "member",
+      "Schema": "public",
+      "Alias": "m",
+      "Startup Cost": 0.00,
+      "Total Cost": 526.80,
+      "Plan Rows": 680,
+      "Plan Width": 96,
+      "Output": ["probe_archive.fn_lookup(member_id)", "\"MixedCase\"(member_id)", "unquotedname(member_id)"]
+    }
+  }
+]

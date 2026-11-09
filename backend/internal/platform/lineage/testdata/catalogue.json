@@ -1,0 +1,1119 @@
+{
+ "Relations": [
+  {
+   "OID": 16512,
+   "Root": 0,
+   "Schema": "promo",
+   "Name": "campaign",
+   "Kind": "table",
+   "Columns": [
+    "id",
+    "title",
+    "budget"
+   ],
+   "Definition": ""
+  },
+  {
+   "OID": 16511,
+   "Root": 0,
+   "Schema": "promo",
+   "Name": "campaign_id_seq",
+   "Kind": "sequence",
+   "Columns": [
+    "last_value",
+    "log_cnt",
+    "is_called"
+   ],
+   "Definition": ""
+  },
+  {
+   "OID": 16522,
+   "Root": 0,
+   "Schema": "promo",
+   "Name": "grant_log",
+   "Kind": "table",
+   "Columns": [
+    "id",
+    "campaign_id",
+    "member_id",
+    "amount"
+   ],
+   "Definition": ""
+  },
+  {
+   "OID": 16521,
+   "Root": 0,
+   "Schema": "promo",
+   "Name": "grant_log_id_seq",
+   "Kind": "sequence",
+   "Columns": [
+    "last_value",
+    "log_cnt",
+    "is_called"
+   ],
+   "Definition": ""
+  },
+  {
+   "OID": 16587,
+   "Root": 0,
+   "Schema": "public",
+   "Name": "MixedCase",
+   "Kind": "table",
+   "Columns": [
+    "Id",
+    "Val"
+   ],
+   "Definition": ""
+  },
+  {
+   "OID": 16423,
+   "Root": 0,
+   "Schema": "public",
+   "Name": "account",
+   "Kind": "table",
+   "Columns": [
+    "id",
+    "member_id",
+    "currency"
+   ],
+   "Definition": ""
+  },
+  {
+   "OID": 16422,
+   "Root": 0,
+   "Schema": "public",
+   "Name": "account_id_seq",
+   "Kind": "sequence",
+   "Columns": [
+    "last_value",
+    "log_cnt",
+    "is_called"
+   ],
+   "Definition": ""
+  },
+  {
+   "OID": 16402,
+   "Root": 0,
+   "Schema": "public",
+   "Name": "bet",
+   "Kind": "table",
+   "Columns": [
+    "id",
+    "bet_no",
+    "member_id",
+    "stake",
+    "payout",
+    "status",
+    "settled_at"
+   ],
+   "Definition": ""
+  },
+  {
+   "OID": 16440,
+   "Root": 0,
+   "Schema": "public",
+   "Name": "bet_audit",
+   "Kind": "table",
+   "Columns": [
+    "id",
+    "bet_id",
+    "old_status",
+    "new_status",
+    "at"
+   ],
+   "Definition": ""
+  },
+  {
+   "OID": 16439,
+   "Root": 0,
+   "Schema": "public",
+   "Name": "bet_audit_id_seq",
+   "Kind": "sequence",
+   "Columns": [
+    "last_value",
+    "log_cnt",
+    "is_called"
+   ],
+   "Definition": ""
+  },
+  {
+   "OID": 16401,
+   "Root": 0,
+   "Schema": "public",
+   "Name": "bet_id_seq",
+   "Kind": "sequence",
+   "Columns": [
+    "last_value",
+    "log_cnt",
+    "is_called"
+   ],
+   "Definition": ""
+  },
+  {
+   "OID": 16400,
+   "Root": 0,
+   "Schema": "public",
+   "Name": "bet_no_seq",
+   "Kind": "sequence",
+   "Columns": [
+    "last_value",
+    "log_cnt",
+    "is_called"
+   ],
+   "Definition": ""
+  },
+  {
+   "OID": 16593,
+   "Root": 0,
+   "Schema": "public",
+   "Name": "bet_simple",
+   "Kind": "view",
+   "Columns": [
+    "bet_id",
+    "stake",
+    "status"
+   ],
+   "Definition": " SELECT id AS bet_id,\n    stake,\n    status\n   FROM bet;"
+  },
+  {
+   "OID": 16545,
+   "Root": 0,
+   "Schema": "public",
+   "Name": "big_open_bets",
+   "Kind": "view",
+   "Columns": [
+    "member_id",
+    "name",
+    "stake"
+   ],
+   "Definition": " SELECT member_id,\n    name,\n    stake\n   FROM member_bets\n  WHERE ((status = 'open'::text) AND (stake > (1000)::numeric));"
+  },
+  {
+   "OID": 16549,
+   "Root": 0,
+   "Schema": "public",
+   "Name": "daily_stake",
+   "Kind": "matview",
+   "Columns": [
+    "day",
+    "stake"
+   ],
+   "Definition": " SELECT date_trunc('day'::text, settled_at) AS day,\n    sum(stake) AS stake\n   FROM bet\n  GROUP BY (date_trunc('day'::text, settled_at));"
+  },
+  {
+   "OID": 16453,
+   "Root": 0,
+   "Schema": "public",
+   "Name": "ledger",
+   "Kind": "table",
+   "Columns": [
+    "id",
+    "member_id",
+    "amount",
+    "kind",
+    "booked_on"
+   ],
+   "Definition": ""
+  },
+  {
+   "OID": 16469,
+   "Root": 16453,
+   "Schema": "public",
+   "Name": "ledger_2026_09",
+   "Kind": "table",
+   "Columns": [
+    "id",
+    "member_id",
+    "amount",
+    "kind",
+    "booked_on"
+   ],
+   "Definition": ""
+  },
+  {
+   "OID": 16485,
+   "Root": 16453,
+   "Schema": "public",
+   "Name": "ledger_2026_10",
+   "Kind": "table",
+   "Columns": [
+    "id",
+    "member_id",
+    "amount",
+    "kind",
+    "booked_on"
+   ],
+   "Definition": ""
+  },
+  {
+   "OID": 16452,
+   "Root": 0,
+   "Schema": "public",
+   "Name": "ledger_id_seq",
+   "Kind": "sequence",
+   "Columns": [
+    "last_value",
+    "log_cnt",
+    "is_called"
+   ],
+   "Definition": ""
+  },
+  {
+   "OID": 16501,
+   "Root": 0,
+   "Schema": "public",
+   "Name": "legacy_log",
+   "Kind": "table",
+   "Columns": [
+    "id",
+    "msg"
+   ],
+   "Definition": ""
+  },
+  {
+   "OID": 16506,
+   "Root": 0,
+   "Schema": "public",
+   "Name": "legacy_log_2024",
+   "Kind": "table",
+   "Columns": [
+    "id",
+    "msg",
+    "year"
+   ],
+   "Definition": ""
+  },
+  {
+   "OID": 16386,
+   "Root": 0,
+   "Schema": "public",
+   "Name": "member",
+   "Kind": "table",
+   "Columns": [
+    "id",
+    "name",
+    "email",
+    "closed",
+    "balance",
+    "name_lc"
+   ],
+   "Definition": ""
+  },
+  {
+   "OID": 16541,
+   "Root": 0,
+   "Schema": "public",
+   "Name": "member_bets",
+   "Kind": "view",
+   "Columns": [
+    "member_id",
+    "name",
+    "bet_id",
+    "stake",
+    "status"
+   ],
+   "Definition": " SELECT m.id AS member_id,\n    m.name,\n    b.id AS bet_id,\n    b.stake,\n    b.status\n   FROM (member m\n     JOIN bet b ON ((b.member_id = m.id)));"
+  },
+  {
+   "OID": 16385,
+   "Root": 0,
+   "Schema": "public",
+   "Name": "member_id_seq",
+   "Kind": "sequence",
+   "Columns": [
+    "last_value",
+    "log_cnt",
+    "is_called"
+   ],
+   "Definition": ""
+  }
+ ],
+ "Routines": [
+  {
+   "OID": 16605,
+   "Schema": "promo",
+   "Name": "helper",
+   "Arguments": "",
+   "ArgCount": 0,
+   "Kind": "function",
+   "Language": "plpgsql",
+   "Atomic": false,
+   "SearchPath": null
+  },
+  {
+   "OID": 16606,
+   "Schema": "public",
+   "Name": "adv_calls",
+   "Arguments": "",
+   "ArgCount": 0,
+   "Kind": "procedure",
+   "Language": "plpgsql",
+   "Atomic": false,
+   "SearchPath": null
+  },
+  {
+   "OID": 16601,
+   "Schema": "public",
+   "Name": "adv_const_exec",
+   "Arguments": "",
+   "ArgCount": 0,
+   "Kind": "function",
+   "Language": "plpgsql",
+   "Atomic": false,
+   "SearchPath": null
+  },
+  {
+   "OID": 16599,
+   "Schema": "public",
+   "Name": "adv_cursor_assign",
+   "Arguments": "",
+   "ArgCount": 0,
+   "Kind": "function",
+   "Language": "plpgsql",
+   "Atomic": false,
+   "SearchPath": null
+  },
+  {
+   "OID": 16602,
+   "Schema": "public",
+   "Name": "adv_lateral_temp",
+   "Arguments": "",
+   "ArgCount": 0,
+   "Kind": "function",
+   "Language": "plpgsql",
+   "Atomic": false,
+   "SearchPath": null
+  },
+  {
+   "OID": 16600,
+   "Schema": "public",
+   "Name": "adv_mixed_case",
+   "Arguments": "",
+   "ArgCount": 0,
+   "Kind": "function",
+   "Language": "plpgsql",
+   "Atomic": false,
+   "SearchPath": null
+  },
+  {
+   "OID": 16598,
+   "Schema": "public",
+   "Name": "adv_order_alias",
+   "Arguments": "",
+   "ArgCount": 0,
+   "Kind": "function",
+   "Language": "plpgsql",
+   "Atomic": false,
+   "SearchPath": null
+  },
+  {
+   "OID": 16607,
+   "Schema": "public",
+   "Name": "adv_record",
+   "Arguments": "p bigint",
+   "ArgCount": 1,
+   "Kind": "function",
+   "Language": "plpgsql",
+   "Atomic": false,
+   "SearchPath": null
+  },
+  {
+   "OID": 16592,
+   "Schema": "public",
+   "Name": "adv_shadow",
+   "Arguments": "stake numeric",
+   "ArgCount": 1,
+   "Kind": "function",
+   "Language": "plpgsql",
+   "Atomic": false,
+   "SearchPath": null
+  },
+  {
+   "OID": 16604,
+   "Schema": "public",
+   "Name": "adv_sql_positional",
+   "Arguments": "bigint",
+   "ArgCount": 1,
+   "Kind": "function",
+   "Language": "sql",
+   "Atomic": false,
+   "SearchPath": null
+  },
+  {
+   "OID": 16603,
+   "Schema": "public",
+   "Name": "adv_update_from",
+   "Arguments": "",
+   "ArgCount": 0,
+   "Kind": "function",
+   "Language": "plpgsql",
+   "Atomic": false,
+   "SearchPath": null
+  },
+  {
+   "OID": 16597,
+   "Schema": "public",
+   "Name": "adv_view_write",
+   "Arguments": "p bigint",
+   "ArgCount": 1,
+   "Kind": "function",
+   "Language": "plpgsql",
+   "Atomic": false,
+   "SearchPath": null
+  },
+  {
+   "OID": 16586,
+   "Schema": "public",
+   "Name": "all_members",
+   "Arguments": "",
+   "ArgCount": 0,
+   "Kind": "function",
+   "Language": "plpgsql",
+   "Atomic": false,
+   "SearchPath": null
+  },
+  {
+   "OID": 16585,
+   "Schema": "public",
+   "Name": "archive_bets",
+   "Arguments": "",
+   "ArgCount": 0,
+   "Kind": "function",
+   "Language": "plpgsql",
+   "Atomic": false,
+   "SearchPath": null
+  },
+  {
+   "OID": 16581,
+   "Schema": "public",
+   "Name": "bet_defaults",
+   "Arguments": "",
+   "ArgCount": 0,
+   "Kind": "function",
+   "Language": "plpgsql",
+   "Atomic": false,
+   "SearchPath": null
+  },
+  {
+   "OID": 16627,
+   "Schema": "public",
+   "Name": "broken_sql",
+   "Arguments": "",
+   "ArgCount": 0,
+   "Kind": "function",
+   "Language": "sql",
+   "Atomic": false,
+   "SearchPath": null
+  },
+  {
+   "OID": 16565,
+   "Schema": "public",
+   "Name": "campaign_report",
+   "Arguments": "p_campaign integer",
+   "ArgCount": 1,
+   "Kind": "function",
+   "Language": "plpgsql",
+   "Atomic": false,
+   "SearchPath": null
+  },
+  {
+   "OID": 16564,
+   "Schema": "public",
+   "Name": "close_member",
+   "Arguments": "IN p_member bigint",
+   "ArgCount": 1,
+   "Kind": "procedure",
+   "Language": "plpgsql",
+   "Atomic": false,
+   "SearchPath": null
+  },
+  {
+   "OID": 16625,
+   "Schema": "public",
+   "Name": "cte_write",
+   "Arguments": "",
+   "ArgCount": 0,
+   "Kind": "function",
+   "Language": "plpgsql",
+   "Atomic": false,
+   "SearchPath": null
+  },
+  {
+   "OID": 16617,
+   "Schema": "public",
+   "Name": "default_conflict",
+   "Arguments": "stake numeric",
+   "ArgCount": 1,
+   "Kind": "function",
+   "Language": "plpgsql",
+   "Atomic": false,
+   "SearchPath": null
+  },
+  {
+   "OID": 16571,
+   "Schema": "public",
+   "Name": "default_currency",
+   "Arguments": "",
+   "ArgCount": 0,
+   "Kind": "function",
+   "Language": "sql",
+   "Atomic": false,
+   "SearchPath": null
+  },
+  {
+   "OID": 16608,
+   "Schema": "public",
+   "Name": "every_execute",
+   "Arguments": "p text",
+   "ArgCount": 1,
+   "Kind": "function",
+   "Language": "plpgsql",
+   "Atomic": false,
+   "SearchPath": null
+  },
+  {
+   "OID": 16622,
+   "Schema": "public",
+   "Name": "expression_calls",
+   "Arguments": "",
+   "ArgCount": 0,
+   "Kind": "function",
+   "Language": "plpgsql",
+   "Atomic": false,
+   "SearchPath": null
+  },
+  {
+   "OID": 16568,
+   "Schema": "public",
+   "Name": "grant_bonus",
+   "Arguments": "IN p_campaign integer, IN p_member bigint, IN p_amount numeric",
+   "ArgCount": 3,
+   "Kind": "procedure",
+   "Language": "sql",
+   "Atomic": true,
+   "SearchPath": null
+  },
+  {
+   "OID": 16563,
+   "Schema": "public",
+   "Name": "log_event",
+   "Arguments": "p_kind text, p_ref bigint",
+   "ArgCount": 2,
+   "Kind": "function",
+   "Language": "plpgsql",
+   "Atomic": false,
+   "SearchPath": null
+  },
+  {
+   "OID": 16567,
+   "Schema": "public",
+   "Name": "member_total_stake",
+   "Arguments": "p_member bigint",
+   "ArgCount": 1,
+   "Kind": "function",
+   "Language": "sql",
+   "Atomic": true,
+   "SearchPath": null
+  },
+  {
+   "OID": 16614,
+   "Schema": "public",
+   "Name": "merge_and_into",
+   "Arguments": "",
+   "ArgCount": 0,
+   "Kind": "function",
+   "Language": "plpgsql",
+   "Atomic": false,
+   "SearchPath": null
+  },
+  {
+   "OID": 16618,
+   "Schema": "public",
+   "Name": "next_bet_no",
+   "Arguments": "",
+   "ArgCount": 0,
+   "Kind": "function",
+   "Language": "plpgsql",
+   "Atomic": false,
+   "SearchPath": [
+    "public"
+   ]
+  },
+  {
+   "OID": 16569,
+   "Schema": "public",
+   "Name": "open_bet_count",
+   "Arguments": "p_member bigint",
+   "ArgCount": 1,
+   "Kind": "function",
+   "Language": "sql",
+   "Atomic": false,
+   "SearchPath": null
+  },
+  {
+   "OID": 16615,
+   "Schema": "public",
+   "Name": "pg18_returning",
+   "Arguments": "p bigint",
+   "ArgCount": 1,
+   "Kind": "function",
+   "Language": "plpgsql",
+   "Atomic": false,
+   "SearchPath": null
+  },
+  {
+   "OID": 16620,
+   "Schema": "public",
+   "Name": "positional_values",
+   "Arguments": "",
+   "ArgCount": 0,
+   "Kind": "function",
+   "Language": "plpgsql",
+   "Atomic": false,
+   "SearchPath": null
+  },
+  {
+   "OID": 16583,
+   "Schema": "public",
+   "Name": "promo_touch",
+   "Arguments": "",
+   "ArgCount": 0,
+   "Kind": "function",
+   "Language": "plpgsql",
+   "Atomic": false,
+   "SearchPath": [
+    "promo",
+    "public"
+   ]
+  },
+  {
+   "OID": 16566,
+   "Schema": "public",
+   "Name": "purge_table",
+   "Arguments": "p_table text",
+   "ArgCount": 1,
+   "Kind": "function",
+   "Language": "plpgsql",
+   "Atomic": false,
+   "SearchPath": null
+  },
+  {
+   "OID": 16619,
+   "Schema": "public",
+   "Name": "read_roles",
+   "Arguments": "p bigint",
+   "ArgCount": 1,
+   "Kind": "function",
+   "Language": "plpgsql",
+   "Atomic": false,
+   "SearchPath": null
+  },
+  {
+   "OID": 16623,
+   "Schema": "public",
+   "Name": "select_into_record",
+   "Arguments": "p bigint",
+   "ArgCount": 1,
+   "Kind": "function",
+   "Language": "plpgsql",
+   "Atomic": false,
+   "SearchPath": null
+  },
+  {
+   "OID": 16631,
+   "Schema": "public",
+   "Name": "select_into_table",
+   "Arguments": "",
+   "ArgCount": 0,
+   "Kind": "function",
+   "Language": "sql",
+   "Atomic": false,
+   "SearchPath": null
+  },
+  {
+   "OID": 16621,
+   "Schema": "public",
+   "Name": "set_forms",
+   "Arguments": "p bigint",
+   "ArgCount": 1,
+   "Kind": "function",
+   "Language": "plpgsql",
+   "Atomic": false,
+   "SearchPath": null
+  },
+  {
+   "OID": 16628,
+   "Schema": "public",
+   "Name": "settle",
+   "Arguments": "p bigint",
+   "ArgCount": 1,
+   "Kind": "function",
+   "Language": "plpgsql",
+   "Atomic": false,
+   "SearchPath": null
+  },
+  {
+   "OID": 16629,
+   "Schema": "public",
+   "Name": "settle",
+   "Arguments": "p bigint, q bigint",
+   "ArgCount": 2,
+   "Kind": "function",
+   "Language": "plpgsql",
+   "Atomic": false,
+   "SearchPath": null
+  },
+  {
+   "OID": 16630,
+   "Schema": "public",
+   "Name": "settle",
+   "Arguments": "p text",
+   "ArgCount": 1,
+   "Kind": "function",
+   "Language": "plpgsql",
+   "Atomic": false,
+   "SearchPath": null
+  },
+  {
+   "OID": 16562,
+   "Schema": "public",
+   "Name": "settle_bet",
+   "Arguments": "p_bet bigint, p_payout numeric",
+   "ArgCount": 2,
+   "Kind": "function",
+   "Language": "plpgsql",
+   "Atomic": false,
+   "SearchPath": null
+  },
+  {
+   "OID": 16560,
+   "Schema": "public",
+   "Name": "trg_bet_audit",
+   "Arguments": "",
+   "ArgCount": 0,
+   "Kind": "function",
+   "Language": "plpgsql",
+   "Atomic": false,
+   "SearchPath": null
+  },
+  {
+   "OID": 16626,
+   "Schema": "public",
+   "Name": "trg_old_new",
+   "Arguments": "",
+   "ArgCount": 0,
+   "Kind": "function",
+   "Language": "plpgsql",
+   "Atomic": false,
+   "SearchPath": null
+  },
+  {
+   "OID": 16584,
+   "Schema": "public",
+   "Name": "upsert_account",
+   "Arguments": "p_id bigint, p_member bigint, p_cur text",
+   "ArgCount": 3,
+   "Kind": "function",
+   "Language": "plpgsql",
+   "Atomic": false,
+   "SearchPath": null
+  },
+  {
+   "OID": 16624,
+   "Schema": "public",
+   "Name": "upsert_excluded",
+   "Arguments": "p bigint",
+   "ArgCount": 1,
+   "Kind": "function",
+   "Language": "plpgsql",
+   "Atomic": false,
+   "SearchPath": null
+  },
+  {
+   "OID": 16616,
+   "Schema": "public",
+   "Name": "use_column_fn",
+   "Arguments": "stake numeric",
+   "ArgCount": 1,
+   "Kind": "function",
+   "Language": "plpgsql",
+   "Atomic": false,
+   "SearchPath": null
+  }
+ ],
+ "ForeignKeys": [
+  {
+   "From": 16402,
+   "To": 16386,
+   "FromColumns": [
+    "member_id"
+   ],
+   "ToColumns": [
+    "id"
+   ],
+   "OnDelete": "a",
+   "OnUpdate": "a"
+  },
+  {
+   "From": 16423,
+   "To": 16386,
+   "FromColumns": [
+    "member_id"
+   ],
+   "ToColumns": [
+    "id"
+   ],
+   "OnDelete": "a",
+   "OnUpdate": "a"
+  },
+  {
+   "From": 16453,
+   "To": 16386,
+   "FromColumns": [
+    "member_id"
+   ],
+   "ToColumns": [
+    "id"
+   ],
+   "OnDelete": "a",
+   "OnUpdate": "a"
+  },
+  {
+   "From": 16522,
+   "To": 16512,
+   "FromColumns": [
+    "campaign_id"
+   ],
+   "ToColumns": [
+    "id"
+   ],
+   "OnDelete": "a",
+   "OnUpdate": "a"
+  },
+  {
+   "From": 16522,
+   "To": 16386,
+   "FromColumns": [
+    "member_id"
+   ],
+   "ToColumns": [
+    "id"
+   ],
+   "OnDelete": "a",
+   "OnUpdate": "a"
+  }
+ ],
+ "Triggers": [
+  {
+   "Name": "bet_status_audit",
+   "Table": 16402,
+   "Function": 16560,
+   "Columns": [
+    "status"
+   ],
+   "Events": [
+    "update"
+   ]
+  },
+  {
+   "Name": "bet_defaults",
+   "Table": 16402,
+   "Function": 16581,
+   "Columns": null,
+   "Events": [
+    "insert"
+   ]
+  }
+ ],
+ "Dependencies": [
+  {
+   "Kind": "view_read",
+   "From": 16541,
+   "To": {
+    "Relation": 16402,
+    "Column": "id"
+   }
+  },
+  {
+   "Kind": "view_read",
+   "From": 16541,
+   "To": {
+    "Relation": 16402,
+    "Column": "member_id"
+   }
+  },
+  {
+   "Kind": "view_read",
+   "From": 16541,
+   "To": {
+    "Relation": 16402,
+    "Column": "stake"
+   }
+  },
+  {
+   "Kind": "view_read",
+   "From": 16541,
+   "To": {
+    "Relation": 16402,
+    "Column": "status"
+   }
+  },
+  {
+   "Kind": "view_read",
+   "From": 16541,
+   "To": {
+    "Relation": 16386,
+    "Column": "id"
+   }
+  },
+  {
+   "Kind": "view_read",
+   "From": 16541,
+   "To": {
+    "Relation": 16386,
+    "Column": "name"
+   }
+  },
+  {
+   "Kind": "view_read",
+   "From": 16545,
+   "To": {
+    "Relation": 16541,
+    "Column": "member_id"
+   }
+  },
+  {
+   "Kind": "view_read",
+   "From": 16545,
+   "To": {
+    "Relation": 16541,
+    "Column": "name"
+   }
+  },
+  {
+   "Kind": "view_read",
+   "From": 16545,
+   "To": {
+    "Relation": 16541,
+    "Column": "stake"
+   }
+  },
+  {
+   "Kind": "view_read",
+   "From": 16545,
+   "To": {
+    "Relation": 16541,
+    "Column": "status"
+   }
+  },
+  {
+   "Kind": "view_read",
+   "From": 16549,
+   "To": {
+    "Relation": 16402,
+    "Column": "stake"
+   }
+  },
+  {
+   "Kind": "view_read",
+   "From": 16549,
+   "To": {
+    "Relation": 16402,
+    "Column": "settled_at"
+   }
+  },
+  {
+   "Kind": "view_read",
+   "From": 16593,
+   "To": {
+    "Relation": 16402,
+    "Column": "id"
+   }
+  },
+  {
+   "Kind": "view_read",
+   "From": 16593,
+   "To": {
+    "Relation": 16402,
+    "Column": "stake"
+   }
+  },
+  {
+   "Kind": "view_read",
+   "From": 16593,
+   "To": {
+    "Relation": 16402,
+    "Column": "status"
+   }
+  },
+  {
+   "Kind": "routine_read",
+   "From": 16567,
+   "FromRoutine": true,
+   "To": {
+    "Relation": 16402,
+    "Column": "member_id"
+   }
+  },
+  {
+   "Kind": "routine_read",
+   "From": 16567,
+   "FromRoutine": true,
+   "To": {
+    "Relation": 16402,
+    "Column": "stake"
+   }
+  },
+  {
+   "Kind": "routine_read",
+   "From": 16568,
+   "FromRoutine": true,
+   "To": {
+    "Relation": 16522,
+    "Column": "campaign_id"
+   }
+  },
+  {
+   "Kind": "routine_read",
+   "From": 16568,
+   "FromRoutine": true,
+   "To": {
+    "Relation": 16522,
+    "Column": "member_id"
+   }
+  },
+  {
+   "Kind": "routine_read",
+   "From": 16568,
+   "FromRoutine": true,
+   "To": {
+    "Relation": 16522,
+    "Column": "amount"
+   }
+  },
+  {
+   "Kind": "routine_read",
+   "From": 16568,
+   "FromRoutine": true,
+   "To": {
+    "Relation": 16512,
+    "Column": "id"
+   }
+  },
+  {
+   "Kind": "routine_read",
+   "From": 16568,
+   "FromRoutine": true,
+   "To": {
+    "Relation": 16512,
+    "Column": "budget"
+   }
+  }
+ ],
+ "Inheritance": [
+  {
+   "Child": 16506,
+   "Parent": 16501
+  }
+ ]
+}

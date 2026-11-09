@@ -1,0 +1,36 @@
+[
+  {
+    "Plan": {
+      "Node Type": "Limit",
+      "Parallel Aware": false,
+      "Async Capable": false,
+      "Startup Cost": 0.0,
+      "Total Cost": 0.02,
+      "Plan Rows": 1,
+      "Plan Width": 4,
+      "Disabled": false,
+      "Output": [
+        "1"
+      ],
+      "Plans": [
+        {
+          "Node Type": "Seq Scan",
+          "Parent Relationship": "Outer",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Relation Name": "member",
+          "Schema": "public",
+          "Alias": "member",
+          "Startup Cost": 0.0,
+          "Total Cost": 16.8,
+          "Plan Rows": 680,
+          "Plan Width": 4,
+          "Disabled": false,
+          "Output": [
+            "1"
+          ]
+        }
+      ]
+    }
+  }
+]

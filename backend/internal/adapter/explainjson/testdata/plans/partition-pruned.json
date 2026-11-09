@@ -1,0 +1,35 @@
+[
+  {
+    "Plan": {
+      "Node Type": "Limit",
+      "Parallel Aware": false,
+      "Async Capable": false,
+      "Startup Cost": 0.29,
+      "Total Cost": 0.71,
+      "Plan Rows": 10,
+      "Plan Width": 12,
+      "Disabled": false,
+      "Output": ["events.at", "events.v"],
+      "Plans": [
+        {
+          "Node Type": "Index Scan",
+          "Parent Relationship": "Outer",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Scan Direction": "Forward",
+          "Index Name": "events_2026_09_at_idx",
+          "Relation Name": "events_2026_09",
+          "Schema": "public",
+          "Alias": "events",
+          "Startup Cost": 0.29,
+          "Total Cost": 60.11,
+          "Plan Rows": 1441,
+          "Plan Width": 12,
+          "Disabled": false,
+          "Output": ["events.at", "events.v"],
+          "Index Cond": "((events.at >= '2026-09-20 00:00:00+00'::timestamp with time zone) AND (events.at < '2026-09-21 00:00:00+00'::timestamp with time zone))"
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,153 @@
+# No `name:`. The Makefile passes the project as AVIOR_STACK, and a bare
+# `docker compose` falls back to the checkout's directory, so neither reaches
+# another worktree's stack by default.
+#
+# One compose file drives both `make dev` and `make verify`. If the two
+# diverged, an agent could land work that passes locally and fails in CI, and
+# with nobody reading the code there would be no way to see why.
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    # FEAT-071. What production's DBA sets by hand: pg_stat_statements loaded
+    # without utility statements, whose text keeps literals, and PL routines
+    # counted so a routine's last run has a counter to come from.
+    command:
+      - postgres
+      - -c
+      - shared_preload_libraries=pg_stat_statements
+      - -c
+      - pg_stat_statements.track_utility=off
+      - -c
+      - track_functions=pl
+    environment:
+      POSTGRES_USER: avior
+      POSTGRES_PASSWORD: avior
+      POSTGRES_DB: avior
+      # Pinned, not inherited. The 18 image moved its default to
+      # /var/lib/postgresql/18/docker, which would leave the volume below
+      # mounted over an empty directory: the server would start, the data would
+      # land in the container layer, and it would be gone on the next recreate.
+      # A database that looks healthy and forgets everything is worse than one
+      # that refuses to start.
+      PGDATA: /var/lib/postgresql/data
+    ports:
+      - "${AVIOR_PG_PORT:-55432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U avior -d avior"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+
+  # One-shot. Applies the store schema, then builds the governed fixture
+  # database beside it on the same server. Deterministic on purpose: an
+  # acceptance test that depends on random data is worse than no test.
+  seed:
+    build:
+      context: .
+      dockerfile: deploy/seed/Dockerfile
+    environment:
+      AVIOR_STORE_DSN: postgres://avior:avior@postgres:5432/avior?sslmode=disable
+      AVIOR_FIXTURE_DSN: postgres://avior:avior@postgres:5432/aviorfixture?sslmode=disable
+      AVIOR_DEPLOY_SEED_DSN: postgres://avior:avior@postgres:5432/aviordeploy?sslmode=disable
+      # FEAT-070's demo database, local development only.
+      AVIOR_LINEAGE_DEMO_DSN: postgres://avior:avior@postgres:5432/aviorlineage?sslmode=disable
+      # FEAT-071's demo history, local development only. Needs the lineage
+      # demo database, which it adds dated routines to.
+      AVIOR_OBSERVATORY_DEMO: "1"
+      # FEAT-072's demo workload, as an operator's statements reach the server.
+      AVIOR_OBSERVATORY_WORKLOAD_DSN: postgres://avior_governed:avior_governed_local@postgres:5432/aviorlineage?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  # FEAT-072's demo long-running statements, local development only: two
+  # sessions sleeping for minutes as the governed role, so the live panel shows
+  # something real. The acceptance overlay leaves it out.
+  longrunner:
+    build:
+      context: .
+      dockerfile: deploy/seed/Dockerfile
+    command: ["sh", "./longrunner.sh"]
+    environment:
+      LONGRUNNER_DSN: postgres://avior_governed:avior_governed_local@postgres:5432/aviorlineage?sslmode=disable&application_name=avior-demo-longrunner
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    environment:
+      AVIOR_ENV: development
+      # The local stack is http://localhost, and a Secure cookie there is accepted
+      # by a browser but not by anything else that speaks to this backend. Stated
+      # rather than derived from AVIOR_ENV: deriving it is what made a staging
+      # deployment sign people in and then refuse every request they made.
+      AVIOR_SECURE_COOKIES: "false"
+      AVIOR_HTTP_ADDR: ":8080"
+      # Sign in with a username alone. Production authenticates against the
+      # directory; config refuses this mode outside development.
+      AVIOR_AUTH_MODE: trusted-local
+      AVIOR_STORE_DSN: postgres://avior:avior@postgres:5432/avior?sslmode=disable
+      AVIOR_TARGET_DSN: postgres://avior_governed:avior_governed_local@postgres:5432/aviorfixture?sslmode=disable
+      AVIOR_WRITE_DSN: postgres://avior_writer:avior_writer_local@postgres:5432/aviorfixture?sslmode=disable
+      # Required, though the default for development is off. The local stack's
+      # job is to have production's shape, and the approval is the feature:
+      # with it off a write request is a statement that runs, which is the one
+      # thing FEAT-009 exists to stop being.
+      AVIOR_WRITE_APPROVAL: required
+      AVIOR_DEPLOY_DSN: postgres://avior_deployer:avior_deployer_local@postgres:5432/aviordeploy?sslmode=disable
+      # FEAT-059. Connects to the maintenance database because CREATE DATABASE
+      # cannot be issued from inside the database it is creating.
+      AVIOR_PROVISION_DSN: postgres://avior_provisioner:avior_provisioner_local@postgres:5432/postgres?sslmode=disable
+      AVIOR_SESSION_SECRET: local-development-secret-not-for-any-real-environment
+      AVIOR_LOG_LEVEL: debug
+      AVIOR_LOG_FORMAT: text
+      AVIOR_MAX_SUBTREE_COST: "50"
+      AVIOR_MAX_ESTIMATE_ROWS: "1000000"
+    # 58080 rather than 8080: an existing local service holds 8080 on this
+    # machine, and the same avoidance applies to the database ports below.
+    ports:
+      - "${AVIOR_BACKEND_PORT:-58080}:8080"
+    volumes:
+      - ./backend:/app
+      - go-mod-cache:/go/pkg/mod
+      - go-build-cache:/root/.cache/go-build
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/v1/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 20s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    environment:
+      VITE_API_BASE_URL: /api/v1
+      AVIOR_PROXY_TARGET: http://backend:8080
+    ports:
+      - "${AVIOR_FRONTEND_PORT:-5173}:5173"
+    volumes:
+      - ./frontend:/app
+      - frontend-node-modules:/app/node_modules
+    depends_on:
+      backend:
+        condition: service_started
+
+volumes:
+  postgres-data:
+  go-mod-cache:
+  go-build-cache:
+  frontend-node-modules:

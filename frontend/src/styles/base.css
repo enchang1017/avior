@@ -1,0 +1,1049 @@
+/* Design tokens, and the one stylesheet.
+ *
+ * The star chart: a night palette first, with a day chart beside it. The
+ * skeleton is Bytebase's SQL editor — the connection bar, the environment
+ * tinted tab, the result pane with its status bar — and the skin is a
+ * navigation instrument: an icon rail, a HUD over the page naming the target,
+ * and a beacon when the target is production.
+ *
+ * Every colour has one meaning. Signal blue is what you can press. Amber is
+ * what you are pointed at. Red is production, or a refusal. Green is allowed.
+ * Nothing else is coloured.
+ *
+ * Every value a view or a component draws with is a token in `@theme` below,
+ * and Tailwind makes each one a utility: `--color-surface` is `bg-surface`,
+ * `--radius-control` is `rounded-control`. Tailwind's own palette, type scale
+ * and radii are cleared first, so a utility that is not one of these tokens
+ * produces nothing, and a redesign is an edit to this file. See
+ * docs/adr/0008-tailwind-for-the-frontend.md.
+ *
+ * Only transform and opacity animate (src/styles/motion.spec.ts): the
+ * compositor moves them without laying out or painting the page, which is the
+ * only kind of motion a console open all day can afford.
+ */
+
+@layer theme, base, utilities;
+
+/* One file, weight 400, Latin only, self-hosted from the pinned @fontsource
+   package and preloaded by the build. Emphasis in mono is colour, never a
+   second weight. */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../../node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-latin-400-normal.woff2')
+    format('woff2');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* The faces the page draws with until the file arrives, each scaled to
+   JetBrains Mono's advance (600/1000) with its ascent (1020) and descent (300)
+   in place, so swapping one for the other moves nothing. */
+@font-face {
+  font-family: 'JetBrains Mono Menlo';
+  src: local('Menlo');
+  size-adjust: 99.67%;
+  ascent-override: 102.34%;
+  descent-override: 30.1%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono Consolas';
+  src: local('Consolas');
+  size-adjust: 109.13%;
+  ascent-override: 93.47%;
+  descent-override: 27.49%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono DejaVu';
+  src: local('DejaVu Sans Mono');
+  size-adjust: 99.67%;
+  ascent-override: 102.34%;
+  descent-override: 30.1%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono Courier';
+  src: local('Courier New');
+  size-adjust: 100%;
+  ascent-override: 102%;
+  descent-override: 30%;
+  line-gap-override: 0%;
+}
+
+@import 'tailwindcss/preflight.css' layer(base);
+@import 'tailwindcss/utilities.css' layer(utilities);
+
+@layer theme {
+  /* Static: CodeMirror's theme reads these at runtime, where Tailwind cannot
+     see a use of them, and an unemitted token is a var() naming nothing. */
+  @theme static {
+    --*: initial;
+
+    --spacing: 0.25rem;
+
+    /* Night. The ground is the sky; every surface on it is opaque, so nothing
+       is ever read against the stars. */
+    --color-ground: #060913;
+    --color-surface: #0b1020;
+    --color-surface-sunken: #10172b;
+    --color-surface-raised: #141c34;
+    --color-line: #1b2440;
+    /* A control's edge: 3:1 against every surface it sits on (WCAG 1.4.11). */
+    --color-line-strong: #5e6a8c;
+    /* The schema chart's edges, 3:1 against the surface it is drawn on: an
+       edge is what the chart is for, not a rule under it. */
+    --color-chart-edge: #5e6a8c;
+    --color-chart-edge-near: #8a93b4;
+    /* The lineage page's two edge colours (FEAT-070): which way data moves.
+       Neither is blue, amber, red or green, so a write never reads as a
+       refusal and a read never as an allowance. */
+    --color-lineage-read: #b69cff;
+    --color-lineage-write: #f07cd6;
+    /* The lineage stars' colour temperature by kind: a table warm white, a
+       view blue, a routine amber, each 3:1 on the ground it is drawn on. */
+    --color-star-table: #f5ead2;
+    --color-star-view: #8ab4ff;
+    --color-star-routine: #ffc870;
+    /* The loader's star core and the sign-in sky's ground (FEAT-074). */
+    --color-star-core: #fff6e0;
+    --color-space-top: #070a18;
+    --color-space: #04060d;
+    --color-bloom: #ffb5478c;
+    --color-bloom-soft: #ffb5471f;
+    --color-comet: #7cc4ffd9;
+    --color-fg: #e7ebff;
+    --color-fg-soft: #b3bbd9;
+    --color-fg-muted: #8a93b4;
+    /* Never text: rules, dots, the faint half of a readout's key. */
+    --color-fg-faint: #65709a;
+
+    /* Signal: what can be pressed. Dark text on it, because the light blue is
+       the brightest thing on a night ground and white on it would not read. */
+    --color-primary: #7cc4ff;
+    --color-primary-hover: #a6d7ff;
+    --color-primary-soft: #1d3a5c;
+    --color-primary-wash: #0f1d33;
+    --color-on-primary: #060913;
+
+    /* Target: the one thing the operator is pointed at. */
+    --color-target: #ffb547;
+    --color-target-wash: #231a0d;
+    --color-target-line: #5c4118;
+
+    --color-backdrop: rgb(2 4 10 / 70%);
+    --color-code-wash: rgb(124 196 255 / 8%);
+    --color-dust: rgb(231 235 255 / 45%);
+    --color-grid: rgb(124 196 255 / 3%);
+
+    --color-warn: #ffc261;
+    --color-warn-bg: #221a0c;
+    --color-warn-line: #4d3a18;
+    --color-danger: #ff7a86;
+    --color-danger-bg: #260d14;
+    --color-danger-line: #5a1f2a;
+    --color-on-danger: #060913;
+    --color-ok: #5ee0a0;
+    --color-ok-bg: #0b2118;
+    --color-ok-line: #1a4a33;
+
+    /* Environments. Production is a beacon; staging is a quiet blue; anything
+       else is neutral, because a colour on every deployment is a colour nobody
+       reads on the one where it matters. */
+    --color-env-production: #ff4d5e;
+    --color-env-production-wash: #2a0c13;
+    --color-env-production-line: #6b1d2a;
+    --color-env-staging: #6cc6f5;
+    --color-env-staging-wash: #0c1d2c;
+    --color-env-staging-line: #1f4866;
+    --color-env-local: #8a93b4;
+    --color-env-local-wash: #10172b;
+    --color-env-local-line: #2a3558;
+
+    --color-rail: #080c19;
+    --color-rail-hover: #10172b;
+    --color-rail-fg: #8a93b4;
+    --color-rail-muted: #56607f;
+    --color-rail-bright: #e7ebff;
+
+    --color-cm-keyword: #c9a7ff;
+    --color-cm-string: #ff9b8f;
+    --color-cm-number: #7cc4ff;
+    --color-cm-bracket-name: #ffc261;
+    --color-cm-comment: #7d87a8;
+    --color-cm-operator: #b3bbd9;
+    --color-cm-selection: #24375e;
+    --color-cm-active-line: rgb(124 196 255 / 6%);
+
+    --spacing-rail: 13.5rem;
+    --spacing-rail-collapsed: 3.5rem;
+    --spacing-tree: 17rem;
+    --spacing-lineage-panel: 26rem;
+    --spacing-hud: 3rem;
+    --spacing-hero-star: min(38vh, 28vw);
+    --spacing-control: 2rem;
+    --spacing-control-sm: 1.625rem;
+    --spacing-palette: min(40rem, calc(100vw - 3rem));
+    --spacing-palette-top: 15vh;
+    --spacing-queue: 24rem;
+    --spacing-dialog: min(46rem, calc(100vw - 3rem));
+    --spacing-dialog-max: calc(100vh - 6rem);
+    --spacing-dialog-body-max: calc(100vh - 10rem);
+
+    --radius-2xs: 2px;
+    --radius-xs: 2px;
+    --radius-sm: 0.25rem;
+    --radius-control: 0.25rem;
+    --radius-card: 0.375rem;
+    --radius-hero: 1.125rem;
+    --radius-pill: 999px;
+
+    /* The UI is the system's own face. The readouts, identifiers and the
+       editor are JetBrains Mono, one woff2, with fallbacks sized to match it so
+       the swap moves no line box (ADR 0009 P6, P10). */
+    --font-sans:
+      ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+      sans-serif;
+    --font-mono:
+      'JetBrains Mono', 'JetBrains Mono Menlo', 'JetBrains Mono Consolas', 'JetBrains Mono DejaVu',
+      'JetBrains Mono Courier', ui-monospace, monospace;
+
+    --text-3xs: 0.625rem;
+    --text-2xs: 0.6875rem;
+    --text-xs: 0.75rem;
+    --text-sm: 0.8125rem;
+    --text-md: 0.875rem;
+    --text-lg: 0.9375rem;
+    --text-base: 1rem;
+    --text-xl: 1.125rem;
+    --text-2xl: 1.375rem;
+    --text-hero: clamp(1.625rem, 3.2vw, 2.75rem);
+    --text-code: 0.8125em;
+
+    --font-weight-normal: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+
+    --leading-tight: 1.2;
+    --leading-snug: 1.25;
+    --leading-compact: 1.3;
+    --leading-code: 1.4;
+    --leading-normal: 1.5;
+    --leading-relaxed: 1.55;
+
+    --tracking-tight: -0.01em;
+    --tracking-label: 0.04em;
+    --tracking-wide: 0.05em;
+    --tracking-wider: 0.06em;
+    --tracking-hud: 0.08em;
+    --tracking-widest: 0.15em;
+
+    --container-2xs: 26ch;
+    --container-xs: 28ch;
+    --container-sm: 40ch;
+    --container-md: 44ch;
+    --container-lg: 60ch;
+    --container-xl: 68ch;
+    --container-2xl: 72ch;
+    --container-3xl: 78ch;
+    --container-4xl: 80ch;
+    --container-5xl: 82ch;
+    --container-6xl: 84ch;
+    --container-7xl: 90ch;
+
+    --breakpoint-sm: 40rem;
+    --breakpoint-lg: 64rem;
+
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 40%);
+    --shadow-md: 0 12px 32px rgb(0 0 0 / 50%);
+    --shadow-sheet: 0 12px 40px rgb(0 0 0 / 45%);
+    --shadow-tab: inset 0 -2px 0 0 var(--color-primary);
+    --shadow-glow-primary: 0 0 0 1px var(--color-primary), 0 0 18px -4px var(--color-primary);
+    --shadow-glow-target: 0 0 0 1px var(--color-target), 0 0 14px -2px var(--color-target);
+    --shadow-glow-edge: 0 0 8px var(--color-target);
+
+    --ease-out: cubic-bezier(0.2, 0, 0, 1);
+    /* How far apart result rows start rising: visible rows only, one-shot. */
+    --stagger: 16ms;
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+
+    --animate-pulse: pulse 1.4s ease-in-out infinite;
+    --animate-spin: spin 700ms linear infinite;
+    --animate-beacon-sweep: beacon-sweep 4s linear infinite;
+    --animate-beacon-pulse: beacon-pulse 2.4s var(--ease-standard) infinite;
+    --animate-beacon-travel: beacon-travel 3.5s linear infinite;
+    --animate-rise: rise 240ms var(--ease-out) both;
+    --animate-page: page 160ms var(--ease-out) both;
+    --animate-shimmer: shimmer 1.2s linear infinite;
+    --animate-twinkle: twinkle 3.2s ease-in-out infinite;
+    --animate-appear: appear 100ms var(--ease-out) both;
+    /* The API-backed pieces' motion (FEAT-066 to FEAT-069), here so reduced
+       motion answers them with the rest. */
+    --animate-chart-in: chart-in 420ms var(--ease-out) both;
+    --animate-chart-fade: fade 320ms var(--ease-out) 180ms both;
+    --animate-target-ring: target-ring 2.4s var(--ease-out) 600ms infinite;
+    --animate-sky-grow: sky-grow 600ms var(--ease-out) both;
+    /* The observatory's charts (FEAT-072): marks sweep in from the left, once. */
+    --animate-sweep-in: sweep-in 600ms var(--ease-out) both;
+    --animate-gauge-alert: gauge-alert 210ms var(--ease-out) 600ms 2 alternate;
+    --animate-rise-in: rise 180ms var(--ease-out) both;
+    --animate-step-light: step-light 260ms var(--ease-out) both;
+    /* The lineage page (FEAT-070): a chosen route lights edge by edge, once,
+       within 600 ms; a hovered edge or a chosen route carries a few particles
+       showing which way data moves. */
+    --animate-path-trace: path-trace 240ms var(--ease-out) both;
+    --stagger-trace: 72ms;
+    --animate-flow-particle: flow-particle var(--duration-flow) linear infinite;
+    /* The camera's flight from the galaxy overview to a focus (FEAT-070 AC-54). */
+    --duration-fly: 600ms;
+    --duration-flow: 1.8s;
+    /* Transition lengths: a node gliding to its place, a sweep across a chart,
+       a band following the pointer. */
+    --duration-glide: 360ms;
+    --duration-sweep: 700ms;
+    --duration-band: 140ms;
+    --animate-fade: fade 120ms var(--ease-out) both;
+    /* The loader and the sign-in sky (FEAT-074). The comet is the only thing
+       that moves on the loader; the sky drifts, pans, twinkles and throws one
+       meteor, eight infinite animations against P15's 24. The meteor flies
+       first as the page opens: a layer is painted the first time it shows,
+       and that paint must not fall in the quiet window (P13). The route loader
+       appears only once a route has been pending for 150 ms. */
+    --animate-comet: orbit 1.6s linear infinite;
+    --animate-comet-slow: orbit 24s linear infinite;
+    --animate-drift-a: drift-a 60s ease-in-out infinite alternate;
+    --animate-drift-b: drift-b 75s ease-in-out infinite alternate;
+    --animate-pan-far: pan 140s linear infinite alternate;
+    --animate-pan-mid: pan 90s linear infinite alternate;
+    --animate-pan-near: pan 60s linear infinite alternate;
+    --animate-meteor: meteor 22s ease-in infinite;
+    --animate-pending: fade 160ms var(--ease-out) 150ms both;
+
+    @keyframes pulse {
+      0%,
+      100% {
+        opacity: 0.35;
+      }
+      50% {
+        opacity: 0.75;
+      }
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    @keyframes beacon-sweep {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    @keyframes beacon-pulse {
+      0% {
+        transform: scale(1);
+        opacity: 0.55;
+      }
+      70%,
+      100% {
+        transform: scale(1.35, 1.9);
+        opacity: 0;
+      }
+    }
+
+    @keyframes beacon-travel {
+      from {
+        transform: translateX(-100%);
+      }
+      to {
+        transform: translateX(300%);
+      }
+    }
+
+    @keyframes rise {
+      from {
+        opacity: 0;
+        transform: translateY(4px);
+      }
+    }
+
+    @keyframes page {
+      from {
+        opacity: 0;
+        transform: translateY(4px);
+      }
+    }
+
+    @keyframes shimmer {
+      from {
+        transform: translateX(-100%);
+      }
+      to {
+        transform: translateX(100%);
+      }
+    }
+
+    @keyframes twinkle {
+      0%,
+      100% {
+        opacity: 0.25;
+      }
+      50% {
+        opacity: 1;
+      }
+    }
+
+    @keyframes chart-in {
+      from {
+        opacity: 0;
+        transform: scale(0.85);
+      }
+    }
+
+    @keyframes target-ring {
+      from {
+        opacity: 0.7;
+        transform: scale(1);
+      }
+      to {
+        opacity: 0;
+        transform: scale(2.6);
+      }
+    }
+
+    @keyframes sky-grow {
+      from {
+        transform: scaleY(0);
+      }
+    }
+
+    @keyframes sweep-in {
+      from {
+        transform: scaleX(0);
+      }
+    }
+
+    @keyframes gauge-alert {
+      to {
+        transform: scale(1.18);
+      }
+    }
+
+    @keyframes step-light {
+      from {
+        opacity: 0.15;
+        transform: translateX(calc(var(--spacing) * -1));
+      }
+    }
+
+    @keyframes fade {
+      from {
+        opacity: 0;
+      }
+    }
+
+    @keyframes path-trace {
+      from {
+        opacity: 0.1;
+      }
+    }
+
+    @keyframes flow-particle {
+      from {
+        opacity: 0;
+        transform: translate(var(--flow-from));
+      }
+      15%,
+      85% {
+        opacity: 1;
+      }
+      to {
+        opacity: 0;
+        transform: translate(var(--flow-to));
+      }
+    }
+
+    @keyframes orbit {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    @keyframes drift-a {
+      to {
+        transform: translate(6vmax, 3vmax) scale(1.08);
+        opacity: 0.8;
+      }
+    }
+
+    @keyframes drift-b {
+      to {
+        transform: translate(-5vmax, -4vmax) scale(1.12);
+        opacity: 0.7;
+      }
+    }
+
+    @keyframes pan {
+      to {
+        translate: -12vw 0;
+      }
+    }
+
+    @keyframes meteor {
+      0% {
+        transform: translate(10vw, 30vh) rotate(18deg) translateX(-40vw);
+        opacity: 0;
+      }
+      3% {
+        opacity: 0.8;
+      }
+      8%,
+      100% {
+        transform: translate(10vw, 30vh) rotate(18deg) translateX(34vw);
+        opacity: 0;
+      }
+    }
+
+    @keyframes appear {
+      from {
+        opacity: 0;
+        transform: scale(0.98);
+      }
+      to {
+        opacity: 1;
+        transform: none;
+      }
+    }
+  }
+}
+
+/* Day, written once and applied when chosen. Night needs no variant; it is
+ * what the page is before anything is chosen, whatever the operating system
+ * prefers, and before the script runs (ADR 0009, Dark-first). */
+@custom-variant day {
+  &:where([data-theme='light'], [data-theme='light'] *) {
+    @slot;
+  }
+}
+
+@layer base {
+  /*
+   * The day chart: warm chart paper and navy ink, the stars replaced by a
+   * faint grid. Accents lose lightness to hold contrast on a light ground.
+   */
+  :root {
+    color-scheme: dark;
+
+    @variant day {
+      color-scheme: light;
+
+      --color-ground: #f4f5f0;
+      --color-surface: #ffffff;
+      --color-surface-sunken: #eef0ea;
+      --color-surface-raised: #ffffff;
+      --color-line: #dcdfd6;
+      --color-line-strong: #80869a;
+      --color-chart-edge: #80869a;
+      --color-chart-edge-near: #5a6280;
+      --color-lineage-read: #6a48d6;
+      --color-lineage-write: #a8237f;
+      --color-star-table: #6b5130;
+      --color-star-view: #2f5fb3;
+      --color-star-routine: #8a5a00;
+      --color-space-top: #f4f5f0;
+      --color-space: #eef0ea;
+      --color-bloom: #9a580059;
+      --color-bloom-soft: #9a580014;
+      --color-comet: #0b63b6d9;
+      --color-fg: #0e1426;
+      --color-fg-soft: #3d4560;
+      --color-fg-muted: #5a6280;
+      --color-fg-faint: #80869a;
+
+      --color-primary: #0b63b6;
+      --color-primary-hover: #09539a;
+      --color-primary-soft: #c9def3;
+      --color-primary-wash: #e8f1fa;
+      --color-on-primary: #ffffff;
+
+      --color-target: #9a5800;
+      --color-target-wash: #fbf1e1;
+      --color-target-line: #eccb94;
+
+      --color-backdrop: rgb(14 20 38 / 40%);
+      --color-code-wash: rgb(14 20 38 / 6%);
+      --color-dust: rgb(14 20 38 / 0%);
+      --color-grid: rgb(14 20 38 / 5%);
+
+      --color-warn: #8f5400;
+      --color-warn-bg: #fdf4e3;
+      --color-warn-line: #efd29b;
+      --color-danger: #b71c29;
+      --color-danger-bg: #fdecee;
+      --color-danger-line: #f3bcc2;
+      --color-on-danger: #ffffff;
+      --color-ok: #0c7040;
+      --color-ok-bg: #e7f6ee;
+      --color-ok-line: #a9dcc1;
+
+      --color-env-production: #c21d2b;
+      --color-env-production-wash: #fdecee;
+      --color-env-production-line: #f3bcc2;
+      --color-env-staging: #0b5f99;
+      --color-env-staging-wash: #e6f2fa;
+      --color-env-staging-line: #b3d6ee;
+      --color-env-local: #5a6280;
+      --color-env-local-wash: #eef0ea;
+      --color-env-local-line: #c3c7bb;
+
+      --color-rail: #fbfbf8;
+      --color-rail-hover: #eef0ea;
+      --color-rail-fg: #5a6280;
+      --color-rail-muted: #9aa0b2;
+      --color-rail-bright: #0e1426;
+
+      --color-cm-keyword: #6a3fd1;
+      --color-cm-string: #b3261e;
+      --color-cm-number: #0b63b6;
+      --color-cm-bracket-name: #8f5400;
+      --color-cm-comment: #5f6680;
+      --color-cm-operator: #3d4560;
+      --color-cm-selection: #c9def3;
+      --color-cm-active-line: rgb(11 99 182 / 5%);
+
+      --shadow-sm: 0 1px 2px 0 rgb(14 20 38 / 6%);
+      --shadow-md: 0 8px 24px rgb(14 20 38 / 14%);
+      --shadow-sheet: 0 12px 32px rgb(14 20 38 / 12%);
+      --shadow-glow-primary: 0 0 0 1px var(--color-primary);
+      --shadow-glow-target: 0 0 0 1px var(--color-target);
+      --shadow-glow-edge: none;
+    }
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: var(--leading-relaxed);
+    color: var(--color-fg);
+    background: var(--color-ground);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  code,
+  pre {
+    font-family: var(--font-mono);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 1px;
+    border-radius: var(--radius-2xs);
+  }
+
+  svg.lucide {
+    flex: none;
+  }
+}
+
+/* Asking for less motion is answered once, here, by the motion tokens: the
+   beacon stands still as a static pill with its ring, entrances become a
+   short crossfade, and the scan line (played from script) never starts.
+   Spinners keep turning, because they say a request is in flight
+   (WCAG 2.3.3). */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --animate-pulse: none;
+    --animate-beacon-sweep: none;
+    --animate-beacon-pulse: none;
+    --animate-beacon-travel: none;
+    --animate-shimmer: none;
+    --animate-twinkle: none;
+    --duration-fly: 0ms;
+    --animate-rise: none;
+    --animate-page: var(--animate-fade);
+    --animate-appear: var(--animate-fade);
+    --animate-chart-in: var(--animate-fade);
+    --animate-chart-fade: var(--animate-fade);
+    --animate-target-ring: none;
+    --animate-sky-grow: var(--animate-fade);
+    --animate-sweep-in: none;
+    --animate-gauge-alert: none;
+    --animate-rise-in: var(--animate-fade);
+    --animate-step-light: var(--animate-fade);
+    --animate-path-trace: none;
+    --animate-flow-particle: none;
+    --animate-comet: none;
+    --animate-comet-slow: none;
+    --animate-drift-a: none;
+    --animate-drift-b: none;
+    --animate-pan-far: none;
+    --animate-pan-mid: none;
+    --animate-pan-near: none;
+    --animate-meteor: none;
+    /* Still delayed, so a fast route never flashes it; only the entrance is a crossfade. */
+    --animate-pending: fade 120ms var(--ease-out) 150ms both;
+    --duration-glide: 0ms;
+    --duration-sweep: 0ms;
+    --duration-band: 0ms;
+  }
+}
+
+/* The ground as a chart: a few fixed points of dust and a faint grid, painted
+   once. Only ever behind opaque surfaces, never behind text. */
+@utility sky {
+  background-color: var(--color-ground);
+  background-image:
+    radial-gradient(1px 1px at 12% 18%, var(--color-dust), transparent 60%),
+    radial-gradient(1px 1px at 68% 42%, var(--color-dust), transparent 60%),
+    radial-gradient(1.5px 1.5px at 38% 76%, var(--color-dust), transparent 60%),
+    radial-gradient(1px 1px at 86% 12%, var(--color-dust), transparent 60%),
+    radial-gradient(1px 1px at 22% 58%, var(--color-dust), transparent 60%),
+    linear-gradient(var(--color-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-grid) 1px, transparent 1px);
+  background-size:
+    420px 420px,
+    420px 420px,
+    420px 420px,
+    420px 420px,
+    420px 420px,
+    48px 48px,
+    48px 48px;
+}
+
+/* The production beacon's sweep: a wedge of light turned on the compositor. */
+@utility beacon-sweep {
+  background: conic-gradient(from 0deg, transparent 0 300deg, var(--color-env-production) 360deg);
+}
+
+/* The light that travels along the production hairline, on the compositor. */
+@utility beacon-light {
+  background: linear-gradient(90deg, transparent, var(--color-env-production), transparent);
+  will-change: transform;
+}
+
+/* A loading bar's light, as a transform on a pseudo-element: the bar itself
+   is never repainted, only the layer above it moves. */
+@utility shimmer {
+  position: relative;
+  overflow: hidden;
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, var(--color-code-wash), transparent);
+    transform: translateX(-100%);
+    animation: var(--animate-shimmer);
+  }
+}
+
+/* Interaction colour: the hover and focus change, 120 ms (ADR 0009 allows up
+   to 150). It repaints the one element and never lays anything out. */
+@utility ease-colours {
+  transition:
+    color 120ms var(--ease-standard),
+    background-color 120ms var(--ease-standard),
+    border-color 120ms var(--ease-standard);
+}
+
+/* The scan line that crosses a result once when it arrives. */
+@utility scan-light {
+  background: linear-gradient(transparent, var(--color-code-wash), transparent);
+  will-change: transform;
+}
+
+/* An instrument's label: metadata, never data, prose or a button. */
+@utility hud {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: var(--tracking-hud);
+  text-transform: uppercase;
+}
+
+/* The small capitals over a field or a section, naming what is under them. */
+@utility eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: var(--tracking-hud);
+  text-transform: uppercase;
+  color: var(--color-fg-muted);
+}
+
+@utility kbd {
+  font-family: var(--font-mono);
+  font-size: var(--text-3xs);
+  padding-inline: calc(var(--spacing) * 1);
+  border: 1px solid currentcolor;
+  border-radius: var(--radius-xs);
+  line-height: var(--leading-normal);
+  color: currentcolor;
+  opacity: 0.7;
+}
+
+/* A press: the control gives a little under the pointer, on the compositor. */
+/* A press: the control gives under the pointer and a ring of its own colour
+   blooms from its centre — transform and opacity only, on the compositor. */
+@utility press {
+  position: relative;
+  transition: transform 80ms var(--ease-out);
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: currentcolor;
+    opacity: 0;
+    transform: scale(0.6);
+    transition:
+      opacity 240ms var(--ease-out),
+      transform 240ms var(--ease-out);
+    pointer-events: none;
+  }
+  &:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+  &:active:not(:disabled)::after {
+    opacity: 0.12;
+    transform: scale(1);
+    transition-duration: 0ms;
+  }
+}
+
+/* A page that is a header over one scrolling body, on an opaque surface: the
+   sky is ground, and text is never read against it. */
+@utility list-page {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--color-surface);
+}
+
+@utility list-lede {
+  flex: none;
+  margin: 0;
+  padding: calc(var(--spacing) * 2) calc(var(--spacing) * 3);
+  font-size: var(--text-sm);
+  color: var(--color-fg-soft);
+}
+
+/* The loader (FEAT-074): Avior's star, still, with a static bloom and glow,
+   and its blue companion as a comet whose conic tail turns with it as one
+   layer. Every measure is a share of the orb's box, so one set of rules draws
+   the three sizes and the sign-in hero. The head sits on the ring's centre
+   line at the tail's leading end, twelve o'clock, which is where reduced
+   motion parks it. */
+@utility loader-orb {
+  position: relative;
+  flex: none;
+  container-type: size;
+  --comet-inset: 4%;
+  --comet-from: 150deg;
+  --comet-band: 2.9%;
+  --comet-top: 4.67%;
+  --comet-head: 7%;
+  --mark-inset: 22%;
+  --bloom-inset: 0%;
+}
+
+@utility loader-bloom {
+  position: absolute;
+  inset: var(--bloom-inset);
+  border-radius: 50%;
+  background: radial-gradient(var(--color-bloom), var(--color-bloom-soft) 25%, #0000 62%);
+}
+
+@utility comet-tail {
+  position: absolute;
+  inset: var(--comet-inset);
+  border-radius: 50%;
+  background: conic-gradient(#0000 var(--comet-from), var(--color-comet) 356deg, #0000);
+  mask: radial-gradient(closest-side, #0000 calc(100% - var(--comet-band)), #000 0);
+}
+
+@utility comet-head {
+  position: absolute;
+  left: 50%;
+  top: var(--comet-top);
+  width: var(--comet-head);
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  border-radius: 50%;
+  background: radial-gradient(var(--color-star-core), var(--color-primary) 42%, #0000 72%);
+  box-shadow: 0 0 5cqw var(--color-primary);
+}
+
+@utility loader-mark {
+  position: absolute;
+  inset: var(--mark-inset);
+  overflow: visible;
+  filter: drop-shadow(0 0 2.5cqw var(--color-target));
+}
+
+/* The sign-in hero: the same star as a light source, a flare across it, the
+   comet on a wider, thinner orbit. */
+@utility hero-flare {
+  position: absolute;
+  inset: 48% -40%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, #fff6e08c, #ffb54726 50%, #0000);
+}
+
+@utility hero-star {
+  position: relative;
+  container-type: size;
+  --mark-inset: 14% 28%;
+  --bloom-inset: -45%;
+}
+
+@utility hero-orbit {
+  position: absolute;
+  inset: -8%;
+  container-type: size;
+  --comet-inset: 0%;
+  --comet-from: 250deg;
+  --comet-band: 0.9%;
+  --comet-top: 0.23%;
+  --comet-head: 3.4%;
+}
+
+/* The sign-in sky: a ground and two nebulae, three layers of stars painted
+   once as one list of box-shadows turned three ways and panned on the
+   compositor, a few that twinkle, and one meteor. The stars are the dust
+   colour, so the day chart has none. */
+@utility space {
+  position: fixed;
+  inset: -10%;
+  pointer-events: none;
+}
+
+@utility space-deep {
+  background:
+    radial-gradient(60% 50% at 30% 45%, #7cc4ff29, #0000 70%),
+    radial-gradient(45% 40% at 80% 20%, #b69cff1a, #0000 70%),
+    radial-gradient(70% 60% at 60% 110%, #ffb5471a, #0000 70%),
+    linear-gradient(var(--color-space-top), var(--color-space));
+}
+
+@utility nebula {
+  position: absolute;
+  border-radius: 50%;
+  will-change: transform, opacity;
+  background: radial-gradient(closest-side, var(--nebula), #0000);
+}
+
+@utility nebula-a {
+  left: 8%;
+  top: 18%;
+  width: 62vmax;
+  height: 42vmax;
+  --nebula: #7cc4ff38;
+}
+
+@utility nebula-b {
+  left: 48%;
+  top: 52%;
+  width: 58vmax;
+  height: 38vmax;
+  --nebula: #ffb54724;
+}
+
+@utility star-field {
+  position: absolute;
+  border-radius: 50%;
+  color: var(--color-dust);
+  will-change: transform;
+  box-shadow:
+    29vw 40vh,
+    30vw 102vh,
+    79vw 23vh,
+    55vw 44vh,
+    30vw 56vh,
+    116vw 67vh,
+    71vw 57vh,
+    43vw 40vh,
+    71vw 64vh,
+    0vw 88vh,
+    11vw 16vh,
+    58vw 56vh,
+    39vw 76vh,
+    107vw 30vh,
+    68vw 32vh,
+    111vw 0vh,
+    51vw 110vh,
+    40vw 72vh,
+    14vw 94vh,
+    55vw 91vh,
+    85vw 5vh,
+    5vw 2vh,
+    27vw 50vh,
+    126vw 91vh,
+    101vw 18vh,
+    43vw 76vh,
+    44vw 99vh,
+    110vw 59vh,
+    118vw 48vh,
+    26vw 29vh;
+}
+
+@utility star-glints {
+  position: absolute;
+  border-radius: 50%;
+  color: var(--color-dust);
+  will-change: opacity;
+  box-shadow:
+    78vw 65vh,
+    76vw 40vh,
+    45vw 47vh,
+    28vw 25vh,
+    44vw 82vh,
+    88vw 52vh,
+    58vw 81vh,
+    82vw 11vh;
+}
+
+@utility meteor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 40vw;
+  height: 2px;
+  border-radius: 1px;
+  background: linear-gradient(90deg, #0000, var(--color-comet) 80%, var(--color-star-core));
+  transform-origin: 100% 50%;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+/* A card lit at its edge: the gradient is the border's, drawn under an
+   opaque padding box. */
+@utility glow-card {
+  border: 1px solid #0000;
+  border-radius: var(--radius-hero);
+  background:
+    linear-gradient(var(--color-surface-raised) 0 0) padding-box,
+    linear-gradient(140deg, #ffb54773, #7cc4ff26 40%, #7cc4ff4d) border-box;
+  box-shadow: var(--shadow-md);
+}

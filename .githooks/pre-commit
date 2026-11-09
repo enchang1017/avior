@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Installed by `make hooks`, which points core.hooksPath here.
+#
+# Fast checks only: what a reviewer would have caught by reading. Anything that
+# needs a database or a browser belongs in pre-push or the pipeline.
+#
+# This is a convenience, not a gate. `git commit -n` skips it, so the pipeline
+# still runs every one of these. If a check here were the only place a rule was
+# enforced, the rule would not be enforced.
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+
+echo "pre-commit: lint and types"
+if ! make verify-precommit; then
+	echo
+	echo "pre-commit: refused. Fix the above, or 'git commit -n' to skip and"
+	echo "            let the pipeline tell you instead."
+	exit 1
+fi

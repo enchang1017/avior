@@ -1,0 +1,66 @@
+{
+  "name": "avior-frontend",
+  "private": true,
+  "sideEffects": [
+    "*.css"
+  ],
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vue-tsc --build && vite build",
+    "preview": "vite preview",
+    "gen": "openapi-typescript ../api/openapi.yaml -o src/gen/api.d.ts --default-non-nullable false",
+    "typecheck": "vue-tsc --build --force",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix",
+    "fmt": "prettier --write \"src/**/*.{ts,vue,css}\" \"e2e/**/*.ts\" \"scripts/**/*.mjs\"",
+    "fmt:check": "prettier --check \"src/**/*.{ts,vue,css}\" \"e2e/**/*.ts\" \"scripts/**/*.mjs\"",
+    "test:unit": "vitest run --coverage",
+    "test:unit:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:perf": "playwright test --project performance --workers 1",
+    "budget": "node scripts/budget.mjs --self-test && node scripts/budget.mjs"
+  },
+  "dependencies": {
+    "@codemirror/autocomplete": "6.20.3",
+    "@codemirror/commands": "6.11.0",
+    "@codemirror/lang-sql": "6.10.0",
+    "@codemirror/language": "6.12.4",
+    "@codemirror/search": "6.7.1",
+    "@codemirror/state": "6.7.1",
+    "@codemirror/view": "6.43.9",
+    "@fontsource/jetbrains-mono": "5.3.0",
+    "@lezer/highlight": "1.2.3",
+    "@lucide/vue": "1.48.0",
+    "@replit/codemirror-vim": "6.4.0",
+    "openapi-fetch": "0.13.4",
+    "pinia": "2.3.1",
+    "vue": "3.5.13",
+    "vue-router": "4.5.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.20.0",
+    "@playwright/test": "1.50.1",
+    "@tailwindcss/vite": "4.3.3",
+    "@types/node": "22.13.4",
+    "@vitejs/plugin-vue": "5.2.1",
+    "@vitest/coverage-v8": "3.0.5",
+    "@vue/eslint-config-typescript": "14.4.0",
+    "@vue/test-utils": "2.4.6",
+    "eslint": "9.20.1",
+    "eslint-plugin-vue": "9.32.0",
+    "jsdom": "26.0.0",
+    "openapi-typescript": "7.6.1",
+    "prettier": "3.5.1",
+    "prettier-plugin-tailwindcss": "0.6.14",
+    "tailwindcss": "4.3.3",
+    "typescript": "5.7.3",
+    "vite": "6.1.0",
+    "vitest": "3.0.5",
+    "vue-tsc": "2.2.2"
+  },
+  "packageManager": "pnpm@10.15.1"
+}

@@ -1,0 +1,27 @@
+.env
+*.local
+
+# Go
+coverage.out
+coverage.html
+/backend/tmp/
+/backend/bin/
+
+# Node
+node_modules/
+/frontend/dist/
+/frontend/coverage/
+/frontend/test-results/
+/frontend/playwright-report/
+/frontend/.vite/
+
+# Editors
+.idea/
+.vscode/
+.DS_Store
+.tools/
+
+# Browser-tool artefacts: screenshots, console logs and accessibility
+# snapshots the Playwright MCP writes while somebody is looking at the running
+# app. They are evidence for one conversation, not part of the repository.
+/.playwright-mcp/

@@ -1,0 +1,87 @@
+[
+  {
+    "Plan": {
+      "Node Type": "WindowAgg",
+      "Parallel Aware": false,
+      "Async Capable": false,
+      "Startup Cost": 74.55,
+      "Total Cost": 89.40,
+      "Plan Rows": 660,
+      "Plan Width": 132,
+      "Output": ["m.id_card_number", "(b.stake * '2'::numeric)", "sum(b.stake) OVER (?)", "upper(m.login_name)", "m.member_id"],
+      "Plans": [
+        {
+          "Node Type": "Sort",
+          "Parent Relationship": "Outer",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Startup Cost": 74.55,
+          "Total Cost": 76.20,
+          "Plan Rows": 660,
+          "Plan Width": 88,
+          "Output": ["m.member_id", "m.id_card_number", "b.stake", "m.login_name"],
+          "Sort Key": ["m.member_id"],
+          "Plans": [
+            {
+              "Node Type": "Hash Join",
+              "Parent Relationship": "Outer",
+              "Parallel Aware": false,
+              "Async Capable": false,
+              "Join Type": "Inner",
+              "Startup Cost": 25.30,
+              "Total Cost": 43.64,
+              "Plan Rows": 660,
+              "Plan Width": 88,
+              "Output": ["m.member_id", "m.id_card_number", "b.stake", "m.login_name"],
+              "Inner Unique": true,
+              "Hash Cond": "(b.member_id = m.member_id)",
+              "Plans": [
+                {
+                  "Node Type": "Seq Scan",
+                  "Parent Relationship": "Outer",
+                  "Parallel Aware": false,
+                  "Async Capable": false,
+                  "Relation Name": "bet",
+                  "Schema": "public",
+                  "Alias": "b",
+                  "Startup Cost": 0.00,
+                  "Total Cost": 16.60,
+                  "Plan Rows": 660,
+                  "Plan Width": 24,
+                  "Output": ["b.bet_id", "b.member_id", "b.stake", "b.odds", "b.win_lost", "b.status"]
+                },
+                {
+                  "Node Type": "Hash",
+                  "Parent Relationship": "Inner",
+                  "Parallel Aware": false,
+                  "Async Capable": false,
+                  "Startup Cost": 16.80,
+                  "Total Cost": 16.80,
+                  "Plan Rows": 680,
+                  "Plan Width": 68,
+                  "Output": ["m.id_card_number", "m.login_name", "m.member_id"],
+                  "Plans": [
+                    {
+                      "Node Type": "Seq Scan",
+                      "Parent Relationship": "Outer",
+                      "Parallel Aware": false,
+                      "Async Capable": false,
+                      "Relation Name": "member",
+                      "Schema": "public",
+                      "Alias": "m",
+                      "Startup Cost": 0.00,
+                      "Total Cost": 16.80,
+                      "Plan Rows": 680,
+                      "Plan Width": 68,
+                      "Output": ["m.id_card_number", "m.login_name", "m.member_id"]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+]

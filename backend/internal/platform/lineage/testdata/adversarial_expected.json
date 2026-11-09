@@ -1,0 +1,22 @@
+{
+  "_note": "True runtime effect, written before running. A write through a view counts at both the view column and the base column it maps to.",
+  "public.adv_shadow": { "access": ["read public.bet.status", "read public.bet.payout"], "calls": [], "dynamic": 0 },
+  "public.adv_view_write": { "access": ["write public.bet_simple.stake", "read public.bet_simple.bet_id",
+                                        "write public.bet.stake", "read public.bet.id"], "calls": [], "dynamic": 0 },
+  "public.adv_order_alias": { "access": ["read public.member.balance", "read public.member.id", "read public.bet.member_id"], "calls": [], "dynamic": 0 },
+  "public.adv_cursor_assign": { "access": ["read public.member.name", "read public.member.closed", "read public.bet.stake",
+                                           "write public.member.name", "write public.member.email", "read public.member.id"], "calls": [], "dynamic": 0 },
+  "public.adv_mixed_case": { "access": ["write public.MixedCase.Id", "write public.MixedCase.Val", "read public.member.id", "read public.member.name"], "calls": [], "dynamic": 0 },
+  "public.adv_const_exec": { "access": [], "calls": [], "dynamic": 2 },
+  "public.adv_lateral_temp": { "access": ["read public.bet.member_id", "read public.bet.stake",
+                                          "write public.ledger.member_id", "write public.ledger.amount", "write public.ledger.kind", "write public.ledger.booked_on",
+                                          "read public.member.id"], "calls": [], "dynamic": 0 },
+  "public.adv_update_from": { "access": ["write public.bet.payout", "read public.member.balance", "read public.bet.member_id",
+                                         "read public.member.id", "read public.member.closed", "read public.bet.id"], "calls": [], "dynamic": 0 },
+  "public.adv_sql_positional": { "access": ["read public.member.email", "read public.member.id"], "calls": [], "dynamic": 0 },
+  "promo.helper": { "access": [], "calls": [], "dynamic": 0 },
+  "public.adv_calls": { "access": [], "calls": ["promo.helper", "public.close_member"], "dynamic": 0 },
+  "public.adv_record": { "access": ["read public.member.id", "read public.member.name", "read public.member.email", "read public.member.closed",
+                                    "read public.member.balance", "read public.member.name_lc",
+                                    "write public.bet.stake", "read public.bet.member_id"], "calls": [], "dynamic": 0 }
+}

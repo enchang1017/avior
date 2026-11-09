@@ -1,0 +1,153 @@
+# The linter set stands in for code review. Nobody reads this code by hand, so
+# anything a reviewer would have caught has to be caught here or not at all.
+#
+# Pinned to the image in the Makefile. Upgrading the tool is a deliberate change:
+# a new analyser turning a green build red with no code change is exactly the
+# failure mode this repository cannot diagnose by reading.
+version: "2"
+run:
+  tests: true
+linters:
+  default: none
+  enable:
+    - bodyclose
+    - contextcheck
+    - copyloopvar
+    - depguard
+    - durationcheck
+    - errcheck
+    - errname
+    - errorlint
+    - exhaustive
+    - forbidigo
+    - gocheckcompilerdirectives
+    - gochecknoinits
+    - goconst
+    - gocritic
+    - gocyclo
+    - godot
+    - gosec
+    - govet
+    - ineffassign
+    - misspell
+    - nakedret
+    - nilerr
+    - noctx
+    - nolintlint
+    - predeclared
+    - revive
+    - rowserrcheck
+    - sqlclosecheck
+    - staticcheck
+    - unconvert
+    - unparam
+    - unused
+    - wastedassign
+  settings:
+    # depguard is where the architecture is enforced. Each rule below states a
+    # boundary that ADR 0001 or ADR 0002 relies on; deleting one silently
+    # removes the property, so treat a change here as an architecture change.
+    depguard:
+      rules:
+        # An adapter maps one vendor format and nothing else. Letting it reach
+        # the store or the transport would put policy back inside the mapping,
+        # which is what ADR 0002 pulled apart.
+        adapters-map-only:
+          files:
+            - '**/internal/adapter/**/*.go'
+          deny:
+            - pkg: net/http
+              desc: an adapter is transport agnostic
+            - pkg: github.com/enchang1017/avior/backend/internal/store
+              desc: an adapter must not read the metadata store
+            - pkg: github.com/enchang1017/avior/backend/internal/feature
+              desc: an adapter must not depend on a feature slice
+        # ADR 0010: libpg_query is reached through one adapter, so switching
+        # between its WebAssembly and cgo builds is one import, and a second
+        # route to the parser, with its own reading of the tree, cannot appear.
+        parser-behind-pgparse:
+          files:
+            - $all
+            - '!**/internal/adapter/pgparse/*.go'
+          deny:
+            - pkg: github.com/wasilibs/go-pgquery
+              desc: only internal/adapter/pgparse reads SQL with libpg_query (ADR 0010)
+            - pkg: github.com/pganalyze/pg_query_go
+              desc: only internal/adapter/pgparse reads SQL with libpg_query (ADR 0010)
+        # A feature owns its own HTTP surface and its own storage. One feature
+        # importing another turns a slice into a tangle, and an agent working in
+        # one directory would silently change behaviour in another.
+        features-do-not-import-each-other:
+          files:
+            - '**/internal/feature/**/*.go'
+          deny:
+            - pkg: github.com/enchang1017/avior/backend/internal/feature
+              desc: features must not depend on each other; lift shared code into internal/platform
+        # The guard decides policy from a statement and a plan. Giving it a
+        # driver would let a future change reach past its own Planner interface
+        # and evaluate against live data, which is untestable and unauditable.
+        sqlguard-stays-pure:
+          files:
+            - '**/internal/sqlguard/*.go'
+          deny:
+            - pkg: database/sql
+              desc: sqlguard must reach the server only through its Planner interface
+            - pkg: github.com/jackc/pgx/v5
+              desc: sqlguard must reach the server only through its Planner interface, and must not touch the metadata store
+            - pkg: net/http
+              desc: sqlguard is transport agnostic
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
+    exhaustive:
+      default-signifies-exhaustive: true
+    forbidigo:
+      forbid:
+        # Structured logging only. A bare print leaves no trace an operator can
+        # search, and a governed gateway has to be auditable after the fact.
+        - pattern: ^fmt\.Print.*$
+          msg: use the platform logger instead of printing
+        - pattern: ^log\.(Print|Fatal|Panic).*$
+          msg: use the platform logger instead of the standard log package
+        # A statement reaching the database without a context cannot carry the
+        # caller's timeout budget.
+        - pattern: ^.*\.(Query|QueryRow|Exec)$
+          msg: use the Context variant so the timeout budget is honoured
+    gocyclo:
+      min-complexity: 15
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+      allow-unused: false
+  exclusions:
+    generated: lax
+    # The comments and legacy presets are deliberately absent: they suppress the
+    # "exported X should have a comment" findings, and a doc comment stating an
+    # invariant is how this codebase carries knowledge no reviewer will supply.
+    presets:
+      - common-false-positives
+      - std-error-handling
+    rules:
+      - linters:
+          - goconst
+          - gocyclo
+          - gosec
+        path: _test\.go
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+# gofumpt runs through golangci-lint rather than as its own tool, so formatting
+# uses the same pinned image as the linters and needs no Go toolchain on the host.
+formatters:
+  enable:
+    - gofumpt
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

@@ -1,0 +1,17 @@
+# Overlay used by `make test-accept`. Same images and same seed as `make dev`,
+# with ephemeral storage so a failed run cannot poison the next one.
+services:
+  postgres:
+    tmpfs:
+      - /var/lib/postgresql/data
+    volumes: !override []
+
+  # The lineage demo is for looking at, not for asserting on.
+  seed:
+    environment:
+      AVIOR_LINEAGE_DEMO_DSN: ""
+      AVIOR_OBSERVATORY_DEMO: ""
+
+  # The demo's long-running sessions would show in every activity answer.
+  longrunner:
+    profiles: [demo]

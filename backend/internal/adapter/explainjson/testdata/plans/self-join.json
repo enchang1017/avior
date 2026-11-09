@@ -1,0 +1,60 @@
+[
+  {
+    "Plan": {
+      "Node Type": "Hash Join",
+      "Parallel Aware": false,
+      "Async Capable": false,
+      "Join Type": "Inner",
+      "Startup Cost": 25.30,
+      "Total Cost": 43.90,
+      "Plan Rows": 680,
+      "Plan Width": 64,
+      "Output": ["a.login_name", "b.login_name"],
+      "Inner Unique": true,
+      "Hash Cond": "(a.member_id = b.member_id)",
+      "Plans": [
+        {
+          "Node Type": "Seq Scan",
+          "Parent Relationship": "Outer",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Relation Name": "member",
+          "Schema": "public",
+          "Alias": "a",
+          "Startup Cost": 0.00,
+          "Total Cost": 16.80,
+          "Plan Rows": 680,
+          "Plan Width": 36,
+          "Output": ["a.member_id", "a.login_name", "a.currency_code", "a.id_card_number", "a.register_time"]
+        },
+        {
+          "Node Type": "Hash",
+          "Parent Relationship": "Inner",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Startup Cost": 16.80,
+          "Total Cost": 16.80,
+          "Plan Rows": 680,
+          "Plan Width": 36,
+          "Output": ["b.login_name", "b.member_id"],
+          "Plans": [
+            {
+              "Node Type": "Seq Scan",
+              "Parent Relationship": "Outer",
+              "Parallel Aware": false,
+              "Async Capable": false,
+              "Relation Name": "member",
+              "Schema": "public",
+              "Alias": "b",
+              "Startup Cost": 0.00,
+              "Total Cost": 16.80,
+              "Plan Rows": 680,
+              "Plan Width": 36,
+              "Output": ["b.login_name", "b.member_id"]
+            }
+          ]
+        }
+      ]
+    }
+  }
+]

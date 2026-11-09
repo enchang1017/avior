@@ -1,0 +1,90 @@
+[
+  {
+    "name": "sign in",
+    "sent": [
+      "GET /schema/databases?instanceId=local",
+      "POST /auth/login {\"username\":\"developer\"}"
+    ]
+  },
+  {
+    "name": "pick a table",
+    "sent": [
+      "GET /schema/columns?database=aviorfixture&instanceId=local&schema=public&table=member",
+      "GET /schema/tables?database=aviorfixture&instanceId=local",
+      "POST /query/template {\"columns\":[\"id\",\"username\",\"created_at\"],\"database\":\"aviorfixture\",\"instanceId\":\"local\",\"schema\":\"public\",\"table\":\"member\",\"top\":100}"
+    ]
+  },
+  {
+    "name": "run",
+    "sent": [
+      "POST /query/execute {\"database\":\"aviorfixture\",\"instanceId\":\"local\",\"statement\":\"SELECT id, username FROM public.member LIMIT 100\"}"
+    ]
+  },
+  {
+    "name": "inspect",
+    "sent": [
+      "POST /query/inspect {\"database\":\"aviorfixture\",\"instanceId\":\"local\",\"statement\":\"SELECT id, username FROM public.member LIMIT 100\"}"
+    ]
+  },
+  {
+    "name": "compose a write",
+    "sent": [
+      "GET /auth/me",
+      "GET /schema/columns?database=aviorfixture&instanceId=00000000-0000-0000-0000-0000000000a1&schema=public&table=member",
+      "GET /schema/databases?instanceId=00000000-0000-0000-0000-0000000000a1",
+      "GET /schema/tables?database=aviorfixture&instanceId=00000000-0000-0000-0000-0000000000a1",
+      "GET /writes?limit=100",
+      "GET /writes?limit=100",
+      "POST /writes {\"database\":\"aviorfixture\",\"reason\":\"Parity: a request of my own\",\"statement\":\"UPDATE public.member SET tier = 'gold' WHERE id = 42\"}",
+      "POST /writes/inspect {\"database\":\"aviorfixture\",\"statement\":\"UPDATE public.member SET tier = 'gold' WHERE id = 42\"}",
+      "POST /writes/template {\"columns\":[\"id\",\"username\",\"created_at\"],\"kind\":\"update\",\"schema\":\"public\",\"table\":\"member\"}"
+    ]
+  },
+  {
+    "name": "withdraw mine",
+    "sent": [
+      "GET /writes/wr-own-0001",
+      "GET /writes?limit=100",
+      "POST /writes/wr-own-0001/withdrawal"
+    ]
+  },
+  {
+    "name": "approve theirs",
+    "sent": [
+      "GET /writes/wr-theirs-0002",
+      "GET /writes?limit=100",
+      "POST /writes/wr-theirs-0002/decision {\"decision\":\"approve\"}"
+    ]
+  },
+  {
+    "name": "decide a release",
+    "sent": [
+      "GET /auth/me",
+      "GET /releases/rel-0001-aaaa-bbbb",
+      "POST /releases/rel-0001-aaaa-bbbb/decision {\"decision\":\"approve\"}"
+    ]
+  },
+  {
+    "name": "read my audit log",
+    "sent": ["GET /audit/mine?limit=50&offset=0", "GET /auth/me"]
+  },
+  {
+    "name": "read everyone’s audit log",
+    "sent": ["GET /audit?limit=50&offset=0", "GET /auth/me"]
+  },
+  {
+    "name": "grant a database",
+    "sent": [
+      "GET /auth/me",
+      "GET /databases/governed",
+      "GET /databases/grants",
+      "GET /databases/grants/history?limit=50",
+      "GET /databases/grants/history?limit=50",
+      "PUT /databases/aviordeploy/roles/developer {\"granted\":true}"
+    ]
+  },
+  {
+    "name": "revoke it",
+    "sent": ["PUT /databases/aviorfixture/roles/developer {\"granted\":false}"]
+  }
+]

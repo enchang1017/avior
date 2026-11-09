@@ -1,0 +1,4915 @@
+{
+ "promo.helper": {
+  "Status": "parsed",
+  "Message": "",
+  "References": [
+   {
+    "Qualifier": "promo",
+    "Name": "campaign",
+    "Column": "",
+    "Role": "relation",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 1
+   }
+  ],
+  "Calls": [
+   {
+    "Schema": "",
+    "Name": "count",
+    "Args": 0,
+    "Line": 6
+   }
+  ],
+  "Dynamic": null,
+  "Unmodelled": null,
+  "Statements": [
+   {
+    "Line": 6,
+    "Excerpt": "(SELECT count(*) FROM promo.campaign)"
+   }
+  ],
+  "Scopes": [
+   {
+    "Parent": -1,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": null
+   },
+   {
+    "Parent": 0,
+    "Sources": [
+     {
+      "Alias": "campaign",
+      "Qualifier": "promo",
+      "Name": "campaign"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": [
+     "count"
+    ]
+   }
+  ],
+  "SearchPath": null,
+  "Variables": [
+   "found"
+  ],
+  "VariableConflict": "error"
+ },
+ "public.adv_calls": {
+  "Status": "parsed",
+  "Message": "",
+  "References": null,
+  "Calls": [
+   {
+    "Schema": "promo",
+    "Name": "helper",
+    "Args": 0,
+    "Line": 5
+   },
+   {
+    "Schema": "",
+    "Name": "close_member",
+    "Args": 1,
+    "Line": 6
+   }
+  ],
+  "Dynamic": null,
+  "Unmodelled": null,
+  "Statements": [
+   {
+    "Line": 5,
+    "Excerpt": "SELECT promo.helper()"
+   },
+   {
+    "Line": 6,
+    "Excerpt": "CALL close_member(1)"
+   }
+  ],
+  "Scopes": [
+   {
+    "Parent": -1,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": [
+     "helper"
+    ]
+   }
+  ],
+  "SearchPath": null,
+  "Variables": [
+   "found"
+  ],
+  "VariableConflict": "error"
+ },
+ "public.adv_const_exec": {
+  "Status": "parsed",
+  "Message": "",
+  "References": null,
+  "Calls": null,
+  "Dynamic": [
+   {
+    "Line": 7,
+    "Form": "EXECUTE",
+    "Excerpt": "'UPDATE member SET closed = true'"
+   },
+   {
+    "Line": 8,
+    "Form": "FOR IN EXECUTE",
+    "Excerpt": "'SELECT id FROM bet'"
+   }
+  ],
+  "Unmodelled": null,
+  "Statements": null,
+  "Scopes": null,
+  "SearchPath": null,
+  "Variables": [
+   "found",
+   "r"
+  ],
+  "VariableConflict": "error"
+ },
+ "public.adv_cursor_assign": {
+  "Status": "parsed",
+  "Message": "",
+  "References": [
+   {
+    "Qualifier": "",
+    "Name": "member",
+    "Column": "",
+    "Role": "relation",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "name",
+    "Role": "select",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "closed",
+    "Role": "where",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "bet",
+    "Column": "",
+    "Role": "relation",
+    "Line": 10,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 2
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "stake",
+    "Role": "select",
+    "Line": 10,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 2
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "v",
+    "Role": "select",
+    "Line": 12,
+    "Width": 0,
+    "Statement": 2,
+    "Scope": 3
+   },
+   {
+    "Qualifier": "",
+    "Name": "account",
+    "Column": "",
+    "Role": "relation",
+    "Line": 12,
+    "Width": 0,
+    "Statement": 3,
+    "Scope": 5
+   },
+   {
+    "Qualifier": "",
+    "Name": "member",
+    "Column": "name",
+    "Role": "set_target",
+    "Line": 13,
+    "Width": 0,
+    "Statement": 4,
+    "Scope": 6
+   },
+   {
+    "Qualifier": "",
+    "Name": "member",
+    "Column": "email",
+    "Role": "set_target",
+    "Line": 13,
+    "Width": 0,
+    "Statement": 4,
+    "Scope": 6
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "id",
+    "Role": "where",
+    "Line": 13,
+    "Width": 0,
+    "Statement": 4,
+    "Scope": 6
+   }
+  ],
+  "Calls": [
+   {
+    "Schema": "",
+    "Name": "max",
+    "Args": 1,
+    "Line": 10
+   },
+   {
+    "Schema": "",
+    "Name": "count",
+    "Args": 0,
+    "Line": 12
+   }
+  ],
+  "Dynamic": null,
+  "Unmodelled": null,
+  "Statements": [
+   {
+    "Line": 6,
+    "Excerpt": "SELECT name FROM member WHERE closed"
+   },
+   {
+    "Line": 10,
+    "Excerpt": "v := (SELECT max(stake) FROM bet)"
+   },
+   {
+    "Line": 12,
+    "Excerpt": "v"
+   },
+   {
+    "Line": 12,
+    "Excerpt": "(SELECT count(*) FROM account)"
+   },
+   {
+    "Line": 13,
+    "Excerpt": "UPDATE member SET (name, email) = (SELECT 'x', 'y') WHERE id = 1"
+   }
+  ],
+  "Scopes": [
+   {
+    "Parent": -1,
+    "Sources": [
+     {
+      "Alias": "member",
+      "Qualifier": "",
+      "Name": "member"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": [
+     "name"
+    ]
+   },
+   {
+    "Parent": -1,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": null
+   },
+   {
+    "Parent": 1,
+    "Sources": [
+     {
+      "Alias": "bet",
+      "Qualifier": "",
+      "Name": "bet"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": [
+     "max"
+    ]
+   },
+   {
+    "Parent": -1,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": [
+     "v"
+    ]
+   },
+   {
+    "Parent": -1,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": null
+   },
+   {
+    "Parent": 4,
+    "Sources": [
+     {
+      "Alias": "account",
+      "Qualifier": "",
+      "Name": "account"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": [
+     "count"
+    ]
+   },
+   {
+    "Parent": -1,
+    "Sources": [
+     {
+      "Alias": "member",
+      "Qualifier": "",
+      "Name": "member"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": null
+   },
+   {
+    "Parent": 6,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": null
+   }
+  ],
+  "SearchPath": null,
+  "Variables": [
+   "found",
+   "c",
+   "v",
+   "rec"
+  ],
+  "VariableConflict": "error"
+ },
+ "public.adv_lateral_temp": {
+  "Status": "parsed",
+  "Message": "",
+  "References": [
+   {
+    "Qualifier": "pg_temp",
+    "Name": "tmp_totals",
+    "Column": "",
+    "Role": "relation",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": -1
+   },
+   {
+    "Qualifier": "",
+    "Name": "bet",
+    "Column": "",
+    "Role": "relation",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "member_id",
+    "Role": "select",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "stake",
+    "Role": "select",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "member_id",
+    "Role": "group_by",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "tmp_totals",
+    "Column": "",
+    "Role": "relation",
+    "Line": 9,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 2
+   },
+   {
+    "Qualifier": "",
+    "Name": "member",
+    "Column": "",
+    "Role": "relation",
+    "Line": 9,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 3
+   },
+   {
+    "Qualifier": "",
+    "Name": "m",
+    "Column": "id",
+    "Role": "where",
+    "Line": 9,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 3
+   },
+   {
+    "Qualifier": "",
+    "Name": "t",
+    "Column": "member_id",
+    "Role": "where",
+    "Line": 9,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 3
+   },
+   {
+    "Qualifier": "",
+    "Name": "t",
+    "Column": "member_id",
+    "Role": "select",
+    "Line": 8,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 2
+   },
+   {
+    "Qualifier": "",
+    "Name": "t",
+    "Column": "total",
+    "Role": "select",
+    "Line": 8,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 2
+   },
+   {
+    "Qualifier": "",
+    "Name": "ledger",
+    "Column": "member_id",
+    "Role": "insert_target",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 4
+   },
+   {
+    "Qualifier": "",
+    "Name": "ledger",
+    "Column": "amount",
+    "Role": "insert_target",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 4
+   },
+   {
+    "Qualifier": "",
+    "Name": "ledger",
+    "Column": "kind",
+    "Role": "insert_target",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 4
+   },
+   {
+    "Qualifier": "",
+    "Name": "ledger",
+    "Column": "booked_on",
+    "Role": "insert_target",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 4
+   }
+  ],
+  "Calls": [
+   {
+    "Schema": "",
+    "Name": "sum",
+    "Args": 1,
+    "Line": 6
+   }
+  ],
+  "Dynamic": null,
+  "Unmodelled": null,
+  "Statements": [
+   {
+    "Line": 6,
+    "Excerpt": "CREATE TEMP TABLE IF NOT EXISTS tmp_totals AS SELECT member_id, sum(stake) AS total FROM bet GROUP BY member_id"
+   },
+   {
+    "Line": 7,
+    "Excerpt": "INSERT INTO ledger (member_id, amount, kind, booked_on) SELECT t.member_id, t.total, 'x', current_date FROM tmp_totals …"
+   }
+  ],
+  "Scopes": [
+   {
+    "Parent": -1,
+    "Sources": [
+     {
+      "Alias": "bet",
+      "Qualifier": "",
+      "Name": "bet"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": [
+     "member_id",
+     "total"
+    ]
+   },
+   {
+    "Parent": -1,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": null
+   },
+   {
+    "Parent": 1,
+    "Sources": [
+     {
+      "Alias": "t",
+      "Qualifier": "",
+      "Name": "tmp_totals"
+     },
+     {
+      "Alias": "x",
+      "Qualifier": "",
+      "Name": ""
+     }
+    ],
+    "CTEs": null,
+    "Outputs": [
+     "member_id",
+     "total"
+    ]
+   },
+   {
+    "Parent": 2,
+    "Sources": [
+     {
+      "Alias": "m",
+      "Qualifier": "",
+      "Name": "member"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": null
+   },
+   {
+    "Parent": 1,
+    "Sources": [
+     {
+      "Alias": "ledger",
+      "Qualifier": "",
+      "Name": "ledger"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": null
+   }
+  ],
+  "SearchPath": null,
+  "Variables": [
+   "found"
+  ],
+  "VariableConflict": "error"
+ },
+ "public.adv_mixed_case": {
+  "Status": "parsed",
+  "Message": "",
+  "References": [
+   {
+    "Qualifier": "",
+    "Name": "member",
+    "Column": "",
+    "Role": "relation",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 1
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "id",
+    "Role": "select",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 1
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "name",
+    "Role": "select",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 1
+   },
+   {
+    "Qualifier": "",
+    "Name": "MixedCase",
+    "Column": "Id",
+    "Role": "insert_target",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 2
+   },
+   {
+    "Qualifier": "",
+    "Name": "MixedCase",
+    "Column": "Val",
+    "Role": "insert_target",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 2
+   }
+  ],
+  "Calls": null,
+  "Dynamic": null,
+  "Unmodelled": null,
+  "Statements": [
+   {
+    "Line": 6,
+    "Excerpt": "INSERT INTO \"MixedCase\" (\"Id\", \"Val\") SELECT id, name FROM member"
+   }
+  ],
+  "Scopes": [
+   {
+    "Parent": -1,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": null
+   },
+   {
+    "Parent": 0,
+    "Sources": [
+     {
+      "Alias": "member",
+      "Qualifier": "",
+      "Name": "member"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": [
+     "id",
+     "name"
+    ]
+   },
+   {
+    "Parent": 0,
+    "Sources": [
+     {
+      "Alias": "MixedCase",
+      "Qualifier": "",
+      "Name": "MixedCase"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": null
+   }
+  ],
+  "SearchPath": null,
+  "Variables": [
+   "found"
+  ],
+  "VariableConflict": "error"
+ },
+ "public.adv_order_alias": {
+  "Status": "parsed",
+  "Message": "",
+  "References": [
+   {
+    "Qualifier": "",
+    "Name": "member",
+    "Column": "",
+    "Role": "relation",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "bet",
+    "Column": "",
+    "Role": "relation",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "b",
+    "Column": "member_id",
+    "Role": "join",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "m",
+    "Column": "id",
+    "Role": "join",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "m",
+    "Column": "balance",
+    "Role": "select",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "stake",
+    "Role": "order_by",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   }
+  ],
+  "Calls": null,
+  "Dynamic": null,
+  "Unmodelled": null,
+  "Statements": [
+   {
+    "Line": 6,
+    "Excerpt": "SELECT m.balance AS stake FROM member m JOIN bet b ON b.member_id = m.id ORDER BY stake"
+   }
+  ],
+  "Scopes": [
+   {
+    "Parent": -1,
+    "Sources": [
+     {
+      "Alias": "m",
+      "Qualifier": "",
+      "Name": "member"
+     },
+     {
+      "Alias": "b",
+      "Qualifier": "",
+      "Name": "bet"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": [
+     "stake"
+    ]
+   }
+  ],
+  "SearchPath": null,
+  "Variables": [
+   "x",
+   "found"
+  ],
+  "VariableConflict": "error"
+ },
+ "public.adv_record": {
+  "Status": "parsed",
+  "Message": "",
+  "References": [
+   {
+    "Qualifier": "",
+    "Name": "member",
+    "Column": "",
+    "Role": "relation",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "*",
+    "Role": "select",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "id",
+    "Role": "where",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "p",
+    "Role": "where",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "bet",
+    "Column": "stake",
+    "Role": "set_target",
+    "Line": 8,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 1
+   },
+   {
+    "Qualifier": "",
+    "Name": "rec",
+    "Column": "balance",
+    "Role": "set_source",
+    "Line": 8,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 1
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "member_id",
+    "Role": "where",
+    "Line": 8,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 1
+   },
+   {
+    "Qualifier": "",
+    "Name": "rec",
+    "Column": "id",
+    "Role": "where",
+    "Line": 8,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 1
+   }
+  ],
+  "Calls": null,
+  "Dynamic": null,
+  "Unmodelled": null,
+  "Statements": [
+   {
+    "Line": 7,
+    "Excerpt": "SELECT * FROM member WHERE id = p"
+   },
+   {
+    "Line": 8,
+    "Excerpt": "UPDATE bet SET stake = rec.balance WHERE member_id = rec.id"
+   }
+  ],
+  "Scopes": [
+   {
+    "Parent": -1,
+    "Sources": [
+     {
+      "Alias": "member",
+      "Qualifier": "",
+      "Name": "member"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": null
+   },
+   {
+    "Parent": -1,
+    "Sources": [
+     {
+      "Alias": "bet",
+      "Qualifier": "",
+      "Name": "bet"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": null
+   }
+  ],
+  "SearchPath": null,
+  "Variables": [
+   "p",
+   "found",
+   "rec"
+  ],
+  "VariableConflict": "error"
+ },
+ "public.adv_shadow": {
+  "Status": "parsed",
+  "Message": "",
+  "References": [
+   {
+    "Qualifier": "",
+    "Name": "bet",
+    "Column": "",
+    "Role": "relation",
+    "Line": 8,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "bet",
+    "Column": "status",
+    "Role": "where",
+    "Line": 8,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "bet",
+    "Column": "payout",
+    "Role": "where",
+    "Line": 8,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "stake",
+    "Role": "where",
+    "Line": 8,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "n",
+    "Role": "select",
+    "Line": 9,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 1
+   }
+  ],
+  "Calls": [
+   {
+    "Schema": "",
+    "Name": "count",
+    "Args": 0,
+    "Line": 8
+   }
+  ],
+  "Dynamic": null,
+  "Unmodelled": null,
+  "Statements": [
+   {
+    "Line": 8,
+    "Excerpt": "SELECT count(*) FROM bet WHERE bet.status = 'open' AND bet.payout \u003e stake"
+   },
+   {
+    "Line": 9,
+    "Excerpt": "n"
+   }
+  ],
+  "Scopes": [
+   {
+    "Parent": -1,
+    "Sources": [
+     {
+      "Alias": "bet",
+      "Qualifier": "",
+      "Name": "bet"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": [
+     "count"
+    ]
+   },
+   {
+    "Parent": -1,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": [
+     "n"
+    ]
+   }
+  ],
+  "SearchPath": null,
+  "Variables": [
+   "stake",
+   "found",
+   "n"
+  ],
+  "VariableConflict": "use_variable"
+ },
+ "public.adv_sql_positional": {
+  "Status": "parsed",
+  "Message": "",
+  "References": [
+   {
+    "Qualifier": "",
+    "Name": "member",
+    "Column": "",
+    "Role": "relation",
+    "Line": 4,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "email",
+    "Role": "select",
+    "Line": 4,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "id",
+    "Role": "where",
+    "Line": 4,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   }
+  ],
+  "Calls": null,
+  "Dynamic": null,
+  "Unmodelled": null,
+  "Statements": [
+   {
+    "Line": 4,
+    "Excerpt": "SELECT email FROM member WHERE id = $1"
+   }
+  ],
+  "Scopes": [
+   {
+    "Parent": -1,
+    "Sources": [
+     {
+      "Alias": "member",
+      "Qualifier": "",
+      "Name": "member"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": [
+     "email"
+    ]
+   }
+  ],
+  "SearchPath": null,
+  "Variables": null,
+  "VariableConflict": "use_column"
+ },
+ "public.adv_update_from": {
+  "Status": "parsed",
+  "Message": "",
+  "References": [
+   {
+    "Qualifier": "",
+    "Name": "member",
+    "Column": "",
+    "Role": "relation",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "b",
+    "Column": "payout",
+    "Role": "set_target",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "m",
+    "Column": "balance",
+    "Role": "set_source",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "b",
+    "Column": "member_id",
+    "Role": "where",
+    "Line": 8,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "m",
+    "Column": "id",
+    "Role": "where",
+    "Line": 8,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "m",
+    "Column": "closed",
+    "Role": "where",
+    "Line": 8,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "b",
+    "Column": "id",
+    "Role": "returning",
+    "Line": 8,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "v",
+    "Role": "select",
+    "Line": 9,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 1
+   }
+  ],
+  "Calls": null,
+  "Dynamic": null,
+  "Unmodelled": null,
+  "Statements": [
+   {
+    "Line": 7,
+    "Excerpt": "UPDATE bet b SET payout = m.balance FROM member m WHERE b.member_id = m.id AND m.closed RETURNING b.id"
+   },
+   {
+    "Line": 9,
+    "Excerpt": "v"
+   }
+  ],
+  "Scopes": [
+   {
+    "Parent": -1,
+    "Sources": [
+     {
+      "Alias": "b",
+      "Qualifier": "",
+      "Name": "bet"
+     },
+     {
+      "Alias": "m",
+      "Qualifier": "",
+      "Name": "member"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": null
+   },
+   {
+    "Parent": -1,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": [
+     "v"
+    ]
+   }
+  ],
+  "SearchPath": null,
+  "Variables": [
+   "found",
+   "v"
+  ],
+  "VariableConflict": "error"
+ },
+ "public.adv_view_write": {
+  "Status": "parsed",
+  "Message": "",
+  "References": [
+   {
+    "Qualifier": "",
+    "Name": "bet_simple",
+    "Column": "stake",
+    "Role": "set_target",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "bet_id",
+    "Role": "where",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "p",
+    "Role": "where",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   }
+  ],
+  "Calls": null,
+  "Dynamic": null,
+  "Unmodelled": null,
+  "Statements": [
+   {
+    "Line": 6,
+    "Excerpt": "UPDATE bet_simple SET stake = 0 WHERE bet_id = p"
+   }
+  ],
+  "Scopes": [
+   {
+    "Parent": -1,
+    "Sources": [
+     {
+      "Alias": "bet_simple",
+      "Qualifier": "",
+      "Name": "bet_simple"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": null
+   }
+  ],
+  "SearchPath": null,
+  "Variables": [
+   "p",
+   "found"
+  ],
+  "VariableConflict": "error"
+ },
+ "public.all_members": {
+  "Status": "parsed",
+  "Message": "",
+  "References": [
+   {
+    "Qualifier": "",
+    "Name": "member",
+    "Column": "",
+    "Role": "relation",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "*",
+    "Role": "select",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   }
+  ],
+  "Calls": null,
+  "Dynamic": null,
+  "Unmodelled": null,
+  "Statements": [
+   {
+    "Line": 6,
+    "Excerpt": "SELECT * FROM member"
+   }
+  ],
+  "Scopes": [
+   {
+    "Parent": -1,
+    "Sources": [
+     {
+      "Alias": "member",
+      "Qualifier": "",
+      "Name": "member"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": null
+   }
+  ],
+  "SearchPath": null,
+  "Variables": [
+   "found"
+  ],
+  "VariableConflict": "error"
+ },
+ "public.archive_bets": {
+  "Status": "parsed",
+  "Message": "",
+  "References": [
+   {
+    "Qualifier": "",
+    "Name": "bet",
+    "Column": "",
+    "Role": "relation",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 1
+   },
+   {
+    "Qualifier": "",
+    "Name": "b",
+    "Column": "id",
+    "Role": "select",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 1
+   },
+   {
+    "Qualifier": "",
+    "Name": "b",
+    "Column": "status",
+    "Role": "select",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 1
+   },
+   {
+    "Qualifier": "",
+    "Name": "b",
+    "Column": "status",
+    "Role": "where",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 1
+   },
+   {
+    "Qualifier": "",
+    "Name": "legacy_log",
+    "Column": "",
+    "Role": "insert_positional",
+    "Line": 6,
+    "Width": 2,
+    "Statement": 0,
+    "Scope": 2
+   },
+   {
+    "Qualifier": "",
+    "Name": "bet",
+    "Column": "",
+    "Role": "delete",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 3
+   },
+   {
+    "Qualifier": "",
+    "Name": "member",
+    "Column": "",
+    "Role": "relation",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 3
+   },
+   {
+    "Qualifier": "",
+    "Name": "bet",
+    "Column": "member_id",
+    "Role": "where",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 3
+   },
+   {
+    "Qualifier": "",
+    "Name": "m",
+    "Column": "id",
+    "Role": "where",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 3
+   },
+   {
+    "Qualifier": "",
+    "Name": "m",
+    "Column": "closed",
+    "Role": "where",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 3
+   }
+  ],
+  "Calls": null,
+  "Dynamic": null,
+  "Unmodelled": null,
+  "Statements": [
+   {
+    "Line": 6,
+    "Excerpt": "INSERT INTO legacy_log SELECT b.id, b.status FROM bet b WHERE b.status = 'settled'"
+   },
+   {
+    "Line": 7,
+    "Excerpt": "DELETE FROM bet USING member m WHERE bet.member_id = m.id AND m.closed"
+   }
+  ],
+  "Scopes": [
+   {
+    "Parent": -1,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": null
+   },
+   {
+    "Parent": 0,
+    "Sources": [
+     {
+      "Alias": "b",
+      "Qualifier": "",
+      "Name": "bet"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": [
+     "id",
+     "status"
+    ]
+   },
+   {
+    "Parent": 0,
+    "Sources": [
+     {
+      "Alias": "legacy_log",
+      "Qualifier": "",
+      "Name": "legacy_log"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": null
+   },
+   {
+    "Parent": -1,
+    "Sources": [
+     {
+      "Alias": "bet",
+      "Qualifier": "",
+      "Name": "bet"
+     },
+     {
+      "Alias": "m",
+      "Qualifier": "",
+      "Name": "member"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": null
+   }
+  ],
+  "SearchPath": null,
+  "Variables": [
+   "found"
+  ],
+  "VariableConflict": "error"
+ },
+ "public.bet_defaults": {
+  "Status": "parsed",
+  "Message": "",
+  "References": [
+   {
+    "Qualifier": "",
+    "Name": "new",
+    "Column": "status",
+    "Role": "new_assign",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": -1
+   },
+   {
+    "Qualifier": "",
+    "Name": "new",
+    "Column": "status",
+    "Role": "new_read",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "new",
+    "Role": "select",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 1
+   }
+  ],
+  "Calls": null,
+  "Dynamic": null,
+  "Unmodelled": null,
+  "Statements": [
+   {
+    "Line": 6,
+    "Excerpt": "NEW.status := coalesce(NEW.status, 'open')"
+   },
+   {
+    "Line": 7,
+    "Excerpt": "NEW"
+   }
+  ],
+  "Scopes": [
+   {
+    "Parent": -1,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": null
+   },
+   {
+    "Parent": -1,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": [
+     "new"
+    ]
+   }
+  ],
+  "SearchPath": null,
+  "Variables": [
+   "found",
+   "new",
+   "old"
+  ],
+  "VariableConflict": "error"
+ },
+ "public.broken_sql": {
+  "Status": "parsed",
+  "Message": "",
+  "References": null,
+  "Calls": null,
+  "Dynamic": null,
+  "Unmodelled": null,
+  "Statements": null,
+  "Scopes": [
+   {
+    "Parent": -1,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": null
+   }
+  ],
+  "SearchPath": null,
+  "Variables": null,
+  "VariableConflict": "use_column"
+ },
+ "public.campaign_report": {
+  "Status": "parsed",
+  "Message": "",
+  "References": [
+   {
+    "Qualifier": "promo",
+    "Name": "grant_log",
+    "Column": "",
+    "Role": "relation",
+    "Line": 8,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "member_bets",
+    "Column": "",
+    "Role": "relation",
+    "Line": 8,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "mb",
+    "Column": "member_id",
+    "Role": "join",
+    "Line": 8,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "g",
+    "Column": "member_id",
+    "Role": "join",
+    "Line": 8,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "mb",
+    "Column": "name",
+    "Role": "select",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "g",
+    "Column": "amount",
+    "Role": "select",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "g",
+    "Column": "campaign_id",
+    "Role": "where",
+    "Line": 9,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "p_campaign",
+    "Role": "where",
+    "Line": 9,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "mb",
+    "Column": "name",
+    "Role": "group_by",
+    "Line": 10,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   }
+  ],
+  "Calls": [
+   {
+    "Schema": "",
+    "Name": "sum",
+    "Args": 1,
+    "Line": 7
+   }
+  ],
+  "Dynamic": null,
+  "Unmodelled": null,
+  "Statements": [
+   {
+    "Line": 7,
+    "Excerpt": "SELECT mb.name, sum(g.amount) FROM promo.grant_log g JOIN member_bets mb ON mb.member_id = g.member_id WHERE g.campaign…"
+   }
+  ],
+  "Scopes": [
+   {
+    "Parent": -1,
+    "Sources": [
+     {
+      "Alias": "g",
+      "Qualifier": "promo",
+      "Name": "grant_log"
+     },
+     {
+      "Alias": "mb",
+      "Qualifier": "",
+      "Name": "member_bets"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": [
+     "name",
+     "sum"
+    ]
+   }
+  ],
+  "SearchPath": null,
+  "Variables": [
+   "p_campaign",
+   "member_name",
+   "total",
+   "found"
+  ],
+  "VariableConflict": "error"
+ },
+ "public.close_member": {
+  "Status": "parsed",
+  "Message": "",
+  "References": [
+   {
+    "Qualifier": "",
+    "Name": "r",
+    "Column": "id",
+    "Role": "select",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "bet",
+    "Column": "",
+    "Role": "relation",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 1
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "id",
+    "Role": "select",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 1
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "member_id",
+    "Role": "where",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 1
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "p_member",
+    "Role": "where",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 1
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "status",
+    "Role": "where",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 1
+   },
+   {
+    "Qualifier": "",
+    "Name": "account",
+    "Column": "",
+    "Role": "delete",
+    "Line": 9,
+    "Width": 0,
+    "Statement": 2,
+    "Scope": 2
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "member_id",
+    "Role": "where",
+    "Line": 9,
+    "Width": 0,
+    "Statement": 2,
+    "Scope": 2
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "p_member",
+    "Role": "where",
+    "Line": 9,
+    "Width": 0,
+    "Statement": 2,
+    "Scope": 2
+   },
+   {
+    "Qualifier": "",
+    "Name": "member",
+    "Column": "closed",
+    "Role": "set_target",
+    "Line": 10,
+    "Width": 0,
+    "Statement": 3,
+    "Scope": 3
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "id",
+    "Role": "where",
+    "Line": 10,
+    "Width": 0,
+    "Statement": 3,
+    "Scope": 3
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "p_member",
+    "Role": "where",
+    "Line": 10,
+    "Width": 0,
+    "Statement": 3,
+    "Scope": 3
+   }
+  ],
+  "Calls": [
+   {
+    "Schema": "",
+    "Name": "settle_bet",
+    "Args": 2,
+    "Line": 7
+   }
+  ],
+  "Dynamic": null,
+  "Unmodelled": null,
+  "Statements": [
+   {
+    "Line": 7,
+    "Excerpt": "SELECT settle_bet(r.id, 0)"
+   },
+   {
+    "Line": 6,
+    "Excerpt": "SELECT id FROM bet WHERE member_id = p_member AND status = 'open'"
+   },
+   {
+    "Line": 9,
+    "Excerpt": "DELETE FROM account WHERE member_id = p_member"
+   },
+   {
+    "Line": 10,
+    "Excerpt": "UPDATE member SET closed = true WHERE id = p_member"
+   }
+  ],
+  "Scopes": [
+   {
+    "Parent": -1,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": [
+     "settle_bet"
+    ]
+   },
+   {
+    "Parent": -1,
+    "Sources": [
+     {
+      "Alias": "bet",
+      "Qualifier": "",
+      "Name": "bet"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": [
+     "id"
+    ]
+   },
+   {
+    "Parent": -1,
+    "Sources": [
+     {
+      "Alias": "account",
+      "Qualifier": "",
+      "Name": "account"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": null
+   },
+   {
+    "Parent": -1,
+    "Sources": [
+     {
+      "Alias": "member",
+      "Qualifier": "",
+      "Name": "member"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": null
+   }
+  ],
+  "SearchPath": null,
+  "Variables": [
+   "p_member",
+   "found",
+   "r"
+  ],
+  "VariableConflict": "error"
+ },
+ "public.cte_write": {
+  "Status": "parsed",
+  "Message": "",
+  "References": [
+   {
+    "Qualifier": "",
+    "Name": "bet_audit",
+    "Column": "",
+    "Role": "delete",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 1
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "at",
+    "Role": "where",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 1
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "bet_id",
+    "Role": "returning",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 1
+   },
+   {
+    "Qualifier": "",
+    "Name": "moved",
+    "Column": "",
+    "Role": "relation",
+    "Line": 8,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "n",
+    "Role": "select",
+    "Line": 9,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 2
+   }
+  ],
+  "Calls": [
+   {
+    "Schema": "",
+    "Name": "now",
+    "Args": 0,
+    "Line": 7
+   },
+   {
+    "Schema": "",
+    "Name": "count",
+    "Args": 0,
+    "Line": 8
+   }
+  ],
+  "Dynamic": null,
+  "Unmodelled": null,
+  "Statements": [
+   {
+    "Line": 7,
+    "Excerpt": "WITH moved AS (DELETE FROM bet_audit WHERE at \u003c now() RETURNING bet_id) SELECT count(*) FROM moved"
+   },
+   {
+    "Line": 9,
+    "Excerpt": "n"
+   }
+  ],
+  "Scopes": [
+   {
+    "Parent": -1,
+    "Sources": [
+     {
+      "Alias": "moved",
+      "Qualifier": "",
+      "Name": "moved"
+     }
+    ],
+    "CTEs": [
+     "moved"
+    ],
+    "Outputs": [
+     "count"
+    ]
+   },
+   {
+    "Parent": 0,
+    "Sources": [
+     {
+      "Alias": "bet_audit",
+      "Qualifier": "",
+      "Name": "bet_audit"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": null
+   },
+   {
+    "Parent": -1,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": [
+     "n"
+    ]
+   }
+  ],
+  "SearchPath": null,
+  "Variables": [
+   "found",
+   "n"
+  ],
+  "VariableConflict": "error"
+ },
+ "public.default_conflict": {
+  "Status": "parsed",
+  "Message": "",
+  "References": [
+   {
+    "Qualifier": "",
+    "Name": "bet",
+    "Column": "",
+    "Role": "relation",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "payout",
+    "Role": "where",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "stake",
+    "Role": "where",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "n",
+    "Role": "select",
+    "Line": 8,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 1
+   }
+  ],
+  "Calls": [
+   {
+    "Schema": "",
+    "Name": "count",
+    "Args": 0,
+    "Line": 7
+   }
+  ],
+  "Dynamic": null,
+  "Unmodelled": null,
+  "Statements": [
+   {
+    "Line": 7,
+    "Excerpt": "SELECT count(*) FROM bet WHERE payout \u003e stake"
+   },
+   {
+    "Line": 8,
+    "Excerpt": "n"
+   }
+  ],
+  "Scopes": [
+   {
+    "Parent": -1,
+    "Sources": [
+     {
+      "Alias": "bet",
+      "Qualifier": "",
+      "Name": "bet"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": [
+     "count"
+    ]
+   },
+   {
+    "Parent": -1,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": [
+     "n"
+    ]
+   }
+  ],
+  "SearchPath": null,
+  "Variables": [
+   "stake",
+   "found",
+   "n"
+  ],
+  "VariableConflict": "error"
+ },
+ "public.default_currency": {
+  "Status": "parsed",
+  "Message": "",
+  "References": null,
+  "Calls": null,
+  "Dynamic": null,
+  "Unmodelled": null,
+  "Statements": null,
+  "Scopes": [
+   {
+    "Parent": -1,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": null
+   }
+  ],
+  "SearchPath": null,
+  "Variables": null,
+  "VariableConflict": "use_column"
+ },
+ "public.every_execute": {
+  "Status": "parsed",
+  "Message": "",
+  "References": null,
+  "Calls": null,
+  "Dynamic": [
+   {
+    "Line": 7,
+    "Form": "EXECUTE",
+    "Excerpt": "'DELETE FROM ' || p"
+   },
+   {
+    "Line": 8,
+    "Form": "FOR IN EXECUTE",
+    "Excerpt": "'SELECT id FROM bet'"
+   },
+   {
+    "Line": 11,
+    "Form": "RETURN QUERY EXECUTE",
+    "Excerpt": "format('SELECT id FROM %I', p)"
+   },
+   {
+    "Line": 12,
+    "Form": "OPEN FOR EXECUTE",
+    "Excerpt": "'SELECT id FROM member'"
+   }
+  ],
+  "Unmodelled": null,
+  "Statements": null,
+  "Scopes": null,
+  "SearchPath": null,
+  "Variables": [
+   "p",
+   "found",
+   "r",
+   "c"
+  ],
+  "VariableConflict": "error"
+ },
+ "public.expression_calls": {
+  "Status": "parsed",
+  "Message": "",
+  "References": null,
+  "Calls": [
+   {
+    "Schema": "",
+    "Name": "log_event",
+    "Args": 2,
+    "Line": 6
+   },
+   {
+    "Schema": "",
+    "Name": "member_total_stake",
+    "Args": 1,
+    "Line": 7
+   },
+   {
+    "Schema": "promo",
+    "Name": "helper",
+    "Args": 0,
+    "Line": 7
+   }
+  ],
+  "Dynamic": null,
+  "Unmodelled": null,
+  "Statements": [
+   {
+    "Line": 6,
+    "Excerpt": "SELECT log_event('x', 1)"
+   },
+   {
+    "Line": 7,
+    "Excerpt": "member_total_stake(promo.helper())"
+   }
+  ],
+  "Scopes": [
+   {
+    "Parent": -1,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": [
+     "log_event"
+    ]
+   },
+   {
+    "Parent": -1,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": [
+     "member_total_stake"
+    ]
+   }
+  ],
+  "SearchPath": null,
+  "Variables": [
+   "found"
+  ],
+  "VariableConflict": "error"
+ },
+ "public.grant_bonus": {
+  "Status": "parsed",
+  "Message": "",
+  "References": [
+   {
+    "Qualifier": "",
+    "Name": "grant_bonus",
+    "Column": "p_campaign",
+    "Role": "select",
+    "Line": 5,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 1
+   },
+   {
+    "Qualifier": "",
+    "Name": "grant_bonus",
+    "Column": "p_member",
+    "Role": "select",
+    "Line": 5,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 1
+   },
+   {
+    "Qualifier": "",
+    "Name": "grant_bonus",
+    "Column": "p_amount",
+    "Role": "select",
+    "Line": 5,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 1
+   },
+   {
+    "Qualifier": "",
+    "Name": "grant_log",
+    "Column": "campaign_id",
+    "Role": "insert_target",
+    "Line": 4,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 2
+   },
+   {
+    "Qualifier": "",
+    "Name": "grant_log",
+    "Column": "member_id",
+    "Role": "insert_target",
+    "Line": 4,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 2
+   },
+   {
+    "Qualifier": "",
+    "Name": "grant_log",
+    "Column": "amount",
+    "Role": "insert_target",
+    "Line": 4,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 2
+   },
+   {
+    "Qualifier": "",
+    "Name": "campaign",
+    "Column": "budget",
+    "Role": "set_target",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 3
+   },
+   {
+    "Qualifier": "",
+    "Name": "campaign",
+    "Column": "budget",
+    "Role": "set_source",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 3
+   },
+   {
+    "Qualifier": "",
+    "Name": "grant_bonus",
+    "Column": "p_amount",
+    "Role": "set_source",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 3
+   },
+   {
+    "Qualifier": "",
+    "Name": "campaign",
+    "Column": "id",
+    "Role": "where",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 3
+   },
+   {
+    "Qualifier": "",
+    "Name": "grant_bonus",
+    "Column": "p_campaign",
+    "Role": "where",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 3
+   }
+  ],
+  "Calls": null,
+  "Dynamic": null,
+  "Unmodelled": null,
+  "Statements": [
+   {
+    "Line": 4,
+    "Excerpt": "INSERT INTO promo.grant_log (campaign_id, member_id, amount) VALUES (grant_bonus.p_campaign, grant_bonus.p_member, gran…"
+   },
+   {
+    "Line": 6,
+    "Excerpt": "UPDATE promo.campaign SET budget = (campaign.budget - grant_bonus.p_amount) WHERE (campaign.id = grant_bonus.p_campaign)"
+   }
+  ],
+  "Scopes": [
+   {
+    "Parent": -1,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": null
+   },
+   {
+    "Parent": 0,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": null
+   },
+   {
+    "Parent": 0,
+    "Sources": [
+     {
+      "Alias": "grant_log",
+      "Qualifier": "promo",
+      "Name": "grant_log"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": null
+   },
+   {
+    "Parent": -1,
+    "Sources": [
+     {
+      "Alias": "campaign",
+      "Qualifier": "promo",
+      "Name": "campaign"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": null
+   }
+  ],
+  "SearchPath": null,
+  "Variables": [
+   "p_campaign",
+   "p_member",
+   "p_amount"
+  ],
+  "VariableConflict": "use_column"
+ },
+ "public.log_event": {
+  "Status": "parsed",
+  "Message": "",
+  "References": [
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "p_ref",
+    "Role": "select",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 1
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "p_kind",
+    "Role": "select",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 1
+   },
+   {
+    "Qualifier": "",
+    "Name": "legacy_log",
+    "Column": "id",
+    "Role": "insert_target",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 2
+   },
+   {
+    "Qualifier": "",
+    "Name": "legacy_log",
+    "Column": "msg",
+    "Role": "insert_target",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 2
+   }
+  ],
+  "Calls": null,
+  "Dynamic": null,
+  "Unmodelled": null,
+  "Statements": [
+   {
+    "Line": 6,
+    "Excerpt": "INSERT INTO legacy_log (id, msg) VALUES (p_ref, p_kind)"
+   }
+  ],
+  "Scopes": [
+   {
+    "Parent": -1,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": null
+   },
+   {
+    "Parent": 0,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": null
+   },
+   {
+    "Parent": 0,
+    "Sources": [
+     {
+      "Alias": "legacy_log",
+      "Qualifier": "",
+      "Name": "legacy_log"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": null
+   }
+  ],
+  "SearchPath": null,
+  "Variables": [
+   "p_kind",
+   "p_ref",
+   "found"
+  ],
+  "VariableConflict": "error"
+ },
+ "public.member_total_stake": {
+  "Status": "parsed",
+  "Message": "",
+  "References": [
+   {
+    "Qualifier": "",
+    "Name": "bet",
+    "Column": "",
+    "Role": "relation",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "b",
+    "Column": "stake",
+    "Role": "select",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "b",
+    "Column": "member_id",
+    "Role": "where",
+    "Line": 8,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "member_total_stake",
+    "Column": "p_member",
+    "Role": "where",
+    "Line": 8,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   }
+  ],
+  "Calls": [
+   {
+    "Schema": "",
+    "Name": "sum",
+    "Args": 1,
+    "Line": 6
+   }
+  ],
+  "Dynamic": null,
+  "Unmodelled": null,
+  "Statements": [
+   {
+    "Line": 6,
+    "Excerpt": "SELECT COALESCE(sum(b.stake), (0)::numeric) AS \"coalesce\" FROM bet b WHERE (b.member_id = member_total_stake.p_member)"
+   }
+  ],
+  "Scopes": [
+   {
+    "Parent": -1,
+    "Sources": [
+     {
+      "Alias": "b",
+      "Qualifier": "",
+      "Name": "bet"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": [
+     "coalesce"
+    ]
+   }
+  ],
+  "SearchPath": null,
+  "Variables": [
+   "p_member"
+  ],
+  "VariableConflict": "use_column"
+ },
+ "public.merge_and_into": {
+  "Status": "parsed",
+  "Message": "",
+  "References": null,
+  "Calls": null,
+  "Dynamic": null,
+  "Unmodelled": [
+   {
+    "Line": 6,
+    "Form": "MERGE",
+    "Excerpt": "MERGE INTO account a USING member m ON a.member_id = m.id WHEN MATCHED THEN UPDATE SET currency = 'THB'"
+   },
+   {
+    "Line": 8,
+    "Form": "CREATE TABLE AS",
+    "Excerpt": "CREATE TABLE snapshot_bet AS SELECT id, stake FROM bet"
+   }
+  ],
+  "Statements": [
+   {
+    "Line": 6,
+    "Excerpt": "MERGE INTO account a USING member m ON a.member_id = m.id WHEN MATCHED THEN UPDATE SET currency = 'THB'"
+   },
+   {
+    "Line": 8,
+    "Excerpt": "CREATE TABLE snapshot_bet AS SELECT id, stake FROM bet"
+   }
+  ],
+  "Scopes": null,
+  "SearchPath": null,
+  "Variables": [
+   "found"
+  ],
+  "VariableConflict": "error"
+ },
+ "public.next_bet_no": {
+  "Status": "parsed",
+  "Message": "",
+  "References": [
+   {
+    "Qualifier": "",
+    "Name": "bet_no_seq",
+    "Column": "",
+    "Role": "sequence",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   }
+  ],
+  "Calls": null,
+  "Dynamic": null,
+  "Unmodelled": null,
+  "Statements": [
+   {
+    "Line": 7,
+    "Excerpt": "nextval('bet_no_seq')"
+   }
+  ],
+  "Scopes": [
+   {
+    "Parent": -1,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": [
+     "nextval"
+    ]
+   }
+  ],
+  "SearchPath": [
+   "public"
+  ],
+  "Variables": [
+   "found"
+  ],
+  "VariableConflict": "error"
+ },
+ "public.open_bet_count": {
+  "Status": "parsed",
+  "Message": "",
+  "References": [
+   {
+    "Qualifier": "",
+    "Name": "bet",
+    "Column": "",
+    "Role": "relation",
+    "Line": 5,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "member_id",
+    "Role": "where",
+    "Line": 5,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "p_member",
+    "Role": "where",
+    "Line": 5,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "status",
+    "Role": "where",
+    "Line": 5,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   }
+  ],
+  "Calls": [
+   {
+    "Schema": "",
+    "Name": "count",
+    "Args": 0,
+    "Line": 5
+   }
+  ],
+  "Dynamic": null,
+  "Unmodelled": null,
+  "Statements": [
+   {
+    "Line": 5,
+    "Excerpt": "SELECT count(*) FROM bet WHERE member_id = p_member AND status = 'open'"
+   }
+  ],
+  "Scopes": [
+   {
+    "Parent": -1,
+    "Sources": [
+     {
+      "Alias": "bet",
+      "Qualifier": "",
+      "Name": "bet"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": [
+     "count"
+    ]
+   }
+  ],
+  "SearchPath": null,
+  "Variables": [
+   "p_member"
+  ],
+  "VariableConflict": "use_column"
+ },
+ "public.pg18_returning": {
+  "Status": "unparsed",
+  "Message": "syntax error at or near \"WITH\"",
+  "References": null,
+  "Calls": null,
+  "Dynamic": null,
+  "Unmodelled": null,
+  "Statements": null,
+  "Scopes": null,
+  "SearchPath": null,
+  "Variables": null,
+  "VariableConflict": ""
+ },
+ "public.positional_values": {
+  "Status": "parsed",
+  "Message": "",
+  "References": [
+   {
+    "Qualifier": "",
+    "Name": "legacy_log",
+    "Column": "",
+    "Role": "insert_positional",
+    "Line": 6,
+    "Width": 2,
+    "Statement": 0,
+    "Scope": 2
+   },
+   {
+    "Qualifier": "",
+    "Name": "legacy_log_2024",
+    "Column": "",
+    "Role": "relation",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 4
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "*",
+    "Role": "select",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 4
+   },
+   {
+    "Qualifier": "",
+    "Name": "legacy_log",
+    "Column": "",
+    "Role": "insert_positional",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 5
+   }
+  ],
+  "Calls": null,
+  "Dynamic": null,
+  "Unmodelled": null,
+  "Statements": [
+   {
+    "Line": 6,
+    "Excerpt": "INSERT INTO legacy_log VALUES (1, 'x')"
+   },
+   {
+    "Line": 7,
+    "Excerpt": "INSERT INTO legacy_log SELECT * FROM legacy_log_2024"
+   }
+  ],
+  "Scopes": [
+   {
+    "Parent": -1,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": null
+   },
+   {
+    "Parent": 0,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": null
+   },
+   {
+    "Parent": 0,
+    "Sources": [
+     {
+      "Alias": "legacy_log",
+      "Qualifier": "",
+      "Name": "legacy_log"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": null
+   },
+   {
+    "Parent": -1,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": null
+   },
+   {
+    "Parent": 3,
+    "Sources": [
+     {
+      "Alias": "legacy_log_2024",
+      "Qualifier": "",
+      "Name": "legacy_log_2024"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": null
+   },
+   {
+    "Parent": 3,
+    "Sources": [
+     {
+      "Alias": "legacy_log",
+      "Qualifier": "",
+      "Name": "legacy_log"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": null
+   }
+  ],
+  "SearchPath": null,
+  "Variables": [
+   "found"
+  ],
+  "VariableConflict": "error"
+ },
+ "public.promo_touch": {
+  "Status": "parsed",
+  "Message": "",
+  "References": [
+   {
+    "Qualifier": "",
+    "Name": "campaign",
+    "Column": "title",
+    "Role": "set_target",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "title",
+    "Role": "set_source",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "grant_log",
+    "Column": "",
+    "Role": "relation",
+    "Line": 8,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 1
+   },
+   {
+    "Qualifier": "",
+    "Name": "g",
+    "Column": "campaign_id",
+    "Role": "where",
+    "Line": 8,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 1
+   },
+   {
+    "Qualifier": "",
+    "Name": "campaign",
+    "Column": "id",
+    "Role": "where",
+    "Line": 8,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 1
+   }
+  ],
+  "Calls": [
+   {
+    "Schema": "",
+    "Name": "upper",
+    "Args": 1,
+    "Line": 7
+   }
+  ],
+  "Dynamic": null,
+  "Unmodelled": null,
+  "Statements": [
+   {
+    "Line": 7,
+    "Excerpt": "UPDATE campaign SET title = upper(title) WHERE EXISTS (SELECT 1 FROM grant_log g WHERE g.campaign_id = campaign.id)"
+   }
+  ],
+  "Scopes": [
+   {
+    "Parent": -1,
+    "Sources": [
+     {
+      "Alias": "campaign",
+      "Qualifier": "",
+      "Name": "campaign"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": null
+   },
+   {
+    "Parent": 0,
+    "Sources": [
+     {
+      "Alias": "g",
+      "Qualifier": "",
+      "Name": "grant_log"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": null
+   }
+  ],
+  "SearchPath": [
+   "promo",
+   "public"
+  ],
+  "Variables": [
+   "found"
+  ],
+  "VariableConflict": "error"
+ },
+ "public.purge_table": {
+  "Status": "parsed",
+  "Message": "",
+  "References": [
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "n",
+    "Role": "select",
+    "Line": 10,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   }
+  ],
+  "Calls": null,
+  "Dynamic": [
+   {
+    "Line": 7,
+    "Form": "EXECUTE",
+    "Excerpt": "format('DELETE FROM %I WHERE closed', p_table)"
+   },
+   {
+    "Line": 9,
+    "Form": "EXECUTE",
+    "Excerpt": "'SELECT count(*) FROM member'"
+   }
+  ],
+  "Unmodelled": null,
+  "Statements": [
+   {
+    "Line": 10,
+    "Excerpt": "n"
+   }
+  ],
+  "Scopes": [
+   {
+    "Parent": -1,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": [
+     "n"
+    ]
+   }
+  ],
+  "SearchPath": null,
+  "Variables": [
+   "p_table",
+   "found",
+   "n"
+  ],
+  "VariableConflict": "error"
+ },
+ "public.read_roles": {
+  "Status": "parsed",
+  "Message": "",
+  "References": [
+   {
+    "Qualifier": "",
+    "Name": "member",
+    "Column": "",
+    "Role": "relation",
+    "Line": 8,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "bet",
+    "Column": "",
+    "Role": "relation",
+    "Line": 8,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "b",
+    "Column": "member_id",
+    "Role": "join",
+    "Line": 8,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "m",
+    "Column": "id",
+    "Role": "join",
+    "Line": 8,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "m",
+    "Column": "name",
+    "Role": "select",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "b",
+    "Column": "stake",
+    "Role": "select",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "m",
+    "Column": "closed",
+    "Role": "where",
+    "Line": 9,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "m",
+    "Column": "name",
+    "Role": "group_by",
+    "Line": 10,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "b",
+    "Column": "payout",
+    "Role": "having",
+    "Line": 11,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "m",
+    "Column": "email",
+    "Role": "order_by",
+    "Line": 12,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "member",
+    "Column": "balance",
+    "Role": "set_target",
+    "Line": 13,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 1
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "id",
+    "Role": "where",
+    "Line": 13,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 1
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "p",
+    "Role": "where",
+    "Line": 13,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 1
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "email",
+    "Role": "returning",
+    "Line": 13,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 1
+   }
+  ],
+  "Calls": [
+   {
+    "Schema": "",
+    "Name": "sum",
+    "Args": 1,
+    "Line": 7
+   },
+   {
+    "Schema": "",
+    "Name": "sum",
+    "Args": 1,
+    "Line": 11
+   }
+  ],
+  "Dynamic": null,
+  "Unmodelled": null,
+  "Statements": [
+   {
+    "Line": 7,
+    "Excerpt": "SELECT m.name, sum(b.stake) FROM member m JOIN bet b ON b.member_id = m.id WHERE m.closed = false GROUP BY m.name HAVIN…"
+   },
+   {
+    "Line": 13,
+    "Excerpt": "UPDATE member SET balance = 0 WHERE id = p RETURNING email"
+   }
+  ],
+  "Scopes": [
+   {
+    "Parent": -1,
+    "Sources": [
+     {
+      "Alias": "m",
+      "Qualifier": "",
+      "Name": "member"
+     },
+     {
+      "Alias": "b",
+      "Qualifier": "",
+      "Name": "bet"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": [
+     "name",
+     "sum"
+    ]
+   },
+   {
+    "Parent": -1,
+    "Sources": [
+     {
+      "Alias": "member",
+      "Qualifier": "",
+      "Name": "member"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": null
+   }
+  ],
+  "SearchPath": null,
+  "Variables": [
+   "p",
+   "n",
+   "s",
+   "found"
+  ],
+  "VariableConflict": "error"
+ },
+ "public.select_into_record": {
+  "Status": "parsed",
+  "Message": "",
+  "References": [
+   {
+    "Qualifier": "",
+    "Name": "member",
+    "Column": "",
+    "Role": "relation",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "name",
+    "Role": "select",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "id",
+    "Role": "where",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "p",
+    "Role": "where",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "bet",
+    "Column": "",
+    "Role": "relation",
+    "Line": 8,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 1
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "*",
+    "Role": "select",
+    "Line": 8,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 1
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "id",
+    "Role": "where",
+    "Line": 8,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 1
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "p",
+    "Role": "where",
+    "Line": 8,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 1
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "v",
+    "Role": "select",
+    "Line": 9,
+    "Width": 0,
+    "Statement": 2,
+    "Scope": 2
+   }
+  ],
+  "Calls": null,
+  "Dynamic": null,
+  "Unmodelled": null,
+  "Statements": [
+   {
+    "Line": 7,
+    "Excerpt": "SELECT name FROM member WHERE id = p"
+   },
+   {
+    "Line": 8,
+    "Excerpt": "SELECT * FROM bet WHERE id = p"
+   },
+   {
+    "Line": 9,
+    "Excerpt": "v"
+   }
+  ],
+  "Scopes": [
+   {
+    "Parent": -1,
+    "Sources": [
+     {
+      "Alias": "member",
+      "Qualifier": "",
+      "Name": "member"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": [
+     "name"
+    ]
+   },
+   {
+    "Parent": -1,
+    "Sources": [
+     {
+      "Alias": "bet",
+      "Qualifier": "",
+      "Name": "bet"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": null
+   },
+   {
+    "Parent": -1,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": [
+     "v"
+    ]
+   }
+  ],
+  "SearchPath": null,
+  "Variables": [
+   "p",
+   "found",
+   "v",
+   "rec"
+  ],
+  "VariableConflict": "error"
+ },
+ "public.select_into_table": {
+  "Status": "parsed",
+  "Message": "",
+  "References": null,
+  "Calls": null,
+  "Dynamic": null,
+  "Unmodelled": [
+   {
+    "Line": 4,
+    "Form": "SELECT INTO a table",
+    "Excerpt": "SELECT id, stake INTO TABLE copied_bet FROM bet"
+   }
+  ],
+  "Statements": [
+   {
+    "Line": 4,
+    "Excerpt": "SELECT id, stake INTO TABLE copied_bet FROM bet"
+   }
+  ],
+  "Scopes": [
+   {
+    "Parent": -1,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": null
+   }
+  ],
+  "SearchPath": null,
+  "Variables": null,
+  "VariableConflict": "use_column"
+ },
+ "public.set_forms": {
+  "Status": "parsed",
+  "Message": "",
+  "References": [
+   {
+    "Qualifier": "",
+    "Name": "bet",
+    "Column": "stake",
+    "Role": "set_target",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "payout",
+    "Role": "set_source",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "bet",
+    "Column": "status",
+    "Role": "set_target",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "bet",
+    "Column": "settled_at",
+    "Role": "set_target",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "id",
+    "Role": "where",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "p",
+    "Role": "where",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "account",
+    "Column": "",
+    "Role": "delete",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 1
+   },
+   {
+    "Qualifier": "",
+    "Name": "member",
+    "Column": "",
+    "Role": "relation",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 1
+   },
+   {
+    "Qualifier": "",
+    "Name": "a",
+    "Column": "member_id",
+    "Role": "where",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 1
+   },
+   {
+    "Qualifier": "",
+    "Name": "m",
+    "Column": "id",
+    "Role": "where",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 1
+   },
+   {
+    "Qualifier": "",
+    "Name": "m",
+    "Column": "closed",
+    "Role": "where",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 1
+   }
+  ],
+  "Calls": [
+   {
+    "Schema": "",
+    "Name": "now",
+    "Args": 0,
+    "Line": 6
+   }
+  ],
+  "Dynamic": null,
+  "Unmodelled": null,
+  "Statements": [
+   {
+    "Line": 6,
+    "Excerpt": "UPDATE bet SET stake = payout, (status, settled_at) = ('x', now()) WHERE id = p"
+   },
+   {
+    "Line": 7,
+    "Excerpt": "DELETE FROM account a USING member m WHERE a.member_id = m.id AND m.closed"
+   }
+  ],
+  "Scopes": [
+   {
+    "Parent": -1,
+    "Sources": [
+     {
+      "Alias": "bet",
+      "Qualifier": "",
+      "Name": "bet"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": null
+   },
+   {
+    "Parent": -1,
+    "Sources": [
+     {
+      "Alias": "a",
+      "Qualifier": "",
+      "Name": "account"
+     },
+     {
+      "Alias": "m",
+      "Qualifier": "",
+      "Name": "member"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": null
+   }
+  ],
+  "SearchPath": null,
+  "Variables": [
+   "p",
+   "found"
+  ],
+  "VariableConflict": "error"
+ },
+ "public.settle_bet": {
+  "Status": "parsed",
+  "Message": "",
+  "References": [
+   {
+    "Qualifier": "",
+    "Name": "bet",
+    "Column": "",
+    "Role": "relation",
+    "Line": 10,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "b",
+    "Column": "member_id",
+    "Role": "select",
+    "Line": 10,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "b",
+    "Column": "stake",
+    "Role": "select",
+    "Line": 10,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "b",
+    "Column": "id",
+    "Role": "where",
+    "Line": 10,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "p_bet",
+    "Role": "where",
+    "Line": 10,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "b",
+    "Column": "status",
+    "Role": "where",
+    "Line": 10,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "found",
+    "Role": "select",
+    "Line": 11,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 1
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "p_bet",
+    "Role": "select",
+    "Line": 12,
+    "Width": 0,
+    "Statement": 2,
+    "Scope": 2
+   },
+   {
+    "Qualifier": "",
+    "Name": "bet",
+    "Column": "status",
+    "Role": "set_target",
+    "Line": 14,
+    "Width": 0,
+    "Statement": 3,
+    "Scope": 3
+   },
+   {
+    "Qualifier": "",
+    "Name": "bet",
+    "Column": "payout",
+    "Role": "set_target",
+    "Line": 14,
+    "Width": 0,
+    "Statement": 3,
+    "Scope": 3
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "p_payout",
+    "Role": "set_source",
+    "Line": 14,
+    "Width": 0,
+    "Statement": 3,
+    "Scope": 3
+   },
+   {
+    "Qualifier": "",
+    "Name": "bet",
+    "Column": "settled_at",
+    "Role": "set_target",
+    "Line": 14,
+    "Width": 0,
+    "Statement": 3,
+    "Scope": 3
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "id",
+    "Role": "where",
+    "Line": 14,
+    "Width": 0,
+    "Statement": 3,
+    "Scope": 3
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "p_bet",
+    "Role": "where",
+    "Line": 14,
+    "Width": 0,
+    "Statement": 3,
+    "Scope": 3
+   },
+   {
+    "Qualifier": "",
+    "Name": "member",
+    "Column": "balance",
+    "Role": "set_target",
+    "Line": 16,
+    "Width": 0,
+    "Statement": 4,
+    "Scope": 5
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "balance",
+    "Role": "set_source",
+    "Line": 16,
+    "Width": 0,
+    "Statement": 4,
+    "Scope": 5
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "p_payout",
+    "Role": "set_source",
+    "Line": 16,
+    "Width": 0,
+    "Statement": 4,
+    "Scope": 5
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "id",
+    "Role": "where",
+    "Line": 16,
+    "Width": 0,
+    "Statement": 4,
+    "Scope": 5
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "v_member",
+    "Role": "where",
+    "Line": 16,
+    "Width": 0,
+    "Statement": 4,
+    "Scope": 5
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "id",
+    "Role": "returning",
+    "Line": 16,
+    "Width": 0,
+    "Statement": 4,
+    "Scope": 5
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "balance",
+    "Role": "returning",
+    "Line": 16,
+    "Width": 0,
+    "Statement": 4,
+    "Scope": 5
+   },
+   {
+    "Qualifier": "",
+    "Name": "credited",
+    "Column": "",
+    "Role": "relation",
+    "Line": 19,
+    "Width": 0,
+    "Statement": 4,
+    "Scope": 6
+   },
+   {
+    "Qualifier": "",
+    "Name": "c",
+    "Column": "id",
+    "Role": "select",
+    "Line": 19,
+    "Width": 0,
+    "Statement": 4,
+    "Scope": 6
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "p_payout",
+    "Role": "select",
+    "Line": 19,
+    "Width": 0,
+    "Statement": 4,
+    "Scope": 6
+   },
+   {
+    "Qualifier": "",
+    "Name": "ledger",
+    "Column": "member_id",
+    "Role": "insert_target",
+    "Line": 18,
+    "Width": 0,
+    "Statement": 4,
+    "Scope": 7
+   },
+   {
+    "Qualifier": "",
+    "Name": "ledger",
+    "Column": "amount",
+    "Role": "insert_target",
+    "Line": 18,
+    "Width": 0,
+    "Statement": 4,
+    "Scope": 7
+   },
+   {
+    "Qualifier": "",
+    "Name": "ledger",
+    "Column": "kind",
+    "Role": "insert_target",
+    "Line": 18,
+    "Width": 0,
+    "Statement": 4,
+    "Scope": 7
+   },
+   {
+    "Qualifier": "",
+    "Name": "ledger",
+    "Column": "booked_on",
+    "Role": "insert_target",
+    "Line": 18,
+    "Width": 0,
+    "Statement": 4,
+    "Scope": 7
+   },
+   {
+    "Qualifier": "",
+    "Name": "member",
+    "Column": "",
+    "Role": "relation",
+    "Line": 20,
+    "Width": 0,
+    "Statement": 5,
+    "Scope": 8
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "balance",
+    "Role": "select",
+    "Line": 20,
+    "Width": 0,
+    "Statement": 5,
+    "Scope": 8
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "id",
+    "Role": "where",
+    "Line": 20,
+    "Width": 0,
+    "Statement": 5,
+    "Scope": 8
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "v_member",
+    "Role": "where",
+    "Line": 20,
+    "Width": 0,
+    "Statement": 5,
+    "Scope": 8
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "p_bet",
+    "Role": "select",
+    "Line": 21,
+    "Width": 0,
+    "Statement": 6,
+    "Scope": 9
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "v_new",
+    "Role": "select",
+    "Line": 22,
+    "Width": 0,
+    "Statement": 7,
+    "Scope": 10
+   }
+  ],
+  "Calls": [
+   {
+    "Schema": "",
+    "Name": "now",
+    "Args": 0,
+    "Line": 14
+   },
+   {
+    "Schema": "",
+    "Name": "log_event",
+    "Args": 2,
+    "Line": 21
+   }
+  ],
+  "Dynamic": null,
+  "Unmodelled": null,
+  "Statements": [
+   {
+    "Line": 10,
+    "Excerpt": "SELECT b.member_id, b.stake FROM bet b WHERE b.id = p_bet AND b.status = 'open'"
+   },
+   {
+    "Line": 11,
+    "Excerpt": "NOT FOUND"
+   },
+   {
+    "Line": 12,
+    "Excerpt": "p_bet"
+   },
+   {
+    "Line": 14,
+    "Excerpt": "UPDATE bet SET status = 'settled', payout = p_payout, settled_at = now() WHERE id = p_bet"
+   },
+   {
+    "Line": 15,
+    "Excerpt": "WITH credited AS ( UPDATE member SET balance = balance + p_payout WHERE id = v_member RETURNING id, balance ) INSERT IN…"
+   },
+   {
+    "Line": 20,
+    "Excerpt": "SELECT balance FROM member WHERE id = v_member"
+   },
+   {
+    "Line": 21,
+    "Excerpt": "SELECT log_event('settle', p_bet)"
+   },
+   {
+    "Line": 22,
+    "Excerpt": "v_new"
+   }
+  ],
+  "Scopes": [
+   {
+    "Parent": -1,
+    "Sources": [
+     {
+      "Alias": "b",
+      "Qualifier": "",
+      "Name": "bet"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": [
+     "member_id",
+     "stake"
+    ]
+   },
+   {
+    "Parent": -1,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": null
+   },
+   {
+    "Parent": -1,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": [
+     "p_bet"
+    ]
+   },
+   {
+    "Parent": -1,
+    "Sources": [
+     {
+      "Alias": "bet",
+      "Qualifier": "",
+      "Name": "bet"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": null
+   },
+   {
+    "Parent": -1,
+    "Sources": null,
+    "CTEs": [
+     "credited"
+    ],
+    "Outputs": null
+   },
+   {
+    "Parent": 4,
+    "Sources": [
+     {
+      "Alias": "member",
+      "Qualifier": "",
+      "Name": "member"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": null
+   },
+   {
+    "Parent": 4,
+    "Sources": [
+     {
+      "Alias": "c",
+      "Qualifier": "",
+      "Name": "credited"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": [
+     "id",
+     "p_payout"
+    ]
+   },
+   {
+    "Parent": 4,
+    "Sources": [
+     {
+      "Alias": "ledger",
+      "Qualifier": "",
+      "Name": "ledger"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": null
+   },
+   {
+    "Parent": -1,
+    "Sources": [
+     {
+      "Alias": "member",
+      "Qualifier": "",
+      "Name": "member"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": [
+     "balance"
+    ]
+   },
+   {
+    "Parent": -1,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": [
+     "log_event"
+    ]
+   },
+   {
+    "Parent": -1,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": [
+     "v_new"
+    ]
+   }
+  ],
+  "SearchPath": null,
+  "Variables": [
+   "p_bet",
+   "p_payout",
+   "found",
+   "v_member",
+   "v_stake",
+   "v_new"
+  ],
+  "VariableConflict": "error"
+ },
+ "public.trg_bet_audit": {
+  "Status": "parsed",
+  "Message": "",
+  "References": [
+   {
+    "Qualifier": "",
+    "Name": "new",
+    "Column": "status",
+    "Role": "new_read",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "old",
+    "Column": "status",
+    "Role": "old_read",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "new",
+    "Column": "id",
+    "Role": "new_read",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 2
+   },
+   {
+    "Qualifier": "",
+    "Name": "old",
+    "Column": "status",
+    "Role": "old_read",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 2
+   },
+   {
+    "Qualifier": "",
+    "Name": "new",
+    "Column": "status",
+    "Role": "new_read",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 2
+   },
+   {
+    "Qualifier": "",
+    "Name": "bet_audit",
+    "Column": "bet_id",
+    "Role": "insert_target",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 3
+   },
+   {
+    "Qualifier": "",
+    "Name": "bet_audit",
+    "Column": "old_status",
+    "Role": "insert_target",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 3
+   },
+   {
+    "Qualifier": "",
+    "Name": "bet_audit",
+    "Column": "new_status",
+    "Role": "insert_target",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 3
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "new",
+    "Role": "select",
+    "Line": 9,
+    "Width": 0,
+    "Statement": 2,
+    "Scope": 4
+   }
+  ],
+  "Calls": null,
+  "Dynamic": null,
+  "Unmodelled": null,
+  "Statements": [
+   {
+    "Line": 6,
+    "Excerpt": "NEW.status IS DISTINCT FROM OLD.status"
+   },
+   {
+    "Line": 7,
+    "Excerpt": "INSERT INTO bet_audit (bet_id, old_status, new_status) VALUES (NEW.id, OLD.status, NEW.status)"
+   },
+   {
+    "Line": 9,
+    "Excerpt": "NEW"
+   }
+  ],
+  "Scopes": [
+   {
+    "Parent": -1,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": null
+   },
+   {
+    "Parent": -1,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": null
+   },
+   {
+    "Parent": 1,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": null
+   },
+   {
+    "Parent": 1,
+    "Sources": [
+     {
+      "Alias": "bet_audit",
+      "Qualifier": "",
+      "Name": "bet_audit"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": null
+   },
+   {
+    "Parent": -1,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": [
+     "new"
+    ]
+   }
+  ],
+  "SearchPath": null,
+  "Variables": [
+   "found",
+   "new",
+   "old"
+  ],
+  "VariableConflict": "error"
+ },
+ "public.trg_old_new": {
+  "Status": "parsed",
+  "Message": "",
+  "References": [
+   {
+    "Qualifier": "",
+    "Name": "old",
+    "Column": "stake",
+    "Role": "old_read",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "new",
+    "Column": "stake",
+    "Role": "new_read",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "new",
+    "Column": "payout",
+    "Role": "new_assign",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": -1
+   },
+   {
+    "Qualifier": "",
+    "Name": "new",
+    "Column": "stake",
+    "Role": "new_read",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 1
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "new",
+    "Role": "select",
+    "Line": 9,
+    "Width": 0,
+    "Statement": 2,
+    "Scope": 2
+   }
+  ],
+  "Calls": null,
+  "Dynamic": null,
+  "Unmodelled": null,
+  "Statements": [
+   {
+    "Line": 6,
+    "Excerpt": "OLD.stake \u003c\u003e NEW.stake"
+   },
+   {
+    "Line": 7,
+    "Excerpt": "NEW.payout := NEW.stake * 2"
+   },
+   {
+    "Line": 9,
+    "Excerpt": "NEW"
+   }
+  ],
+  "Scopes": [
+   {
+    "Parent": -1,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": null
+   },
+   {
+    "Parent": -1,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": null
+   },
+   {
+    "Parent": -1,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": [
+     "new"
+    ]
+   }
+  ],
+  "SearchPath": null,
+  "Variables": [
+   "found",
+   "new",
+   "old"
+  ],
+  "VariableConflict": "error"
+ },
+ "public.upsert_account": {
+  "Status": "parsed",
+  "Message": "",
+  "References": [
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "p_id",
+    "Role": "select",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 1
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "p_member",
+    "Role": "select",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 1
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "p_cur",
+    "Role": "select",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 1
+   },
+   {
+    "Qualifier": "",
+    "Name": "account",
+    "Column": "id",
+    "Role": "insert_target",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 2
+   },
+   {
+    "Qualifier": "",
+    "Name": "account",
+    "Column": "member_id",
+    "Role": "insert_target",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 2
+   },
+   {
+    "Qualifier": "",
+    "Name": "account",
+    "Column": "currency",
+    "Role": "insert_target",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 2
+   },
+   {
+    "Qualifier": "",
+    "Name": "account",
+    "Column": "currency",
+    "Role": "conflict_set",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 3
+   },
+   {
+    "Qualifier": "",
+    "Name": "excluded",
+    "Column": "currency",
+    "Role": "excluded",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 3
+   }
+  ],
+  "Calls": null,
+  "Dynamic": null,
+  "Unmodelled": null,
+  "Statements": [
+   {
+    "Line": 6,
+    "Excerpt": "INSERT INTO account (id, member_id, currency) VALUES (p_id, p_member, p_cur) ON CONFLICT (id) DO UPDATE SET currency = …"
+   }
+  ],
+  "Scopes": [
+   {
+    "Parent": -1,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": null
+   },
+   {
+    "Parent": 0,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": null
+   },
+   {
+    "Parent": 0,
+    "Sources": [
+     {
+      "Alias": "account",
+      "Qualifier": "",
+      "Name": "account"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": null
+   },
+   {
+    "Parent": 0,
+    "Sources": [
+     {
+      "Alias": "account",
+      "Qualifier": "",
+      "Name": "account"
+     },
+     {
+      "Alias": "excluded",
+      "Qualifier": "",
+      "Name": "account"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": null
+   }
+  ],
+  "SearchPath": null,
+  "Variables": [
+   "p_id",
+   "p_member",
+   "p_cur",
+   "found"
+  ],
+  "VariableConflict": "error"
+ },
+ "public.upsert_excluded": {
+  "Status": "parsed",
+  "Message": "",
+  "References": [
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "p",
+    "Role": "select",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 1
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "p",
+    "Role": "select",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 1
+   },
+   {
+    "Qualifier": "",
+    "Name": "account",
+    "Column": "id",
+    "Role": "insert_target",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 2
+   },
+   {
+    "Qualifier": "",
+    "Name": "account",
+    "Column": "member_id",
+    "Role": "insert_target",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 2
+   },
+   {
+    "Qualifier": "",
+    "Name": "account",
+    "Column": "currency",
+    "Role": "insert_target",
+    "Line": 6,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 2
+   },
+   {
+    "Qualifier": "",
+    "Name": "account",
+    "Column": "currency",
+    "Role": "conflict_set",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 3
+   },
+   {
+    "Qualifier": "",
+    "Name": "excluded",
+    "Column": "currency",
+    "Role": "excluded",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 3
+   },
+   {
+    "Qualifier": "",
+    "Name": "account",
+    "Column": "member_id",
+    "Role": "conflict_set",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 3
+   },
+   {
+    "Qualifier": "",
+    "Name": "account",
+    "Column": "member_id",
+    "Role": "set_source",
+    "Line": 7,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 3
+   },
+   {
+    "Qualifier": "",
+    "Name": "account",
+    "Column": "currency",
+    "Role": "where",
+    "Line": 8,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 3
+   },
+   {
+    "Qualifier": "",
+    "Name": "excluded",
+    "Column": "currency",
+    "Role": "excluded",
+    "Line": 8,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 3
+   }
+  ],
+  "Calls": null,
+  "Dynamic": null,
+  "Unmodelled": null,
+  "Statements": [
+   {
+    "Line": 6,
+    "Excerpt": "INSERT INTO account (id, member_id, currency) VALUES (p, p, 'THB') ON CONFLICT (id) DO UPDATE SET currency = EXCLUDED.c…"
+   }
+  ],
+  "Scopes": [
+   {
+    "Parent": -1,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": null
+   },
+   {
+    "Parent": 0,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": null
+   },
+   {
+    "Parent": 0,
+    "Sources": [
+     {
+      "Alias": "account",
+      "Qualifier": "",
+      "Name": "account"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": null
+   },
+   {
+    "Parent": 0,
+    "Sources": [
+     {
+      "Alias": "account",
+      "Qualifier": "",
+      "Name": "account"
+     },
+     {
+      "Alias": "excluded",
+      "Qualifier": "",
+      "Name": "account"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": null
+   }
+  ],
+  "SearchPath": null,
+  "Variables": [
+   "p",
+   "found"
+  ],
+  "VariableConflict": "error"
+ },
+ "public.use_column_fn": {
+  "Status": "parsed",
+  "Message": "",
+  "References": [
+   {
+    "Qualifier": "",
+    "Name": "bet",
+    "Column": "",
+    "Role": "relation",
+    "Line": 8,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "payout",
+    "Role": "where",
+    "Line": 8,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "stake",
+    "Role": "where",
+    "Line": 8,
+    "Width": 0,
+    "Statement": 0,
+    "Scope": 0
+   },
+   {
+    "Qualifier": "",
+    "Name": "",
+    "Column": "n",
+    "Role": "select",
+    "Line": 9,
+    "Width": 0,
+    "Statement": 1,
+    "Scope": 1
+   }
+  ],
+  "Calls": [
+   {
+    "Schema": "",
+    "Name": "count",
+    "Args": 0,
+    "Line": 8
+   }
+  ],
+  "Dynamic": null,
+  "Unmodelled": null,
+  "Statements": [
+   {
+    "Line": 8,
+    "Excerpt": "SELECT count(*) FROM bet WHERE payout \u003e stake"
+   },
+   {
+    "Line": 9,
+    "Excerpt": "n"
+   }
+  ],
+  "Scopes": [
+   {
+    "Parent": -1,
+    "Sources": [
+     {
+      "Alias": "bet",
+      "Qualifier": "",
+      "Name": "bet"
+     }
+    ],
+    "CTEs": null,
+    "Outputs": [
+     "count"
+    ]
+   },
+   {
+    "Parent": -1,
+    "Sources": null,
+    "CTEs": null,
+    "Outputs": [
+     "n"
+    ]
+   }
+  ],
+  "SearchPath": null,
+  "Variables": [
+   "stake",
+   "found",
+   "n"
+  ],
+  "VariableConflict": "use_column"
+ }
+}

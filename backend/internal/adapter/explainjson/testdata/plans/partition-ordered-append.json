@@ -1,0 +1,65 @@
+[
+  {
+    "Plan": {
+      "Node Type": "Limit",
+      "Parallel Aware": false,
+      "Async Capable": false,
+      "Startup Cost": 0.57,
+      "Total Cost": 0.94,
+      "Plan Rows": 10,
+      "Plan Width": 12,
+      "Disabled": false,
+      "Output": ["events.at", "events.v"],
+      "Plans": [
+        {
+          "Node Type": "Append",
+          "Parent Relationship": "Outer",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Startup Cost": 0.57,
+          "Total Cost": 1841.57,
+          "Plan Rows": 50000,
+          "Plan Width": 12,
+          "Disabled": false,
+          "Subplans Removed": 0,
+          "Plans": [
+            {
+              "Node Type": "Index Scan",
+              "Parent Relationship": "Member",
+              "Parallel Aware": false,
+              "Async Capable": false,
+              "Scan Direction": "Forward",
+              "Index Name": "events_2026_09_at_idx",
+              "Relation Name": "events_2026_09",
+              "Schema": "public",
+              "Alias": "events_1",
+              "Startup Cost": 0.29,
+              "Total Cost": 1365.28,
+              "Plan Rows": 43199,
+              "Plan Width": 12,
+              "Disabled": false,
+              "Output": ["events_1.at", "events_1.v"]
+            },
+            {
+              "Node Type": "Index Scan",
+              "Parent Relationship": "Member",
+              "Parallel Aware": false,
+              "Async Capable": false,
+              "Scan Direction": "Forward",
+              "Index Name": "events_2026_10_at_idx",
+              "Relation Name": "events_2026_10",
+              "Schema": "public",
+              "Alias": "events_2",
+              "Startup Cost": 0.28,
+              "Total Cost": 226.30,
+              "Plan Rows": 6801,
+              "Plan Width": 12,
+              "Disabled": false,
+              "Output": ["events_2.at", "events_2.v"]
+            }
+          ]
+        }
+      ]
+    }
+  }
+]

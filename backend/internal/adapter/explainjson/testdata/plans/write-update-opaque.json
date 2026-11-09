@@ -1,0 +1,38 @@
+[
+  {
+    "Plan": {
+      "Node Type": "ModifyTable",
+      "Operation": "Update",
+      "Parallel Aware": false,
+      "Async Capable": false,
+      "Relation Name": "bet",
+      "Schema": "public",
+      "Alias": "bet",
+      "Startup Cost": 0.15,
+      "Total Cost": 8.42,
+      "Plan Rows": 0,
+      "Plan Width": 0,
+      "Disabled": false,
+      "Plans": [
+        {
+          "Node Type": "Index Scan",
+          "Parent Relationship": "Outer",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Scan Direction": "Forward",
+          "Index Name": "bet_pkey",
+          "Relation Name": "bet",
+          "Schema": "public",
+          "Alias": "bet",
+          "Startup Cost": 0.15,
+          "Total Cost": 8.42,
+          "Plan Rows": 1,
+          "Plan Width": 26,
+          "Disabled": false,
+          "Output": ["fn_member_stake(member_id)", "ctid"],
+          "Index Cond": "(bet.bet_id = 1)"
+        }
+      ]
+    }
+  }
+]

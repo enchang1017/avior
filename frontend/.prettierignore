@@ -1,0 +1,11 @@
+# Generated code is formatted by its generator. Reformatting it here would put
+# prettier and the generator in a fight that the no-drift gate then reports as a
+# failure with no cause anyone can act on.
+src/gen/
+
+dist/
+coverage/
+node_modules/
+playwright-report/
+test-results/
+pnpm-lock.yaml

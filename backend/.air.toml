@@ -1,0 +1,14 @@
+root = "."
+tmp_dir = "tmp"
+
+[build]
+  cmd = "go build -o ./tmp/avior ./cmd/avior"
+  bin = "./tmp/avior"
+  include_ext = ["go", "yaml", "sql"]
+  exclude_dir = ["tmp", "test"]
+  exclude_regex = ["_test\\.go$"]
+  delay = 300
+  stop_on_error = true
+
+[log]
+  time = true

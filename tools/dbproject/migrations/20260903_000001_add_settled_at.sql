@@ -1,0 +1,13 @@
+-- Hand-written. A real one would be generated from tables/ledger_probe.sql
+-- against a replay of this directory, but choosing a generator is recorded as
+-- open in ADR-0004 and this project is a stand-in for one that has.
+--
+-- The first version of this file claimed to have been generated, which was not
+-- true and was not harmless: it asserted a provenance nobody could check, and
+-- tables/ did not carry the column this adds. The replay gate now refuses that,
+-- and would have refused it then.
+--
+-- ADD COLUMN with a DEFAULT does not rewrite the table on PostgreSQL 11 and
+-- later, which is why the safe form here is also the fast one. ADR-0004 states
+-- the rule as "add it with a default" rather than "never add a NOT NULL column".
+ALTER TABLE public.ledger_probe ADD COLUMN settled_at timestamptz NOT NULL DEFAULT now();

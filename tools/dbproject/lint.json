@@ -1,0 +1,8 @@
+[
+  {
+    "rule": "adding-required-field",
+    "severity": "advice",
+    "object": "public.ledger_probe.settled_at",
+    "message": "ADD COLUMN ... NOT NULL DEFAULT does not rewrite the table on PostgreSQL 11 and later, so this is the safe form."
+  }
+]

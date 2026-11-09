@@ -1,0 +1,41 @@
+[
+  {
+    "Plan": {
+      "Node Type": "ModifyTable",
+      "Operation": "Update",
+      "Parallel Aware": false,
+      "Async Capable": false,
+      "Relation Name": "rounds_p202610",
+      "Schema": "public",
+      "Alias": "rounds_p202610",
+      "Startup Cost": 0.15,
+      "Total Cost": 8.17,
+      "Plan Rows": 0,
+      "Plan Width": 0,
+      "Disabled": false,
+      "Plans": [
+        {
+          "Node Type": "Index Scan",
+          "Parent Relationship": "Outer",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Scan Direction": "Forward",
+          "Index Name": "rounds_p202610_pkey",
+          "Relation Name": "rounds_p202610",
+          "Schema": "public",
+          "Alias": "rounds_p202610",
+          "Startup Cost": 0.15,
+          "Total Cost": 8.17,
+          "Plan Rows": 1,
+          "Plan Width": 38,
+          "Disabled": false,
+          "Output": [
+            "'1'::numeric",
+            "ctid"
+          ],
+          "Index Cond": "(rounds_p202610.id = 1500)"
+        }
+      ]
+    }
+  }
+]

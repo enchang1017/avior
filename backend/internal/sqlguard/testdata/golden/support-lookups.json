@@ -1,0 +1,110 @@
+[
+  {
+    "name": "member lookup by id",
+    "sql": "SELECT member_id, login_name, register_time FROM public.member WHERE member_id = 100238",
+    "decision": "allow",
+    "rule": ""
+  },
+  {
+    "name": "bet reconciliation join",
+    "sql": "SELECT b.bet_id, b.stake, m.login_name FROM public.bet b JOIN public.member m ON m.member_id = b.member_id WHERE m.register_time >= '2026-08-01'",
+    "decision": "allow",
+    "rule": ""
+  },
+  {
+    "name": "aggregate over a date range",
+    "sql": "SELECT m.currency_code, COUNT(*), SUM(b.stake) FROM public.bet b JOIN public.member m ON m.member_id = b.member_id WHERE m.register_time >= '2026-08-01' GROUP BY m.currency_code",
+    "decision": "allow",
+    "rule": ""
+  },
+  {
+    "name": "computed column with multiplication",
+    "sql": "SELECT bet_id, stake * odds AS potential_win FROM public.bet WHERE bet_id = 55",
+    "decision": "allow",
+    "rule": ""
+  },
+  {
+    "name": "cte over settled bets",
+    "sql": "WITH settled AS (SELECT bet_id, win_lost FROM public.bet WHERE status = 'Settled') SELECT bet_id FROM settled WHERE win_lost > 0",
+    "decision": "allow",
+    "rule": ""
+  },
+  {
+    "name": "recursive cte",
+    "sql": "WITH RECURSIVE r AS (SELECT 1 AS n UNION ALL SELECT n + 1 FROM r WHERE n < 5) SELECT n FROM r",
+    "decision": "allow",
+    "rule": ""
+  },
+  {
+    "name": "derived table",
+    "sql": "SELECT x.member_id FROM (SELECT member_id FROM public.member) x",
+    "decision": "allow",
+    "rule": ""
+  },
+  {
+    "name": "the view that hides a denied column",
+    "sql": "SELECT member_id, login_name FROM public.member_view WHERE currency_code = 'SGD'",
+    "decision": "allow",
+    "rule": ""
+  },
+  {
+    "name": "limit rather than top",
+    "sql": "SELECT member_id FROM public.member ORDER BY register_time DESC LIMIT 10",
+    "decision": "allow",
+    "rule": ""
+  },
+  {
+    "name": "cast",
+    "sql": "SELECT bet_id, stake::text FROM public.bet WHERE status = 'Open'",
+    "decision": "allow",
+    "rule": ""
+  },
+  {
+    "name": "json extraction",
+    "sql": "SELECT bet_id FROM public.bet WHERE ('{\"a\":1}'::jsonb)->>'a' = '1'",
+    "decision": "allow",
+    "rule": ""
+  },
+  {
+    "name": "array subscript",
+    "sql": "SELECT (ARRAY[1, 2, 3])[1] AS head",
+    "decision": "allow",
+    "rule": ""
+  },
+  {
+    "name": "dollar quoted literal",
+    "sql": "SELECT bet_id FROM public.bet WHERE status = $$Open$$",
+    "decision": "allow",
+    "rule": ""
+  },
+  {
+    "name": "escape string literal",
+    "sql": "SELECT bet_id FROM public.bet WHERE status = E'Open'",
+    "decision": "allow",
+    "rule": ""
+  },
+  {
+    "name": "a quoted identifier keeps its case",
+    "sql": "SELECT \"member_id\" FROM public.\"member\"",
+    "decision": "allow",
+    "rule": ""
+  },
+  {
+    "name": "a keyword read as a quoted identifier",
+    "sql": "SELECT \"comment\" FROM public.audit_note",
+    "decision": "allow",
+    "rule": ""
+  },
+  {
+    "name": "function in the select list",
+    "sql": "SELECT public.fn_member_stake(1) AS total_stake",
+    "decision": "allow",
+    "rule": ""
+  },
+  {
+    "name": "set returning function in from",
+    "sql": "SELECT bet_id, stake FROM public.tf_open_bets()",
+    "decision": "allow",
+    "rule": ""
+  }
+]

