@@ -18,27 +18,29 @@ const flow = [
 
 export function Writes() {
   return (
-    <section id="writes" className="flood">
+    <section id="writes" className="band">
       <div className="container">
-        <div className="section-head">
-          <p className="eyebrow eyebrow-on-flood">Governed writes</p>
-          <h2 className="section-title">A change to production needs a second person.</h2>
-          <p className="section-lede">
-            Reads are self-serve. Writes are requested, read by somebody else, and then run — never typed straight
-            into a console.
-          </p>
+        <div className="flood">
+          <div className="section-head">
+            <p className="eyebrow">Governed writes</p>
+            <h2 className="section-title">A change to production needs a second person.</h2>
+            <p className="section-lede">
+              Reads are self-serve. Writes are requested, read by somebody else, and then run — never typed straight
+              into a console.
+            </p>
+          </div>
+          <ol className="flow">
+            {flow.map((f, i) => (
+              <li key={f.who} className="flow-card">
+                <span className="flow-n">{i + 1}</span>
+                <p className="flow-who">
+                  {f.who} <span className="flow-act">{f.act}</span>
+                </p>
+                <p className="flow-body">{f.body}</p>
+              </li>
+            ))}
+          </ol>
         </div>
-        <ol className="flow">
-          {flow.map((f, i) => (
-            <li key={f.who} className="flow-card">
-              <span className="flow-n">{i + 1}</span>
-              <p className="flow-who">
-                {f.who} <span className="flow-act">{f.act}</span>
-              </p>
-              <p className="flow-body">{f.body}</p>
-            </li>
-          ))}
-        </ol>
       </div>
     </section>
   )

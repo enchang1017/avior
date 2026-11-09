@@ -1,7 +1,7 @@
 import '@astryxdesign/core/reset.css'
 import '@astryxdesign/core/astryx.css'
 import '@astryxdesign/theme-neutral/theme.css'
-import '@fontsource-variable/geist'
+import '@fontsource-variable/figtree'
 import '@fontsource-variable/geist-mono'
 import './site.css'
 
