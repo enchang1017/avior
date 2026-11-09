@@ -1,67 +1,68 @@
-import { Grid } from '@astryxdesign/core/Grid'
-import { Heading } from '@astryxdesign/core/Heading'
-import { Link } from '@astryxdesign/core/Link'
-import { Text } from '@astryxdesign/core/Text'
-import { VStack } from '@astryxdesign/core/VStack'
+import { ChartColumn, Columns3Cog, DatabaseZap, Gauge, KeyRound, UserCog } from 'lucide-react'
+import type { ComponentType } from 'react'
 
-import { links } from '../brand'
+type Feature = {
+  icon: ComponentType<{ size?: number; strokeWidth?: number }>
+  title: string
+  body: string
+}
 
-const features = [
+const features: Feature[] = [
   {
-    title: 'Governed writes',
-    body: 'A developer requests an UPDATE or DELETE. An approver reads what it would touch and how many rows, then lets it run. Every write keeps what it overwrote, in the same transaction.',
-  },
-  {
+    icon: Columns3Cog,
     title: 'Column restrictions',
     body: 'A restricted column is refused to everybody, including a DBA, until somebody unlocks it for a role and says why.',
   },
   {
+    icon: DatabaseZap,
     title: 'Database access by role',
-    body: 'Which roles reach which governed database — refused on every path, rather than merely hidden from a list.',
+    body: 'Which roles reach which database — refused on every path, not merely hidden from a list.',
   },
   {
-    title: 'Rate limiting per caller',
-    body: 'A statement budget per account, shared by every token and replica, so one caller cannot saturate an instance.',
+    icon: Gauge,
+    title: 'Rate limits per caller',
+    body: 'One statement budget per account, shared by every token and replica.',
   },
   {
+    icon: KeyRound,
     title: 'Directory sign-in',
-    body: 'Operators authenticate against LDAP. Accounts a deployment declares in a file always work, so a directory outage is not a lockout.',
+    body: 'LDAP for people, plus declared local accounts so a directory outage is not a lockout.',
   },
   {
-    title: 'Audit sky',
-    body: 'Seven days of submissions as hourly bars above the audit log, allowed and refused apart, with a brush that narrows the log.',
+    icon: UserCog,
+    title: 'Service accounts',
+    body: 'An account for an agent that is nobody’s person, granted access directly and audited as itself.',
   },
-] as const
+  {
+    icon: ChartColumn,
+    title: 'Audit sky',
+    body: 'Seven days of submissions as hourly bars, allowed and refused apart, with a brush that narrows the log.',
+  },
+]
 
 export function Features() {
   return (
-    <section id="features" className="band band-raised">
+    <section id="features" className="band band-2">
       <div className="container">
-        <VStack gap={8}>
-          <VStack gap={3} maxWidth={720}>
-            <Text type="label" color="accent">
-              What else it governs
-            </Text>
-            <Heading level={2} type="display-3" textWrap="balance">
-              The rules a production database needs, written down before they were built.
-            </Heading>
-            <Text type="large" color="secondary" as="p">
-              Every feature starts as an acceptance spec in <Link href={links.features}>docs/features</Link>,
-              and each acceptance criterion has an integration test against a real PostgreSQL.
-            </Text>
-          </VStack>
-          <Grid columns={{ minWidth: 280 }} gap={8}>
-            {features.map((f) => (
-              <VStack key={f.title} gap={2} hAlign="start">
-                <span className="feature-rule" />
-                <Heading level={3}>{f.title}</Heading>
-                <Text color="secondary" as="p">
-                  {f.body}
-                </Text>
-              </VStack>
-            ))}
-          </Grid>
-        </VStack>
+        <div className="section-head">
+          <p className="eyebrow">Policy</p>
+          <h2 className="section-title">Every rule a production database needs.</h2>
+          <p className="section-lede">
+            Each one began as an acceptance spec, and each criterion has an integration test against a real
+            PostgreSQL.
+          </p>
+        </div>
+        <ul className="feature-grid">
+          {features.map(({ icon: Icon, title, body }) => (
+            <li key={title} className="feature">
+              <span className="feature-icon">
+                <Icon size={20} strokeWidth={1.75} />
+              </span>
+              <h3 className="feature-title">{title}</h3>
+              <p className="feature-body">{body}</p>
+            </li>
+          ))}
+        </ul>
       </div>
     </section>
   )

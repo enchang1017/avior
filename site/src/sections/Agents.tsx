@@ -1,11 +1,13 @@
-import { Code } from '@astryxdesign/core/Code'
 import { CodeBlock } from '@astryxdesign/core/CodeBlock'
-import { Heading } from '@astryxdesign/core/Heading'
-import { HStack } from '@astryxdesign/core/HStack'
-import { Text } from '@astryxdesign/core/Text'
-import { VStack } from '@astryxdesign/core/VStack'
 
-const tools = ['whoami', 'list_databases', 'list_tables', 'describe_table', 'sample_rows', 'run_sql'] as const
+const tools = [
+  ['whoami', 'who the token speaks for'],
+  ['list_databases', 'the databases this role may reach'],
+  ['list_tables', 'tables and views in one database'],
+  ['describe_table', 'columns, with restricted ones marked'],
+  ['sample_rows', 'a few rows, through the guard'],
+  ['run_sql', 'one statement, guarded and audited'],
+] as const
 
 const setup = `claude mcp add --transport http avior \\
   https://avior.example.com/api/v1/mcp \\
@@ -14,32 +16,27 @@ const setup = `claude mcp add --transport http avior \\
 export function Agents() {
   return (
     <section id="agents" className="band">
-      <div className="container split">
-        <VStack gap={4}>
-          <Text type="label" color="accent">
-            Built for agents
-          </Text>
-          <Heading level={2} type="display-3" textWrap="balance">
-            Agents read through the same gate as people.
-          </Heading>
-          <Text type="large" color="secondary" as="p">
-            Avior speaks the Model Context Protocol itself. An agent connects with a token an operator minted,
-            or as a service account that is nobody&apos;s person, and every call goes through the same guard,
-            access table and audit as the console. No server on the laptop.
-          </Text>
-          <HStack gap={2} wrap="wrap">
-            {tools.map((t) => (
-              <Code key={t}>{t}</Code>
-            ))}
-          </HStack>
-          <Text type="supporting" as="p">
-            Every tool declares an output schema: rows as arrays, the audit id, numbers with every digit — and a
-            refusal carries none.
-          </Text>
-        </VStack>
-        <div className="split-code">
+      <div className="container agents">
+        <div className="agents-copy">
+          <p className="eyebrow">Built for agents</p>
+          <h2 className="section-title">
+            Your agent gets a <span className="mark">token</span>, not a connection string.
+          </h2>
+          <p className="section-lede">
+            Avior speaks the Model Context Protocol itself. Every tool call goes through the same guard, access
+            table and audit as the console, and answers with structured output: rows as arrays, the audit id,
+            numbers with every digit.
+          </p>
           <CodeBlock title="Connect Claude Code" language="bash" code={setup} />
         </div>
+        <ul className="tools">
+          {tools.map(([name, what]) => (
+            <li key={name} className="tool">
+              <code className="tool-name">{name}</code>
+              <span className="tool-what">{what}</span>
+            </li>
+          ))}
+        </ul>
       </div>
     </section>
   )

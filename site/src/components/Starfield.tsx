@@ -6,7 +6,7 @@ type Star = { x: number; y: number; z: number }
 
 const STAR_POOL = 900
 const VISIBLE_STARS = 320
-const SPEED = 0.0024
+const SPEED = 0.0028
 const TRAIL_FADE = 0.35
 const NEAREST = 0.02
 const REDUCED_MOTION_FRAMES = 400

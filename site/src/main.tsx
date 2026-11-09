@@ -1,7 +1,8 @@
 import '@astryxdesign/core/reset.css'
 import '@astryxdesign/core/astryx.css'
 import '@astryxdesign/theme-neutral/theme.css'
-import '@astryxdesign/theme-neutral/fonts.css'
+import '@fontsource-variable/geist'
+import '@fontsource-variable/geist-mono'
 import './site.css'
 
 import { Theme } from '@astryxdesign/core/theme'
