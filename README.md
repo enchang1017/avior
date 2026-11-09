@@ -1,10 +1,18 @@
 # Avior
 
+[![verify](https://github.com/enchang1017/avior/actions/workflows/verify.yml/badge.svg?branch=master)](https://github.com/enchang1017/avior/actions/workflows/verify.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Go 1.25](https://img.shields.io/badge/go-1.25-00ADD8.svg)](backend/go.mod)
+[![PostgreSQL](https://img.shields.io/badge/governs-PostgreSQL-336791.svg)](docs/adr/0005-avior-governs-postgresql.md)
+
+[Website](https://avior.goenchang.dev) ·
+[Features](docs/features/README.md) ·
+[Decisions](docs/adr/) ·
+[Getting started](#getting-it-running)
+
 A governed SQL gateway. Operators submit read-only statements against production
 databases; Avior decides whether each one may run, records who asked for it, and
 returns the result.
-
-Website: <https://avior.goenchang.dev>
 
 It began as the successor to an in-house SQL gateway, an ASP.NET MVC application
 of roughly 20,000 lines of C# across 32 controllers, referred to as "the
