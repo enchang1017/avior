@@ -1,0 +1,257 @@
+:root {
+  --site-night: #0b1020;
+  --site-raised: #0f1630;
+  --site-line: #232c4a;
+  --site-amber: #ffb547;
+  --site-blue: #7cc4ff;
+  --site-gutter: 24px;
+  --site-max: 1160px;
+  --site-band: 104px;
+  --site-nav: 64px;
+  color-scheme: dark;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: var(--site-nav);
+  background: var(--site-night);
+}
+
+body {
+  margin: 0;
+  background: var(--site-night);
+  overflow-x: hidden;
+}
+
+.container {
+  width: 100%;
+  max-width: var(--site-max);
+  margin-inline: auto;
+  padding-inline: var(--site-gutter);
+  box-sizing: border-box;
+}
+
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo svg {
+  display: block;
+  width: auto;
+}
+
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  height: var(--site-nav);
+  display: flex;
+  align-items: center;
+  background: color-mix(in srgb, var(--site-night) 82%, transparent);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--site-line);
+}
+
+.nav-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.nav-home {
+  display: inline-flex;
+  text-decoration: none;
+}
+
+.nav-links {
+  display: flex;
+  gap: 24px;
+}
+
+.hero {
+  position: relative;
+  min-height: calc(100svh - var(--site-nav));
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.starfield {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background: var(--site-night);
+}
+
+.starfield canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.hero-veil {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(90deg, var(--site-night) 0%, color-mix(in srgb, var(--site-night) 55%, transparent) 50%, transparent 100%),
+    linear-gradient(0deg, var(--site-night) 0%, transparent 30%);
+}
+
+.hero-content {
+  padding-block: 96px;
+}
+
+.hero-content > * {
+  max-width: 760px;
+}
+
+.scramble {
+  cursor: pointer;
+}
+
+.scramble-word {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.scramble-cell {
+  position: relative;
+  display: inline-block;
+}
+
+.scramble-char {
+  transition: opacity 300ms;
+}
+
+.scramble-glyph {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+}
+
+.band {
+  padding-block: var(--site-band);
+}
+
+.band-raised {
+  background: var(--site-raised);
+  border-block: 1px solid var(--site-line);
+}
+
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 32px;
+  counter-reset: none;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 20px;
+  border-top: 1px solid var(--site-line);
+}
+
+.step-n {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  color: var(--site-amber);
+  letter-spacing: 0.08em;
+}
+
+.table-frame {
+  border: 1px solid var(--site-line);
+  border-radius: 12px;
+  overflow-x: auto;
+}
+
+.table-frame > * {
+  min-width: 680px;
+}
+
+.feature-rule {
+  width: 28px;
+  height: 2px;
+  background: var(--site-amber);
+}
+
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 64px;
+  align-items: center;
+}
+
+.split-code {
+  min-width: 0;
+}
+
+.invariants {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.invariants li {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-block: 16px;
+  border-bottom: 1px solid var(--site-line);
+}
+
+.invariants li:first-child {
+  border-top: 1px solid var(--site-line);
+}
+
+.footer {
+  padding-block: 48px;
+  border-top: 1px solid var(--site-line);
+}
+
+.footer-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 32px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 860px) {
+  :root {
+    --site-band: 80px;
+    --site-gutter: 16px;
+  }
+
+  .split {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 40px;
+  }
+
+  .nav-links {
+    display: none;
+  }
+
+  .hero-veil {
+    background: linear-gradient(0deg, var(--site-night) 0%, color-mix(in srgb, var(--site-night) 60%, transparent) 100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}

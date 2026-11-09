@@ -255,6 +255,8 @@ frontend/src/shared/        the API client and cross-feature helpers.
 docs/features/              the feature registry and one document per feature.
 docs/adr/                   decisions and their reasons.
 deploy/seed/                the fixed local fixture set.
+site/                       the project website, React and Astryx, deployed to
+                            GitHub Pages by .github/workflows/pages.yml.
 tools/differential/         compares Avior's verdict with the predecessor's.
 ```
 

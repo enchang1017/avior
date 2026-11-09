@@ -25,3 +25,6 @@ node_modules/
 # snapshots the Playwright MCP writes while somebody is looking at the running
 # app. They are evidence for one conversation, not part of the repository.
 /.playwright-mcp/
+
+# The project site
+/site/dist/
