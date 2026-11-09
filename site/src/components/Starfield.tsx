@@ -1,8 +1,7 @@
 import { useEffect, useRef } from 'react'
 
-import { brand } from '../brand'
-
 type Star = { x: number; y: number; z: number }
+type Palette = { ground: string; strokes: string[] }
 
 const STAR_POOL = 900
 const VISIBLE_STARS = 320
@@ -10,7 +9,6 @@ const SPEED = 0.0028
 const TRAIL_FADE = 0.35
 const NEAREST = 0.02
 const REDUCED_MOTION_FRAMES = 400
-const COLORS = [brand.blue, brand.amber, '#ffffff'] as const
 
 function randomStar(z = Math.random()): Star {
   return { x: Math.random() * 2 - 1, y: Math.random() * 2 - 1, z }
@@ -20,9 +18,15 @@ function project(value: number, depth: number, centre: number, focal: number) {
   return centre + (value / depth) * focal * 0.5
 }
 
-function drawFrame(ctx: CanvasRenderingContext2D, stars: Star[], width: number, height: number) {
+function readPalette(el: HTMLElement): Palette {
+  const style = getComputedStyle(el)
+  const read = (name: string) => style.getPropertyValue(name).trim()
+  return { ground: read('--color-paper'), strokes: [read('--star-1'), read('--star-2'), read('--star-3')] }
+}
+
+function drawFrame(ctx: CanvasRenderingContext2D, stars: Star[], width: number, height: number, palette: Palette) {
   ctx.globalAlpha = TRAIL_FADE
-  ctx.fillStyle = brand.night
+  ctx.fillStyle = palette.ground
   ctx.fillRect(0, 0, width, height)
 
   const cx = width / 2
@@ -36,7 +40,7 @@ function drawFrame(ctx: CanvasRenderingContext2D, stars: Star[], width: number, 
       Object.assign(star, randomStar(1))
       return
     }
-    ctx.strokeStyle = COLORS[i % COLORS.length]
+    ctx.strokeStyle = palette.strokes[i % palette.strokes.length] ?? palette.ground
     ctx.lineWidth = (1 - star.z) * 2.6
     ctx.globalAlpha = 1 - star.z
     ctx.beginPath()
@@ -62,6 +66,7 @@ export function Starfield() {
     let height = 0
     let frame = 0
     let visible = true
+    let palette = readPalette(host)
 
     const fit = () => {
       const ratio = Math.min(window.devicePixelRatio || 1, 2)
@@ -73,7 +78,7 @@ export function Starfield() {
     }
 
     const loop = () => {
-      drawFrame(ctx, stars, width, height)
+      drawFrame(ctx, stars, width, height, palette)
       frame = visible ? requestAnimationFrame(loop) : 0
     }
 
@@ -81,9 +86,20 @@ export function Starfield() {
     resize.observe(host)
     fit()
 
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      Array.from({ length: REDUCED_MOTION_FRAMES }).forEach(() => drawFrame(ctx, stars, width, height))
-      return () => resize.disconnect()
+    const settle = () => Array.from({ length: REDUCED_MOTION_FRAMES }).forEach(() => drawFrame(ctx, stars, width, height, palette))
+    const recolour = new MutationObserver(() => {
+      palette = readPalette(host)
+      if (reduced) settle()
+    })
+    recolour.observe(document.documentElement, { attributes: true, attributeFilter: ['data-mode'] })
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
+
+    if (reduced) {
+      settle()
+      return () => {
+        resize.disconnect()
+        recolour.disconnect()
+      }
     }
 
     // The hero scrolls away on a long page; a canvas painting off-screen is a
@@ -98,6 +114,7 @@ export function Starfield() {
     return () => {
       cancelAnimationFrame(frame)
       resize.disconnect()
+      recolour.disconnect()
       seen.disconnect()
     }
   }, [])

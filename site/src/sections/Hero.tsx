@@ -13,7 +13,7 @@ export function Hero() {
       <div className="container hero-inner">
         <a className="hero-pill" href={links.postgresAdr}>
           <span className="hero-pill-tag">PostgreSQL</span>
-          Avior governs PostgreSQL, and nothing else
+          <span className="hero-pill-text">Avior governs PostgreSQL, and nothing else</span>
         </a>
         <h1 className="hero-title">
           <ScrambleText text="Every query to production," />

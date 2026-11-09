@@ -1,5 +1,3 @@
-import { brand } from '../brand'
-
 type LogoProps = {
   wordmark?: boolean
   height?: number
@@ -10,17 +8,17 @@ export function Logo({ wordmark = true, height = 30 }: LogoProps) {
     <span className="logo" role="img" aria-label="Avior">
       <svg viewBox="0 0 64 64" height={height} aria-hidden="true">
         <path
-          fill={brand.amber}
+          className="logo-star"
           d="M27 6 L30.394 21.606 L44 25 L30.394 28.394 L27 61 L23.606 28.394 L10 25 L23.606 21.606 Z"
         />
-        <circle fill={brand.blue} cx="51" cy="10" r="4.5" />
+        <circle className="logo-companion" cx="51" cy="10" r="4.5" />
       </svg>
       {wordmark ? (
         <svg
+          className="logo-word"
           viewBox="-2 -2 115 28"
           height={Math.round(height * 0.47)}
           fill="none"
-          stroke={brand.ink}
           strokeWidth="2.4"
           strokeLinecap="square"
           strokeLinejoin="miter"

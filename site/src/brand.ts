@@ -10,6 +10,15 @@ export const brand = {
   line: '#26304f',
   onAmber: '#1a1206',
   deny: '#ff8a7a',
+  day: {
+    paper: '#ffffff',
+    paper2: '#f4f5f0',
+    paper3: '#eef0ea',
+    line: '#dcdfd6',
+    ink: '#0e1426',
+    inkSoft: '#3d4560',
+    amberText: '#9a5800',
+  },
 } as const
 
 export const links = {

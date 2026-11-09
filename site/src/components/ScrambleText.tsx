@@ -1,7 +1,5 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 
-import { brand } from '../brand'
-
 type ScrambleTextProps = {
   text: string
   duration?: number
@@ -91,7 +89,7 @@ export function ScrambleText({ text, duration = 1600 }: ScrambleTextProps) {
                       {ch}
                     </span>
                     {g ? (
-                      <span className="scramble-glyph" style={{ color: brand.amber }}>
+                      <span className="scramble-glyph" style={{ color: 'var(--color-accent-display)' }}>
                         {g}
                       </span>
                     ) : null}

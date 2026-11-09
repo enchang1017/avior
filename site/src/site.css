@@ -14,10 +14,18 @@
   --color-ink-3: #8a93b4;
   --color-accent: #ffb547;
   --color-accent-ink: #1a1206;
+  --color-accent-text: #ffb547;
+  --color-accent-display: #ffb547;
+  --color-logo-star: #ffb547;
+  --color-logo-companion: #7cc4ff;
+  --star-1: #7cc4ff;
+  --star-2: #ffb547;
+  --star-3: #ffffff;
   --color-accent-soft: color-mix(in srgb, var(--color-accent) 14%, transparent);
   --color-companion: #7cc4ff;
   --color-deny: #ff8a7a;
   --color-deny-soft: color-mix(in srgb, var(--color-deny) 14%, transparent);
+  --color-on-deny: #1a1206;
   --color-focus: #7cc4ff;
 
   --font-display: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
@@ -57,6 +65,31 @@
   --dur-med: 320ms;
 
   color-scheme: dark;
+}
+
+:root[data-mode="light"] {
+  --color-paper: #ffffff;
+  --color-paper-2: #f4f5f0;
+  --color-paper-3: #eef0ea;
+  --color-rule: #dcdfd6;
+  --color-rule-strong: #b9bdb0;
+  --color-ink: #0e1426;
+  --color-ink-2: #3d4560;
+  --color-ink-3: #5a6280;
+  --color-accent-text: #9a5800;
+  --color-accent-display: #c27a0a;
+  --color-accent-soft: color-mix(in srgb, #ffb547 22%, transparent);
+  --color-logo-star: #c27a0a;
+  --color-logo-companion: #1f6fb8;
+  --color-companion: #0b63b6;
+  --color-deny: #b3261e;
+  --color-deny-soft: color-mix(in srgb, #b3261e 10%, transparent);
+  --color-on-deny: #ffffff;
+  --color-focus: #0b63b6;
+  --star-1: #1f6fb8;
+  --star-2: #c27a0a;
+  --star-3: #80869a;
+  color-scheme: light;
 }
 
 html,
@@ -113,6 +146,18 @@ a {
   width: auto;
 }
 
+.logo-star {
+  fill: var(--color-logo-star);
+}
+
+.logo-companion {
+  fill: var(--color-logo-companion);
+}
+
+.logo-word {
+  stroke: var(--color-ink);
+}
+
 /* Nav */
 
 .nav {
@@ -144,7 +189,65 @@ a {
 }
 
 .nav-end {
-  gap: var(--space-lg);
+  gap: var(--space-sm);
+}
+
+.search-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  height: 36px;
+  min-width: 200px;
+  padding: 0 6px 0 var(--space-sm);
+  border: 1px solid var(--color-rule-strong);
+  border-radius: var(--radius-pill);
+  background: var(--color-paper-2);
+  color: var(--color-ink-3);
+  font: inherit;
+  font-size: var(--text-small);
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+
+.search-pill:hover {
+  border-color: var(--color-accent-text);
+  color: var(--color-ink);
+}
+
+.search-pill-label {
+  flex: 1;
+  text-align: start;
+}
+
+.search-pill-keys {
+  display: inline-flex;
+}
+
+.search-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+  width: 100%;
+}
+
+.search-item-icon {
+  display: inline-flex;
+  color: var(--color-accent-text);
+}
+
+.search-item-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-item-hint {
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+  color: var(--color-ink-3);
 }
 
 .nav-home {
@@ -159,8 +262,7 @@ a {
   list-style: none;
 }
 
-.nav-links a,
-.nav-github {
+.nav-links a {
   font-size: var(--text-small);
   font-weight: 500;
   color: var(--color-ink-2);
@@ -169,8 +271,7 @@ a {
   transition: color var(--dur-fast) var(--ease-out);
 }
 
-.nav-links a:hover,
-.nav-github:hover {
+.nav-links a:hover {
   color: var(--color-ink);
 }
 
@@ -229,11 +330,24 @@ a {
   transition: border-color var(--dur-fast) var(--ease-out);
 }
 
+.hero-pill {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.hero-pill-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .hero-pill:hover {
   border-color: var(--color-accent);
 }
 
 .hero-pill-tag {
+  flex: none;
   padding: 2px 10px;
   border-radius: var(--radius-pill);
   background: var(--color-accent);
@@ -256,7 +370,7 @@ a {
 }
 
 .hero-title-mark {
-  color: var(--color-accent);
+  color: var(--color-accent-display);
 }
 
 .hero-lede {
@@ -465,7 +579,7 @@ a {
 
 .console-verdict[data-verdict="deny"] .console-verdict-word {
   background: var(--color-deny);
-  color: var(--color-accent-ink);
+  color: var(--color-on-deny);
 }
 
 .console-verdict-note {
@@ -487,7 +601,7 @@ a {
   font-weight: 500;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--color-accent);
+  color: var(--color-accent-text);
 }
 
 .marquee {
@@ -572,7 +686,7 @@ a {
 
 .section-lede a,
 .faq-a a {
-  color: var(--color-accent);
+  color: var(--color-accent-text);
   text-underline-offset: 3px;
 }
 
@@ -626,7 +740,7 @@ a {
   height: 44px;
   border-radius: var(--radius-sm);
   background: var(--color-accent-soft);
-  color: var(--color-accent);
+  color: var(--color-accent-text);
 }
 
 .tile-index {
@@ -701,8 +815,8 @@ a {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  border: 1px solid var(--color-accent);
-  color: var(--color-accent);
+  border: 1px solid var(--color-accent-text);
+  color: var(--color-accent-text);
   font-family: var(--font-mono);
   font-size: var(--text-small);
 }
@@ -715,7 +829,7 @@ a {
 }
 
 .flow-act {
-  color: var(--color-accent);
+  color: var(--color-accent-text);
 }
 
 .flow-body {
@@ -804,7 +918,7 @@ a {
 .tool-name {
   font-family: var(--font-mono);
   font-size: var(--text-small);
-  color: var(--color-accent);
+  color: var(--color-accent-text);
 }
 
 .tool-what {
@@ -885,7 +999,7 @@ a {
 .faq-n {
   font-family: var(--font-mono);
   font-size: var(--text-small);
-  color: var(--color-accent);
+  color: var(--color-accent-text);
   padding-top: 3px;
 }
 
@@ -935,7 +1049,7 @@ a {
 
 .cta-mark {
   padding: 0 0.16em;
-  background: var(--color-paper);
+  background: var(--color-accent-ink);
   color: var(--color-accent);
 }
 
@@ -1007,6 +1121,12 @@ a {
 
 /* Responsive */
 
+@media (max-width: 1100px) {
+  .nav-links {
+    gap: var(--space-lg);
+  }
+}
+
 @media (max-width: 1024px) {
   .guard-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1030,8 +1150,19 @@ a {
     --gutter: 16px;
   }
 
-  .nav-links,
-  .nav-github {
+  .nav-links {
+    display: none;
+  }
+
+  .search-pill {
+    min-width: 0;
+    width: 36px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .search-pill-label,
+  .search-pill-keys {
     display: none;
   }
 

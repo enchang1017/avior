@@ -1,7 +1,11 @@
-import { Button } from '@astryxdesign/core/Button'
+import { IconButton } from '@astryxdesign/core/IconButton'
 
 import { links } from '../brand'
+import type { ColorMode } from '../colorMode'
+import { GitHubMark } from '../components/GitHubMark'
 import { Logo } from '../components/Logo'
+import { ModeSwitch } from '../components/ModeSwitch'
+import { SiteSearch } from '../components/SiteSearch'
 
 const sections = [
   ['Guard', '#guard'],
@@ -10,7 +14,12 @@ const sections = [
   ['FAQ', '#faq'],
 ] as const
 
-export function Nav() {
+type NavProps = {
+  mode: ColorMode
+  onModeChange: (mode: ColorMode) => void
+}
+
+export function Nav({ mode, onModeChange }: NavProps) {
   return (
     <nav className="nav" aria-label="Primary">
       <div className="container nav-row">
@@ -30,10 +39,11 @@ export function Nav() {
           </ul>
         </div>
         <div className="nav-end">
-          <a className="nav-github" href={links.repo}>
-            GitHub
-          </a>
-          <Button variant="primary" size="sm" label="Get started" href="#start" />
+          <IconButton variant="ghost" label="Avior on GitHub" tooltip="GitHub" icon={<GitHubMark />} href={links.repo} />
+          <SiteSearch />
+          <div className="nav-mode">
+            <ModeSwitch mode={mode} onChange={onModeChange} />
+          </div>
         </div>
       </div>
     </nav>

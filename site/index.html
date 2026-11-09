@@ -11,6 +11,17 @@
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="icon" href="/favicon.ico" sizes="48x48" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <script>
+      (function () {
+        var dark = matchMedia('(prefers-color-scheme: dark)').matches
+        try {
+          var stored = localStorage.getItem('avior-color-mode')
+          if (stored === 'dark') dark = true
+          if (stored === 'light') dark = false
+        } catch (e) {}
+        document.documentElement.dataset.mode = dark ? 'dark' : 'light'
+      })()
+    </script>
     <title>Avior — a governed SQL gateway for PostgreSQL</title>
   </head>
   <body>
