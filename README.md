@@ -4,6 +4,8 @@ A governed SQL gateway. Operators submit read-only statements against production
 databases; Avior decides whether each one may run, records who asked for it, and
 returns the result.
 
+Website: <https://avior.goenchang.dev>
+
 It began as the successor to an in-house SQL gateway, an ASP.NET MVC application
 of roughly 20,000 lines of C# across 32 controllers, referred to as "the
 predecessor" throughout this repository. Its behaviour was recovered from the C#
@@ -256,7 +258,8 @@ docs/features/              the feature registry and one document per feature.
 docs/adr/                   decisions and their reasons.
 deploy/seed/                the fixed local fixture set.
 site/                       the project website, React and Astryx, deployed to
-                            GitHub Pages by .github/workflows/pages.yml.
+                            GitHub Pages by .github/workflows/pages.yml and
+                            served at https://avior.goenchang.dev.
 tools/differential/         compares Avior's verdict with the predecessor's.
 ```
 
