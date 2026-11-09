@@ -25,7 +25,7 @@ export function Footer() {
         </ul>
       </div>
       <div className="container footer-credit">
-        Built with <a href={links.astryx}>Astryx</a>. Decoding headline adapted from{' '}
+        Built with <a href={links.astryx}>Astryx</a>. Starfield and decoding headline adapted from{' '}
         <a href={links.aimran}>AIMRAN Library</a>.
       </div>
     </footer>

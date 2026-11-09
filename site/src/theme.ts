@@ -3,10 +3,8 @@ import { neutralTheme } from '@astryxdesign/theme-neutral'
 
 import { brand } from './brand'
 
-const sans = '"Figtree Variable", ui-sans-serif, system-ui, sans-serif'
+const sans = '"Geist Variable", ui-sans-serif, system-ui, sans-serif'
 const mono = '"Geist Mono Variable", ui-monospace, "SF Mono", Menlo, monospace'
-
-const { day, night } = brand
 
 export const aviorTheme = defineTheme({
   name: 'avior',
@@ -15,21 +13,20 @@ export const aviorTheme = defineTheme({
     '--font-family-heading': sans,
     '--font-family-body': sans,
     '--font-family-code': mono,
-    '--color-accent': [day.ink, night.ink],
-    '--color-on-accent': [day.card, night.paper],
-    '--color-text-accent': [day.amberText, brand.amber],
-    '--color-icon-accent': [day.amberText, brand.amber],
-    '--color-background-body': [day.paper, night.paper],
-    '--color-background-surface': [day.card, night.card],
-    '--color-background-card': [day.card, night.card],
-    '--color-background-popover': [day.card, night.muted],
-    '--color-background-muted': [day.muted, night.muted],
-    '--color-text-primary': [day.ink, night.ink],
-    '--color-text-secondary': [day.inkSoft, night.inkSoft],
-    '--color-border': [day.line, night.line],
-    '--radius-inner': '0.75rem',
-    '--radius-element': '0.875rem',
-    '--radius-container': '1.25rem',
-    '--radius-page': '2rem',
+    '--color-accent': brand.amber,
+    '--color-text-accent': [brand.day.amberText, brand.amber],
+    '--color-icon-accent': [brand.day.amberText, brand.amber],
+    '--color-on-accent': brand.onAmber,
+    '--color-background-body': [brand.day.paper, brand.night],
+    '--color-background-surface': [brand.day.paper2, brand.night2],
+    '--color-background-card': [brand.day.paper, brand.night2],
+    '--color-background-popover': [brand.day.paper, brand.night3],
+    '--color-background-muted': [brand.day.paper2, brand.night3],
+    '--color-text-primary': [brand.day.ink, brand.ink],
+    '--color-text-secondary': [brand.day.inkSoft, brand.inkSoft],
+    '--color-border': [brand.day.line, brand.line],
+    '--radius-element': '10px',
+    '--radius-container': '16px',
+    '--radius-inner': '8px',
   },
 })

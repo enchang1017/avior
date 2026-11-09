@@ -20,8 +20,8 @@ export function Logo({ wordmark = true, height = 30 }: LogoProps) {
           height={Math.round(height * 0.47)}
           fill="none"
           strokeWidth="2.4"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+          strokeLinecap="square"
+          strokeLinejoin="miter"
           aria-hidden="true"
         >
           <path d="M0 24 L9 0 L18 24" />
