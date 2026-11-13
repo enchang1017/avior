@@ -15,8 +15,11 @@ const pageEntries: Entry[] = [
   ['guard', 'The guard: parse, plan, audit, run', '#guard'],
   ['writes', 'Governed writes', '#writes'],
   ['features', 'Policy: columns, roles, rate limits', '#features'],
+  ['architecture', 'Architecture: callers, gateway, databases', '#architecture'],
+  ['releases', 'Schema releases from a database project', '#releases'],
   ['agents', 'Agents and the MCP endpoint', '#agents'],
   ['faq', 'Questions', '#faq'],
+  ['deploy', 'Deploy to production', '#deploy'],
   ['start', 'Run it locally', '#start'],
 ].map(([id, label, href]) => ({ id: `page:${id}`, label: label ?? '', auxiliaryData: { group: 'On this page', href: href ?? '#top' } }))
 
@@ -31,6 +34,9 @@ const docEntries: Entry[] = [
   ['features', 'Feature specs', links.features, 'docs/features'],
   ['adr', 'Decision records', links.adr, 'docs/adr'],
   ['postgres', 'Why PostgreSQL only', links.postgresAdr, 'ADR 0005'],
+  ['release-runbook', 'Releasing a database project', links.releaseRunbook, 'docs/runbooks'],
+  ['database-runbook', 'Bringing a new database under Avior', links.databaseRunbook, 'docs/runbooks'],
+  ['release-kit', 'The release kit', links.releaseKit, 'tools/release-kit'],
   ['repo', 'Source on GitHub', links.repo, 'github.com'],
   ['license', 'MIT License', links.license, 'LICENSE'],
 ].map(([id, label, href, hint]) => ({

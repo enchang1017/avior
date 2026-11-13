@@ -28,6 +28,9 @@ export const links = {
   adr: 'https://github.com/enchang1017/avior/tree/master/docs/adr',
   postgresAdr: 'https://github.com/enchang1017/avior/blob/master/docs/adr/0005-avior-governs-postgresql.md',
   license: 'https://github.com/enchang1017/avior/blob/master/LICENSE',
+  releaseRunbook: 'https://github.com/enchang1017/avior/blob/master/docs/runbooks/release-a-database-project.md',
+  releaseKit: 'https://github.com/enchang1017/avior/tree/master/tools/release-kit',
+  databaseRunbook: 'https://github.com/enchang1017/avior/blob/master/docs/runbooks/new-governed-database.md',
   astryx: 'https://astryx.atmeta.com/',
   aimran: 'https://library.aimran.es/',
 } as const

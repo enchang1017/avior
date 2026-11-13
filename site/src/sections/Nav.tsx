@@ -10,8 +10,10 @@ import { SiteSearch } from '../components/SiteSearch'
 const sections = [
   ['Guard', '#guard'],
   ['Writes', '#writes'],
+  ['Architecture', '#architecture'],
+  ['Releases', '#releases'],
   ['Agents', '#agents'],
-  ['FAQ', '#faq'],
+  ['Deploy', '#deploy'],
 ] as const
 
 type NavProps = {
