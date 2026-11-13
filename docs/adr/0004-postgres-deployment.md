@@ -316,7 +316,8 @@ Allowed into staging, requiring explicit approval for production:
 - adding a `UNIQUE` constraint, which takes a full lock and can fail on existing
   data
 
-Candidate linters: `squawk`, `eugene`, `atlas migrate lint`.
+Candidate linters: `squawk`, `eugene`, `atlas migrate lint`. squawk is the one
+`tools/release-kit` runs.
 
 ### Versioned object names are kept
 
@@ -426,12 +427,12 @@ which is fastest to write and worst to maintain; and a single `jsonb` parameter,
 which is the most flexible and gives up type checking. The decision needs a spike
 rewriting one or two real procedures, not an argument.
 
-**No tool has been chosen.** Atlas is the strongest candidate on paper — it is
-Go, it covers PostgreSQL and SQL Server both, `schema apply` and `migrate diff`
-are exactly the two mechanisms this ADR splits staging and production across, and
-its revisions table gives the drift check for free. None of that has been tried
-against that repository. This ADR fixes the shape of the pipeline; the tool is a
-separate decision that should follow a spike.
+**The tools, chosen 2026-11-13 after a database project ran this pipeline.**
+Atlas generates (`migrate diff`, v1.3.4, pinned by digest) and squawk lints.
+Both run from `tools/release-kit`, which is steps 1–3 and the step-6 submission
+as scripts a database project runs from an Avior checkout, with the project's
+own facts in a `release-kit.conf`. `atlas migrate lint` was passed over because
+it is no longer free. The kit's README is where a database project starts.
 
 **Whether any of this is needed yet.** If PostgreSQL is only for new services,
 the TVP problem does not exist and the pipeline can start clean. Migrating

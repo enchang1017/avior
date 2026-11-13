@@ -149,7 +149,8 @@ its dialog, whose header reads **✓ connect**.
 ## 4. The first release
 
 **Who:** the application's CI submits it; a `release_approver` approves; Avior
-applies it as `<db>_schema_owner`.
+applies it as `<db>_schema_owner`. How the project generates and submits it is
+`release-a-database-project.md`.
 
 The baseline migration is **schema only** — tables, functions, and the object
 grants to `role_<service>` (`USAGE`, `SELECT`, `EXECUTE`, …), which live in the

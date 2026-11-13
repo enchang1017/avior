@@ -1,0 +1,161 @@
+# An example pipeline for a database project that releases through Avior.
+#
+# Steps 1-5 of ADR-0004's pipeline run here; step 6 hands the result to Avior. Copy it
+# into the database project and replace what is marked. Nothing in it is specific to
+# any one project: the project's facts live in release-kit.conf.
+#
+# Variables to define in the project's CI/CD settings:
+#
+#   AVIOR_REPO_URL        a clone URL for the avior repository, readable by the job
+#   AVIOR_URL             Avior's base URL, reachable from the release jobs
+#   AVIOR_RELEASE_TOKEN   a release token for this database, masked and protected
+#   DOCKER_RUNNER         the tag of a runner that provides Docker
+#
+# The kit is run from the avior checkout rather than copied into the project, so the
+# scripts and the schemadigest they compare with always come from the same commit.
+
+stages:
+  - verify
+  - staging
+  - release
+
+variables:
+  AVIOR_REF: main
+
+.with-avior: &with-avior
+  - git clone --depth 1 --branch "$AVIOR_REF" "$AVIOR_REPO_URL" /tmp/avior
+
+# The replay gate: the declarative files and migrations/ describe the same database.
+migrations agree with the schema:
+  stage: verify
+  tags: [$DOCKER_RUNNER]
+  image: golang:1.26-alpine
+  script:
+    - apk add --no-cache bash git docker-cli
+    - *with-avior
+    - /tmp/avior/tools/release-kit/verify-migrations.sh
+
+# squawk and the kit's own rules over the migrations this change adds.
+#
+# Choosing the base is the whole job, and choosing it wrong is silent: a base that
+# resolves to HEAD gives an empty diff, and an empty diff passes. lint-migrations.sh
+# refuses that case; this picks the honest base -- the merge request's target, or what
+# the branch pointed at before this push.
+migrations are safe to apply:
+  stage: verify
+  tags: [$DOCKER_RUNNER]
+  image: docker:24-cli
+  script:
+    - apk add --no-cache bash git perl
+    - *with-avior
+    - |
+      set -eu
+      zero=0000000000000000000000000000000000000000
+      if [ -n "${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-}" ]; then
+        git fetch --depth 50 origin "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
+        LINT_BASE=FETCH_HEAD
+      else
+        git fetch --depth 50 origin "$CI_COMMIT_BRANCH"
+        before="${CI_COMMIT_BEFORE_SHA:-$zero}"
+        if [ "$before" != "$zero" ] && ! git cat-file -e "${before}^{commit}" 2>/dev/null; then
+          git fetch --unshallow origin "$CI_COMMIT_BRANCH" 2>/dev/null || true
+        fi
+        if [ "$before" != "$zero" ] && git cat-file -e "${before}^{commit}" 2>/dev/null; then
+          LINT_BASE="$before"
+        elif git rev-parse --verify --quiet HEAD~1 >/dev/null; then
+          LINT_BASE=HEAD~1
+        else
+          echo "no base to lint against" >&2
+          exit 1
+        fi
+      fi
+      LINT_BASE="$LINT_BASE" /tmp/avior/tools/release-kit/lint-migrations.sh
+
+# ADR-0004's staging lane: the merged declarative files reach staging and nothing is
+# recorded. Gated on both checks, because syncing a schema whose migration is missing
+# puts a shape into staging that production has no path to.
+#
+# The sync itself is the project's own: point Atlas `schema apply` at staging for the
+# tables, then re-apply the functions, grants and partitions. One at a time across
+# pipelines, because two syncs into one database each undo the other.
+sync staging:
+  stage: staging
+  needs:
+    - migrations agree with the schema
+    - migrations are safe to apply
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  resource_group: staging-schema-sync
+  environment:
+    name: staging
+  script:
+    - echo "replace with the project's staging sync" && exit 1
+
+# Step 6. Manual: this is the button ADR-0004 calls "a manual job on the chosen commit",
+# and the jobs after it follow without a second one.
+#
+# If the runners cannot reach Avior directly, run the curl from inside its network --
+# and pass the token through a secret store, never through argv or a literal env value,
+# both of which end up in process listings and audit logs.
+read the target ledger:
+  stage: release
+  image: alpine:3.20
+  needs:
+    - migrations agree with the schema
+    - migrations are safe to apply
+    - sync staging
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: manual
+  allow_failure: false
+  script:
+    - apk add --no-cache bash curl jq
+    - |
+      set -eu
+      database="$(bash -c '. ./release-kit.conf && echo "$DATABASE"')"
+      curl -sS --fail-with-body -H "Authorization: Bearer $AVIOR_RELEASE_TOKEN" \
+        "${AVIOR_URL%/}/api/v1/databases/$database/migrations" > applied.json \
+        || { echo "Avior refused. release.database_unknown means the database is not" >&2
+             echo "provisioned yet: create it on Avior's Provisioning page." >&2
+             cat applied.json >&2; exit 1; }
+      # A valid-but-empty answer would read as "the target holds nothing" and submit a
+      # baseline over a populated database.
+      jq -e '.migrations | type == "array"' applied.json >/dev/null
+  artifacts:
+    paths: [applied.json]
+    expire_in: 1 day
+
+build the submission:
+  stage: release
+  tags: [$DOCKER_RUNNER]
+  image: golang:1.26-alpine
+  needs: ["read the target ledger"]
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  script:
+    - apk add --no-cache bash git docker-cli jq
+    - *with-avior
+    - /tmp/avior/tools/release-kit/prepare-release.sh applied.json submission.json
+  artifacts:
+    paths: [submission.json]
+    expire_in: 1 day
+
+submit to avior:
+  stage: release
+  image: alpine:3.20
+  needs: ["build the submission"]
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  script:
+    - apk add --no-cache curl
+    - |
+      set -eu
+      if [ ! -s submission.json ]; then
+        echo "nothing pending; no release to submit"
+        exit 0
+      fi
+      curl -sS --fail-with-body -X POST "${AVIOR_URL%/}/api/v1/releases" \
+        -H "Authorization: Bearer $AVIOR_RELEASE_TOKEN" \
+        -H "Content-Type: application/json" \
+        --data-binary @submission.json
+      echo "handed over; approve and apply it in Avior"

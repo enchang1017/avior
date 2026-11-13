@@ -117,6 +117,8 @@ feature to parse routine bodies (ADR 0010).
 
 The order a DBA does these in for a new database, with a check for each step,
 is [the new governed database runbook](../runbooks/new-governed-database.md).
+How the database project then generates, verifies and submits its releases is
+[the database project release runbook](../runbooks/release-a-database-project.md).
 
 ## DBA operations
 

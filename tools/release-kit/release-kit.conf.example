@@ -1,0 +1,63 @@
+# release-kit.conf -- the database project's half of the release kit.
+#
+# Copy this to the root of the database project as release-kit.conf. It is bash,
+# sourced by every script in tools/release-kit, so it holds assignments and nothing
+# else. Names below are placeholders.
+
+# The governed database, by the name Avior knows it.
+DATABASE=app
+
+# Cluster-level roles the GRANTs in this project name. Neither lane creates them in
+# production -- whatever provisions the cluster does -- so each throwaway database the
+# kit builds creates them first, as NOLOGIN.
+APP_ROLES=(role_app)
+
+# A psql target for apply-schema.sh when no psql client is installed locally.
+# LOCAL_PG_CONTAINER=app-pg
+
+# Folder names, if the project does not use these defaults.
+# TABLES_DIR="Tables"
+# PROCEDURES_DIR="Stored Procedures"
+# SECURITY_DIR="Security"
+# DATA_DIR="Data"
+# PARTITIONS_DIR="Partitions"
+# MIGRATIONS_DIR="migrations"
+
+# Application order, one array per folder, file names without .sql. Spelled out
+# rather than globbed because order matters, and apply-schema.sh refuses a file
+# present in a folder and missing from its list.
+#
+#   SECURITY_ORDER                before the tables: whatever must exist before
+#                                 anything grants to it
+#   TABLES_ORDER                  dependency order; an enum a column uses comes first
+#   DATA_ORDER                    rows that are part of every non-production deployment;
+#                                 never copied into migrations/
+#   PROCEDURES_ORDER              functions, after the tables they read
+#   SECURITY_AFTER_TABLES_ORDER   grants on tables, after the tables exist
+#   PARTITIONS_ORDER              last, after every grant that could reach a partition
+SECURITY_ORDER=()
+TABLES_ORDER=(accounts)
+DATA_ORDER=()
+PROCEDURES_ORDER=()
+SECURITY_AFTER_TABLES_ORDER=()
+PARTITIONS_ORDER=()
+
+# Roles every CREATE TABLE ... PARTITION OF must REVOKE ALL from in the same file.
+# A blanket GRANT ... ON ALL TABLES reaches each partition that exists when it runs,
+# and PostgreSQL checks a partition's own privileges when it is named directly. Empty
+# turns the check off.
+PARTITION_REVOKE_ROLES=()
+
+# The branch lint-migrations.sh compares against to find what a change adds.
+LINT_BASE=origin/main
+
+# The baseline migration files: they create the database on a server serving
+# nothing, so every lock rule squawk has is true of them and none matters. Named,
+# not pattern-matched, and updated whenever the baseline is regenerated.
+LINT_BASELINE=()
+
+# Files squawk is answered about rather than a rule being switched off for all of
+# them, as 'file-name-pattern|reason'. squawk checks nothing at all on a matching
+# file, so keep the pattern narrow -- the full name, timestamp included, closes the
+# hole a regeneration under the same name would otherwise open.
+SQUAWK_ANSWERED=()
