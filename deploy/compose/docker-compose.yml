@@ -5,8 +5,11 @@
 # server bundled here would be the wrong one. The development stack is the
 # docker-compose.yml at the repository root, which builds from the checkout.
 #
-#   AVIOR_VERSION=1.2.0 docker compose -f deploy/compose/docker-compose.yml up -d
+#   cd deploy/compose
+#   export AVIOR_VERSION=1.2.0
+#   docker compose up -d
 #
+# Every command against this file needs AVIOR_VERSION, ps and logs included.
 # docs/runbooks/deploy-from-published-images.md is the whole procedure.
 
 name: avior-release

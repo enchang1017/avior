@@ -44,11 +44,17 @@ server you already have, and one bundled beside it would be the wrong one.
 
 ## 1. Configure
 
-Everything lives in `deploy/compose/`. Copy a release's version of that
-directory to the host, or check out the release tag.
+Everything lives in `deploy/compose/`. Check out the release tag, or copy that
+release's `deploy/compose/` to the host keeping its path, and start from the
+directory that holds `deploy/`. **Every command from here on runs inside
+`deploy/compose/`, with `AVIOR_VERSION` exported**, so the same lines work for
+starting, inspecting and upgrading. In a new shell, `cd` and export again.
+`docker compose` finds `deploy/compose/docker-compose.yml` by being run there,
+so no command names it.
 
 ```
 cd deploy/compose
+export AVIOR_VERSION=1.2.0
 cp gateway.env.example gateway.env
 cp migrate.env.example migrate.env
 mkdir -p secrets/gateway secrets/migrate
@@ -79,14 +85,21 @@ belongs in a repository or in an image.
 ## 2. Start
 
 ```
-AVIOR_VERSION=1.2.0 docker compose -f deploy/compose/docker-compose.yml up -d
+docker compose pull
+docker compose up -d
 ```
 
-`AVIOR_VERSION` is required; compose refuses to start without it rather than
+`AVIOR_VERSION` is required by every `docker compose` command against this file,
+`ps` and `logs` included; compose refuses to run without it rather than
 guessing. In order:
 
 1. `migrate` applies any new migration and exits. If it fails, nothing else
-   starts: `docker compose -f deploy/compose/docker-compose.yml logs migrate`.
+   starts, and this says why:
+
+   ```
+   docker compose logs migrate
+   ```
+
 2. `backend` starts read-only, with every capability dropped. It refuses to
    start on a missing value, the development session secret, `trusted-local`
    sign-in, or self-approval of writes in production, and says which.
@@ -96,7 +109,8 @@ guessing. In order:
 Check it:
 
 ```
-docker compose -f deploy/compose/docker-compose.yml ps     # edge is (healthy)
+docker compose ps     # edge is (healthy)
+docker compose logs backend
 curl -fsS http://127.0.0.1:8080/api/v1/health
 ```
 
@@ -112,8 +126,14 @@ To publish on another address, set `AVIOR_PUBLISH`, for example
 
 ## Upgrade and roll back
 
+From `deploy/compose/` of the new release, keeping `gateway.env`, `migrate.env`
+and `secrets/` from the old one:
+
 ```
-AVIOR_VERSION=1.3.0 docker compose -f deploy/compose/docker-compose.yml up -d
+export AVIOR_VERSION=1.3.0
+docker compose pull
+docker compose up -d
+docker compose ps
 ```
 
 The migration runs first, then the gateway is replaced. Migrations only move

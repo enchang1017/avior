@@ -235,54 +235,63 @@ func TestImageWorkflowHoldsTheLeastItNeeds(t *testing.T) {
 	}
 }
 
+const (
+	releaseVersionOut = "${{ steps.version.outputs.version }}"
+	releaseIsStable   = "steps.version.outputs.stable == 'true' && !github.event.release.prerelease"
+)
+
+// stepIndex is the position of the first step match accepts,
+// and -1 when there is none.
+func (j workflowJob) stepIndex(match func(workflowStep) bool) int {
+	return slices.IndexFunc(j.Steps, match)
+}
+
 func TestAReleaseIsTaggedWithItsVersionAndLatest(t *testing.T) {
 	publish, _ := splitJobs(t, loadWorkflow(t))
 
-	guarded := false
-	for _, s := range publish.Steps {
-		if s.Env["TAG"] == "${{ github.event.release.tag_name }}" && strings.Contains(s.Run, "exit 1") {
-			guarded = true
-		}
+	version := publish.stepIndex(func(s workflowStep) bool {
+		return s.ID == "version" && s.Env["TAG"] == "${{ github.event.release.tag_name }}" &&
+			strings.TrimSpace(s.Run) == `.github/scripts/release-version.sh "$TAG"`
+	})
+	meta := publish.stepIndex(func(s workflowStep) bool { return strings.HasPrefix(s.Uses, "docker/metadata-action@") })
+	check := publish.stepIndex(func(s workflowStep) bool {
+		return strings.TrimSpace(s.Run) == ".github/scripts/check-release-tags.sh" &&
+			s.Env["IMAGE"] == "ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}" &&
+			s.Env["VERSION"] == releaseVersionOut &&
+			s.Env["STABLE"] == "${{ "+releaseIsStable+" }}" &&
+			s.Env["TAGS"] == "${{ steps.meta.outputs.tags }}"
+	})
+	push := publish.stepIndex(func(s workflowStep) bool { return strings.HasPrefix(s.Uses, "docker/build-push-action@") })
+	if version < 0 || meta < 0 || check < 0 || push < 0 || !(version < meta && meta < check && check < push) {
+		t.Fatalf("the publish job must read the version from the tag, derive the tags, check them, then push; "+
+			"found those steps at %d, %d, %d and %d", version, meta, check, push)
 	}
-	if !guarded {
-		t.Error("the publish job does not refuse a release tag that is not a version; it would push latest with no version beside it")
+
+	m := publish.Steps[meta]
+	if m.With["images"] != "ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}" || m.With["flavor"] != "latest=false" {
+		t.Errorf("the publish job names its images %q with flavor %q", m.With["images"], m.With["flavor"])
+	}
+	tags := strings.Split(strings.TrimSpace(m.With["tags"]), "\n")
+	want := []string{
+		"type=raw,value=" + releaseVersionOut,
+		"type=raw,value=latest,enable=${{ " + releaseIsStable + " }}",
+	}
+	if !slices.Equal(tags, want) {
+		t.Errorf("the publish job's tags are %q, want exactly %q", tags, want)
+	}
+	if b := publish.Steps[push]; b.With["push"] != "true" || b.With["build-args"] != "VERSION="+releaseVersionOut {
+		t.Errorf("the publish job pushes %q with build-args %q, want true and the checked version", b.With["push"], b.With["build-args"])
 	}
 
 	login, ok := publish.step("docker/login-action")
 	if !ok || login.With["registry"] != "ghcr.io" || login.With["password"] != "${{ secrets.GITHUB_TOKEN }}" {
 		t.Errorf("the publish job does not log in to ghcr.io with the job's token: %v", login.With)
 	}
-
-	meta, ok := publish.step("docker/metadata-action")
-	if !ok {
-		t.Fatal("the publish job does not derive its tags with docker/metadata-action")
-	}
-	if meta.With["images"] != "ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}" {
-		t.Errorf("the publish job names its images %q", meta.With["images"])
-	}
-	if meta.With["flavor"] != "latest=false" {
-		t.Errorf("the publish job leaves latest to the action's own rule (flavor %q)", meta.With["flavor"])
-	}
-	tags := strings.Split(strings.TrimSpace(meta.With["tags"]), "\n")
-	for _, want := range []string{
-		"type=semver,pattern={{version}}",
-		"type=raw,value=latest,enable=${{ !github.event.release.prerelease }}",
-	} {
-		if !slices.Contains(tags, want) {
-			t.Errorf("the publish job's tags %q lack %q", tags, want)
-		}
-	}
-
-	if build, _ := publish.step("docker/build-push-action"); build.With["push"] != "true" {
-		t.Errorf("the publish job does not push (push: %q)", build.With["push"])
-	}
-
-	readBack := false
-	for _, s := range publish.Steps {
-		readBack = readBack || (strings.Contains(s.Run, "imagetools inspect") && s.Env["TAGS"] == "${{ steps.meta.outputs.tags }}")
-	}
-	if !readBack {
-		t.Error("the publish job does not read every pushed tag back from the registry")
+	readBack := publish.stepIndex(func(s workflowStep) bool {
+		return strings.Contains(s.Run, "imagetools inspect") && s.Env["TAGS"] == "${{ steps.meta.outputs.tags }}"
+	})
+	if readBack < push {
+		t.Error("the publish job does not read every pushed tag back from the registry after pushing")
 	}
 }
 
@@ -306,8 +315,12 @@ func TestEveryJobBuildsBothPlatformsAndStampsTheVersion(t *testing.T) {
 		if build.With["file"] != "${{ matrix.dockerfile }}" || build.With["context"] != "." {
 			t.Errorf("job %s builds from context %q and file %q, want . and the matrix's Dockerfile", name, build.With["context"], build.With["file"])
 		}
-		if !strings.Contains(build.With["build-args"], "VERSION=${{ steps.meta.outputs.version }}") {
-			t.Errorf("job %s does not stamp the version the gateway reports on start", name)
+		stamp := "VERSION=${{ steps.meta.outputs.version }}"
+		if name == "publish" {
+			stamp = "VERSION=" + releaseVersionOut
+		}
+		if build.With["build-args"] != stamp {
+			t.Errorf("job %s stamps %q, want %q", name, build.With["build-args"], stamp)
 		}
 	}
 }
