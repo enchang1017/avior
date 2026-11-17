@@ -143,21 +143,61 @@ func TestApplySchemaRefusesAFileItsListDoesNotName(t *testing.T) {
 // That pass would mean nothing was read.
 func TestLintRefusesABaseThatIsTheCommitBeingLinted(t *testing.T) {
 	dir := releaseKitProject(t, "DATABASE=app\nTABLES_ORDER=(accounts)\n", nil)
-	for _, args := range [][]string{
-		{"init", "-q"},
-		{"-c", "user.email=kit@example.invalid", "-c", "user.name=kit", "commit", "-q", "--allow-empty", "-m", "init"},
-	} {
-		cmd := exec.Command("git", args...)
-		cmd.Dir = dir
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v\n%s", args, err, out)
-		}
-	}
+	commitEmptyProject(t, dir)
 	out, err := runReleaseKit(t, dir, "lint-migrations.sh", "LINT_BASE=HEAD")
 	if err == nil {
 		t.Fatalf("lint-migrations.sh passed against its own HEAD:\n%s", out)
 	}
 	if !strings.Contains(out, "resolves to HEAD") {
 		t.Errorf("refused without saying why:\n%s", out)
+	}
+}
+
+func commitEmptyProject(t *testing.T, dir string) {
+	t.Helper()
+	for _, args := range [][]string{
+		{"init", "-q"},
+		{"-c", "user.email=kit@example.invalid", "-c", "user.name=kit", "commit", "-q", "--allow-empty", "-m", "init"},
+	} {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		cmd.Env = cleanEnv()
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+}
+
+// The pre-commit hook runs this suite, and git hands a hook GIT_DIR and
+// GIT_INDEX_FILE. A git inheriting them works on the repository being
+// committed to rather than the project it was pointed at, and commits whatever
+// is staged there as "init" while the case still passes.
+func TestReleaseKitGitStaysInTheProjectItWasGiven(t *testing.T) {
+	outer := t.TempDir()
+	if err := os.WriteFile(filepath.Join(outer, "staged.txt"), []byte("staged\n"), 0o644); err != nil {
+		t.Fatalf("write staged.txt: %v", err)
+	}
+	for _, args := range [][]string{{"init", "-q"}, {"add", "staged.txt"}} {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = outer
+		cmd.Env = cleanEnv()
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	t.Setenv("GIT_DIR", filepath.Join(outer, ".git"))
+	t.Setenv("GIT_INDEX_FILE", filepath.Join(outer, ".git", "index"))
+
+	commitEmptyProject(t, releaseKitProject(t, "DATABASE=app\nTABLES_ORDER=(accounts)\n", nil))
+
+	cmd := exec.Command("git", "rev-list", "--all", "--count")
+	cmd.Dir = outer
+	cmd.Env = append(cleanEnv(), "GIT_DIR="+filepath.Join(outer, ".git"))
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("count the outer repository's commits: %v", err)
+	}
+	if got := strings.TrimSpace(string(out)); got != "0" {
+		t.Errorf("the repository running the tests gained %s commit(s); git followed the hook's GIT_DIR", got)
 	}
 }

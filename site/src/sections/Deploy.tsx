@@ -17,19 +17,19 @@ const images: Image[] = [
     icon: Container,
     title: 'Gateway',
     body: 'One static binary on distroless, nonroot, no shell. It reports its commit on every start.',
-    detail: 'backend/Dockerfile · :8080',
+    detail: 'ghcr.io/enchang1017/avior-backend · :8080',
   },
   {
     icon: LayoutDashboard,
     title: 'Console',
     body: 'The built app behind nginx. The same image is right in every environment.',
-    detail: 'frontend/Dockerfile · :8080',
+    detail: 'ghcr.io/enchang1017/avior-frontend · :8080',
   },
   {
     icon: DatabaseBackup,
     title: 'Migrate',
     body: 'goose and Avior’s own migrations, run as a job by the owner of aviorDB — never by the gateway.',
-    detail: 'deploy/migrate/Dockerfile',
+    detail: 'ghcr.io/enchang1017/avior-migrate',
   },
 ]
 
@@ -63,7 +63,7 @@ export function Deploy() {
           <h2 className="section-title">Three images, one PostgreSQL server, every secret a file.</h2>
           <p className="section-lede">
             Built for a Kubernetes cluster. Each image does one job with one credential, so none of them can run
-            another’s.
+            another’s. Every release publishes them to GHCR for amd64 and arm64, tagged with its version and latest.
           </p>
         </div>
 
@@ -102,6 +102,7 @@ export function Deploy() {
             </p>
             <div className="releases-actions">
               <Button variant="secondary" size="lg" label="New database runbook" href={links.databaseRunbook} />
+              <Button variant="secondary" size="lg" label="Run the published images" href={links.imagesRunbook} />
             </div>
           </div>
         </div>

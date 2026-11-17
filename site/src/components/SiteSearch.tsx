@@ -35,6 +35,7 @@ const docEntries: Entry[] = [
   ['adr', 'Decision records', links.adr, 'docs/adr'],
   ['postgres', 'Why PostgreSQL only', links.postgresAdr, 'ADR 0005'],
   ['release-runbook', 'Releasing a database project', links.releaseRunbook, 'docs/runbooks'],
+  ['images-runbook', 'Deploying from the published images', links.imagesRunbook, 'docs/runbooks'],
   ['database-runbook', 'Bringing a new database under Avior', links.databaseRunbook, 'docs/runbooks'],
   ['release-kit', 'The release kit', links.releaseKit, 'tools/release-kit'],
   ['repo', 'Source on GitHub', links.repo, 'github.com'],

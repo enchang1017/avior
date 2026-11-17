@@ -245,6 +245,15 @@ There is no separate Go build job, and that is deliberate: `go vet` and
 frontend needs its own build step because type checking and bundling are
 different tools there — `vite build` fails in places `vue-tsc` cannot see.
 
+### Published images
+
+`.github/workflows/images.yml` builds the gateway, console and migration images
+for `linux/amd64` and `linux/arm64`. On a pull request that touches them it
+builds without pushing; when a GitHub release is published it pushes them to
+GHCR as `ghcr.io/enchang1017/avior-{backend,frontend,migrate}`, tagged with the
+release's version and, unless it is a prerelease, `latest`. Running them from a
+host with nothing but Docker: `docs/runbooks/deploy-from-published-images.md`.
+
 ## Layout
 
 ```
@@ -265,6 +274,7 @@ frontend/src/shared/        the API client and cross-feature helpers.
 docs/features/              the feature registry and one document per feature.
 docs/adr/                   decisions and their reasons.
 deploy/seed/                the fixed local fixture set.
+deploy/compose/             Avior from the published images, nothing built.
 site/                       the project website, React and Astryx, deployed to
                             GitHub Pages by .github/workflows/pages.yml and
                             served at https://avior.goenchang.dev.

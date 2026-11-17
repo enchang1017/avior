@@ -1,5 +1,8 @@
 .env
 *.local
+/deploy/compose/gateway.env
+/deploy/compose/migrate.env
+/deploy/compose/secrets/
 
 # Go
 coverage.out

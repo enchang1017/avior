@@ -31,6 +31,7 @@ export const links = {
   releaseRunbook: 'https://github.com/enchang1017/avior/blob/master/docs/runbooks/release-a-database-project.md',
   releaseKit: 'https://github.com/enchang1017/avior/tree/master/tools/release-kit',
   databaseRunbook: 'https://github.com/enchang1017/avior/blob/master/docs/runbooks/new-governed-database.md',
+  imagesRunbook: 'https://github.com/enchang1017/avior/blob/master/docs/runbooks/deploy-from-published-images.md',
   astryx: 'https://astryx.atmeta.com/',
   aimran: 'https://library.aimran.es/',
 } as const
