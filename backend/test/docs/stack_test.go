@@ -212,7 +212,7 @@ func cleanEnv() []string {
 	var env []string
 	for _, kv := range os.Environ() {
 		key, _, _ := strings.Cut(kv, "=")
-		if strings.HasPrefix(key, "AVIOR_") || strings.HasPrefix(key, "COMPOSE_") ||
+		if strings.HasPrefix(key, "AVIOR_") || strings.HasPrefix(key, "COMPOSE_") || strings.HasPrefix(key, "GIT_") ||
 			key == "MAKEFLAGS" || key == "MFLAGS" || key == "MAKELEVEL" {
 			continue
 		}
