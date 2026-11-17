@@ -1,0 +1,138 @@
+name: images
+
+# The three production images, published to GHCR when a release is published
+# and built without pushing on every pull request that could change them.
+#
+# Two jobs rather than one with a conditional push: permissions cannot depend on
+# the event, and a single job would hold packages: write on every pull request.
+# backend/test/docs/images_test.go holds this file to that shape.
+
+on:
+  release:
+    types: [published]
+  pull_request:
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - "db/migrations/**"
+      - "deploy/migrate/**"
+      - "deploy/compose/**"
+      - ".github/workflows/images.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: images-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'release' }}
+
+jobs:
+  build:
+    if: github.event_name != 'release'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: avior-backend
+            dockerfile: backend/Dockerfile
+          - image: avior-frontend
+            dockerfile: frontend/Dockerfile
+          - image: avior-migrate
+            dockerfile: deploy/migrate/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}
+          flavor: latest=false
+          tags: |
+            type=ref,event=pr
+            type=sha
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64,linux/arm64
+          push: false
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: VERSION=${{ steps.meta.outputs.version }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+
+  publish:
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: avior-backend
+            dockerfile: backend/Dockerfile
+          - image: avior-frontend
+            dockerfile: frontend/Dockerfile
+          - image: avior-migrate
+            dockerfile: deploy/migrate/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      # metadata-action derives no version from a tag that is not semver, and
+      # the push would then move latest with nothing beside it to pin to.
+      - name: Refuse a release tag that is not a version
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::release tag '$TAG' is not vMAJOR.MINOR.PATCH[-PRERELEASE]"
+            exit 1
+          fi
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}
+          flavor: latest=false
+          tags: |
+            type=semver,pattern={{version}}
+            type=raw,value=latest,enable=${{ !github.event.release.prerelease }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: VERSION=${{ steps.meta.outputs.version }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+      # A push that reported success is not proof the registry serves the tag.
+      - name: Read every pushed tag back from the registry
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          while IFS= read -r tag; do
+            [ -n "$tag" ] || continue
+            docker buildx imagetools inspect "$tag"
+          done <<< "$TAGS"
