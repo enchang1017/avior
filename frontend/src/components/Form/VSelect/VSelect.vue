@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 
-import { caret, controlBox, controlSize, listPanel, optionClass } from '../controls'
+import { caret, controlBox, controlSize, OptionList } from '../controls'
 import { useListbox } from '../useListbox'
 import VIcon from '../../Media/VIcon/VIcon.vue'
 
@@ -53,8 +53,8 @@ const matches = computed(() => {
   return props.options.filter((option) => option.label.toLowerCase().includes(search))
 })
 
-function choose(option: SelectOption) {
-  emit('update:modelValue', option.value)
+function choose(value: string) {
+  emit('update:modelValue', value)
   typed.value = ''
   list.close()
 }
@@ -63,7 +63,7 @@ const list = useListbox(
   () => matches.value.length,
   (index) => {
     const picked = matches.value[index]
-    if (picked !== undefined) choose(picked)
+    if (picked !== undefined) choose(picked.value)
   },
 )
 const { open, active } = list
@@ -109,7 +109,7 @@ watch(open, (isOpen) => {
       @keydown.down.prevent="list.move(1)"
       @keydown.up.prevent="list.move(-1)"
       @keydown.enter="list.confirm"
-      @keydown.esc="list.close()"
+      @keydown.esc="list.escape"
     />
     <button
       type="button"
@@ -122,26 +122,15 @@ watch(open, (isOpen) => {
       <VIcon name="chevron-down" />
     </button>
 
-    <ul v-if="open" :id="`${props.id}-list`" :class="listPanel" role="listbox">
-      <li
-        v-for="(option, index) in matches"
-        :key="option.value"
-        :class="
-          optionClass({
-            kind: 'value',
-            active: index === active,
-            chosen: option.value === props.modelValue,
-          })
-        "
-        role="option"
-        :aria-selected="option.value === props.modelValue"
-        @mousedown.prevent="choose(option)"
-      >
-        {{ option.label }}
-      </li>
-      <li v-if="matches.length === 0" :class="optionClass({ kind: 'none' })">
-        Nothing here matches.
-      </li>
-    </ul>
+    <OptionList
+      v-if="open"
+      :id="`${props.id}-list`"
+      :anchor="field"
+      :options="matches"
+      :value="props.modelValue"
+      :active="active"
+      @choose="choose"
+      @close="list.close"
+    />
   </div>
 </template>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 
-import { caret, controlBox, controlSize, listPanel, optionClass } from '../controls'
+import { caret, controlBox, controlSize, OptionList } from '../controls'
 import { useListbox } from '../useListbox'
 import VIcon from '../../Media/VIcon/VIcon.vue'
 
@@ -115,11 +115,12 @@ watch(
       :placeholder="props.placeholder || props.emptyLabel"
       @input="onInput"
       @focus="list.show()"
+      @click="list.show()"
       @blur="list.blur()"
       @keydown.down.prevent="list.move(1)"
       @keydown.up.prevent="list.move(-1)"
       @keydown.enter="onEnter"
-      @keydown.esc="list.close()"
+      @keydown.esc="list.escape"
     />
     <button
       type="button"
@@ -131,36 +132,17 @@ watch(
       <VIcon name="chevron-down" />
     </button>
 
-    <ul v-if="open" :id="`${props.id}-list`" :class="listPanel" role="listbox">
-      <li
-        v-if="props.modelValue !== ''"
-        :class="optionClass({ kind: 'clear' })"
-        role="option"
-        :aria-selected="false"
-        @mousedown.prevent="choose('')"
-      >
-        {{ props.emptyLabel }}
-      </li>
-      <li
-        v-for="(option, index) in matches"
-        :key="option"
-        :class="
-          optionClass({
-            kind: 'value',
-            mono: true,
-            active: index === active,
-            chosen: option === props.modelValue,
-          })
-        "
-        role="option"
-        :aria-selected="option === props.modelValue"
-        @mousedown.prevent="choose(option)"
-      >
-        {{ option }}
-      </li>
-      <li v-if="matches.length === 0" :class="optionClass({ kind: 'none', wrap: true })">
-        Nothing here matches. It will still be asked for.
-      </li>
-    </ul>
+    <OptionList
+      v-if="open"
+      :id="`${props.id}-list`"
+      :anchor="field"
+      :options="matches"
+      :value="props.modelValue"
+      :active="active"
+      custom
+      :clear-label="props.emptyLabel"
+      @choose="choose"
+      @close="list.close"
+    />
   </div>
 </template>
