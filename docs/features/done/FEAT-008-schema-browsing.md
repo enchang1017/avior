@@ -252,3 +252,32 @@ native dialog focus behavior.
 - Acceptance includes an independent sub-agent review in the role of a developer,
   with concrete findings corrected and re-reviewed until no known actionable UX
   issue remains. Review findings and outcomes are recorded in the PR.
+
+## Focused change review
+
+- Changes is the single review entry in Data and SQL. The grid has no duplicate
+  Review or Revert-all toolbar actions. Closing review keeps drafts; X and Escape
+  are the dismissal controls, without a duplicate Keep editing button.
+- Normal review shows target, key, changed values, reason and a single submit
+  action. It checks automatically. Retry is offered only after a failed check
+  or write; conflicts keep their own resolution action. Partial submission names
+  the number of ready rows in the primary action.
+- Status uses an existing semantic icon plus a short label, without relying on
+  colour alone. Original values are muted; changed values receive restrained
+  emphasis. No persistent paragraphs explain internal guard mechanics.
+- Show row remains directly available. Copy, discard and SQL are revealed through
+  per-row More actions. A blocked or deleted row keeps Copy draft directly
+  available. Conflict comparisons default to locally or remotely changed fields;
+  the server still checks the complete original snapshot.
+- Submitted history is collapsed while edits are being reviewed, with pending and failure counts
+  visible at its entry. Rejected/failed requests restore a clearly marked draft.
+  History-only review has no empty edit form or disabled submission footer.
+- Keyboard help and in-memory draft lifetime remain available on demand. A
+  persistent warning still protects navigation/reload from unsaved data loss.
+- Acceptance includes independent developer review of density, duplicate controls,
+  discoverability, semantic colour/icon usage and recovery, in addition to the
+  functional safety checks.
+
+- Long comparisons scroll within the dialog body. The header Close control and
+  submission footer remain fully visible after field focus and resolution
+  selection at 900×650, including mixed ready/conflicting rows.

@@ -88,7 +88,7 @@ async function pick(page: Page, control: string, label: string): Promise<void> {
 }
 
 const scenes: Scene[] = [
-  ...(['json-tree', 'json-code', 'row-edit-review'] as const).map(
+  ...(['json-tree', 'json-code', 'row-edit-review', 'row-edit-sql'] as const).map(
     (name): Scene => ({
       name,
       path: '/',
@@ -98,23 +98,22 @@ const scenes: Scene[] = [
       arrange: async (page) => {
         await selectEditableTable(page)
         const row = page.locator('.result tr[data-row]').first()
-        if (name === 'row-edit-review') {
+        if (name === 'row-edit-review' || name === 'row-edit-sql') {
           await row.locator('td').nth(1).dblclick()
           const editor = page.getByRole('textbox', { name: 'Edit username', exact: true })
           await editor.fill('alice corrected')
           await editor.press('Enter')
-          await page.getByRole('button', { name: 'Review 1 change(s)' }).click()
-          await expect(page.getByRole('button', { name: 'Check again' })).toBeEnabled()
-          await page
-            .getByRole('dialog', { name: 'Review row changes', exact: true })
-            .getByRole('button', { name: 'Generated SQL · requires exactly one affected row' })
-            .click()
-          // Capture the review with its requested SQL preview fully mounted.
+          await page.getByRole('button', { name: /^Changes \(1\)/u }).click()
+          const review = page.getByRole('dialog', { name: 'Changes', exact: true })
+          await review.getByLabel('Reason').fill('Correct a customer name')
           await expect(
-            page
-              .getByRole('dialog', { name: 'Review row changes', exact: true })
-              .locator('.cm-editor'),
-          ).toHaveCount(1)
+            review.getByRole('button', { name: 'Submit 1 row for approval', exact: true }),
+          ).toBeEnabled()
+          if (name === 'row-edit-sql') {
+            await review.getByRole('button', { name: /^More actions for/u }).click()
+            await review.getByRole('button', { name: 'SQL', exact: true }).click()
+            await expect(review.locator('.cm-editor')).toHaveCount(1)
+          }
           await quiet(page)
         } else {
           await row.locator('td').nth(2).press('Enter')
