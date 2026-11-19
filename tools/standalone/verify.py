@@ -143,10 +143,10 @@ def main():
             else:
                 raise AssertionError("Restart failed: " + str(docker("logs", app)))
             assert psql("SELECT count(*) FROM identity.users", "cdp") == "25"
-            bad = Path(directory) / "00025_bad.sql"
+            bad = Path(directory) / "99999_bad.sql"
             bad.write_text("-- +goose Up\nSELECT 1/0;\n")
             failed = docker("run", "--rm", "--network", network,
-                            "-v", str(bad) + ":/migrations/00025_bad.sql:ro",
+                            "-v", str(bad) + ":/migrations/99999_bad.sql:ro",
                             *run_environment(env), image, check=False)
             assert failed.returncode != 0 and "division by zero" in failed.stderr
             psql("CREATE DATABASE aviordb OWNER avior_local_store")

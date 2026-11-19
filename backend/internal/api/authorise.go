@@ -215,6 +215,7 @@ var operationAccess = map[string]requirement{
 	// The skeleton names a table and its columns and reads nothing, so it asks
 	// what browsing a schema asks. Composing a statement somebody else will
 	// refuse costs them nothing.
+	"BuildRowUpdate":       needs(identity.PermissionQueryExecute),
 	"BuildWriteTemplate":   needs(identity.PermissionQueryInspect),
 	"ListWriteRequests":    needs(identity.PermissionQueryExecute),
 	"WithdrawWriteRequest": needs(identity.PermissionQueryExecute),

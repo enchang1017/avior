@@ -4,6 +4,7 @@ import { expect, test } from '@playwright/test'
 import type { Locator, Page } from '@playwright/test'
 
 import { administrator, serveFixedApi } from './visual/api'
+import { selectEditableTable, serveEditableTable } from './visual/editing'
 import { addressOf, nodes } from './visual/lineage'
 
 /*
@@ -37,6 +38,7 @@ type Scene = {
   signedIn?: boolean
   /** The deployment the page believes it is on; the fixture's is staging. */
   environment?: 'production'
+  setup?: (page: Page) => Promise<void>
   arrange?: (page: Page) => Promise<void>
   /** What the page prints that depends on where it is served from, not how it is styled. */
   varies?: (page: Page) => Locator[]
@@ -86,6 +88,48 @@ async function pick(page: Page, control: string, label: string): Promise<void> {
 }
 
 const scenes: Scene[] = [
+  ...(['json-tree', 'json-code', 'row-edit-review'] as const).map(
+    (name): Scene => ({
+      name,
+      path: '/',
+      setup: async (page) => {
+        await serveEditableTable(page, true)
+      },
+      arrange: async (page) => {
+        await selectEditableTable(page)
+        const row = page.locator('.result tr[data-row]').first()
+        if (name === 'row-edit-review') {
+          await row.locator('td').nth(1).dblclick()
+          const editor = page.getByRole('dialog', { name: 'Edit username', exact: true })
+          await editor.getByLabel('New value').fill('alice corrected')
+          await editor.getByRole('button', { name: 'Apply to draft' }).click()
+          await page.getByRole('button', { name: 'Review 1 change(s)' }).click()
+          await expect(page.getByRole('button', { name: 'Check again' })).toBeEnabled()
+          await page
+            .getByRole('dialog', { name: 'Review row changes', exact: true })
+            .locator('summary')
+            .click()
+          // Capture the review with its requested SQL preview fully mounted.
+          await expect(
+            page
+              .getByRole('dialog', { name: 'Review row changes', exact: true })
+              .locator('.cm-editor'),
+          ).toHaveCount(1)
+          await quiet(page)
+        } else {
+          await row.locator('td').nth(2).press('Enter')
+          const viewer = page.getByRole('dialog', { name: 'payload', exact: true })
+          await expect(
+            viewer.getByRole('region', { name: 'JSON fields', exact: true }),
+          ).toContainText('9007199254740993')
+          if (name === 'json-code') {
+            await viewer.getByRole('tab', { name: 'Code', exact: true }).click()
+            await expect(viewer.locator('.cm-content')).toContainText('9007199254740993')
+          }
+        }
+      },
+    }),
+  ),
   { name: 'login', path: '/login', signedIn: false },
   {
     name: 'data-browser',
@@ -412,6 +456,7 @@ for (const scene of scenes) {
           route.fulfill({ json: { ...administrator, environment } }),
         )
       }
+      if (scene.setup) await scene.setup(page)
       await prepare(page, look)
       await page.goto(scene.path)
       await page.waitForLoadState('networkidle')

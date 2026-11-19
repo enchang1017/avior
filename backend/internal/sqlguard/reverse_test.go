@@ -177,3 +177,22 @@ func TestBuildReverseRefusesWhatItCannotWrite(t *testing.T) {
 		})
 	}
 }
+
+func TestReverseHandlesGeneratedAndIdentityColumns(t *testing.T) {
+	shape := TableShape{Key: []string{"id"}, Columns: []string{"id", "amount", "total"}, Generated: []string{"total"}, IdentityAlways: []string{"id"}}
+	statement, err := BuildReverse(ReverseTarget{Kind: WriteUpdate, Table: "public.items", RequestID: aRequest, Shape: shape})
+	if err != nil {
+		t.Fatal(err)
+	}
+	set := strings.Split(strings.Split(statement, "SET ")[1], "\nFROM")[0]
+	if strings.Contains(set, "id =") || strings.Contains(set, "total =") || !strings.Contains(set, "amount =") {
+		t.Fatalf("invalid restore assignment: %s", set)
+	}
+	statement, err = BuildReverse(ReverseTarget{Kind: WriteDelete, Table: "public.items", RequestID: aRequest, Shape: shape})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(statement, "(id, amount) OVERRIDING SYSTEM VALUE") || strings.Contains(statement, ".total") {
+		t.Fatalf("invalid restore insert: %s", statement)
+	}
+}

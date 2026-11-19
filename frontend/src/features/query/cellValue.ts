@@ -2,6 +2,10 @@ import type { QueryResult } from '@/shared/api'
 
 type Column = QueryResult['columns'][number]
 
+export function arrayColumn(type: string): boolean {
+  return type.startsWith('_') || type.endsWith('[]')
+}
+
 /** Presentation never changes the value copied from the API. */
 export function cellValue(value: unknown, column?: Column) {
   const masked = column?.masked === true
@@ -22,7 +26,9 @@ export function cellValue(value: unknown, column?: Column) {
   const structured =
     !masked &&
     !absent &&
-    (typeof value === 'object' || (/^jsonb?$/iu.test(column?.type ?? '') && /^\s*[[{]/u.test(raw)))
+    (typeof value === 'object' ||
+      arrayColumn(column?.type ?? '') ||
+      (/^jsonb?$/iu.test(column?.type ?? '') && /^\s*[[{]/u.test(raw)))
   const multiline = /[\r\n\t]/u.test(raw)
   const flattened = raw.replace(/[\r\n\t]/gu, ' ')
   // Bound the work and avoid cutting a surrogate pair in a Unicode value.

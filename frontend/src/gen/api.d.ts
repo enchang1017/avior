@@ -1870,6 +1870,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/writes/row-template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Generate a guarded UPDATE from a complete original row and staged values */
+        post: operations["buildRowUpdate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/writes/template": {
         parameters: {
             query?: never;
@@ -2743,6 +2760,12 @@ export interface components {
             nullable: boolean;
             /** @description The caller may not read this column. Selecting it will be refused. */
             denied: boolean;
+            /** @description One-based position in the primary key, or zero for a non-key column. */
+            primaryKeyPosition?: number;
+            /** @description Generated or identity columns cannot be changed in the row editor. */
+            generated?: boolean;
+            /** @description An identity column. Expression-generated primary keys make a table read-only in the grid. */
+            identity?: boolean;
         };
         /**
          * @description The five types the predecessor's Database Objects menu offers. The allowlist is
@@ -2936,6 +2959,8 @@ export interface components {
              *     write.approve or decides nothing.
              *      */
             selfApproval: boolean;
+            /** @description Whether submitting a write waits for approval in this deployment. */
+            writeApprovalRequired?: boolean;
             instance: components["schemas"]["GovernedInstance"];
         };
         /** @description The governed server this deployment reaches, as the deployment itself
@@ -2969,10 +2994,26 @@ export interface components {
         WriteRequestState: "pending" | "rejected" | "withdrawn" | "applied" | "failed";
         /** @enum {string} */
         WriteKind: "insert" | "update" | "delete";
+        RowUpdateRequest: {
+            database: string;
+            schema: string;
+            table: string;
+            original: {
+                [key: string]: string | null;
+            };
+            changes: {
+                [key: string]: string | null;
+            };
+        };
         WriteSubmission: {
             database: string;
             statement: string;
             reason: string;
+            /**
+             * Format: int64
+             * @description Require exactly one changed row, rolling back on a stale row or unexpected count.
+             */
+            expectedAffectedRows?: number;
         };
         WriteDecision: {
             /** @enum {string} */
@@ -6219,6 +6260,33 @@ export interface operations {
                     "application/json": components["schemas"]["WriteRefusal"];
                 };
             };
+        };
+    };
+    buildRowUpdate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RowUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description A literal UPDATE with a full-row concurrency predicate */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WriteTemplate"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["ValidationFailed"];
         };
     };
     buildWriteTemplate: {

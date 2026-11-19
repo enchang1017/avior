@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, ref, watch } from 'vue'
 
-import ResultGrid from './ResultGrid.vue'
+import { lazy } from '@/shared/lazy'
+const EditableDataGrid = lazy(() => import('./EditableDataGrid.vue'), 'Loading table rows')
 import { VBanner, VButton, VInput, VLoader, VPager, VSelect, VToolbar } from '@/components'
 import {
   api,
@@ -330,11 +331,19 @@ function toggleSort(): void {
         ]"
         label="Data query audit"
       />
-      <ResultGrid :result="result" :animate="false" :offset="current.page * Number(current.size)" />
     </template>
     <p v-else-if="!error && !panel.verdict" class="m-0 p-4 text-sm text-fg-muted">
       Choose a table and at least one readable column to browse its rows.
     </p>
+    <EditableDataGrid
+      :database="props.database"
+      :table="props.table"
+      :columns="props.columns"
+      :result="result"
+      :offset="current.page * Number(current.size)"
+      :loading="busy"
+      @saved="load()"
+    />
     <div class="mt-auto">
       <VPager
         :page="current.page + 1"

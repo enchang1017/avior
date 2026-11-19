@@ -119,10 +119,40 @@ tie breakers for views or tables without a fully readable key. Concurrent change
 can move rows between pages.
 
 Switching tables preserves each table's applied filter, sort and page for this
-workspace. Click a cell for its complete value and a copy action. Open in SQL
+workspace. Click a cell to focus it, use Ctrl/Cmd+C to copy, and press Enter or
+use its inspection icon to see a complete value. JSON and arrays offer Tree/Code
+views, precise formatted copy, selection copy and JSON Pointer copy. Open in SQL
 preserves every nonempty SQL draft, reusing an empty draft or opening a new one.
 If eight nonempty drafts are already open, close one first. Selecting a table does not execute or replace
 any SQL draft.
+
+## Edit existing rows
+
+The standalone quick start enables reads only. To enable edits, configure the
+existing governed write feature, a separate `AVIOR_WRITE_DSN` with the required
+target write/capture permissions, and a write approval policy; see
+[FEAT-009](../features/done/FEAT-009-governed-write-requests.md). Bootstrap does
+not grant write access to the reader. Development may use
+`AVIOR_WRITE_APPROVAL=off`; deployments requiring a second person use `required`.
+The UI follows the server's effective policy, including development deployments
+that require approval.
+
+In Data, choose **Edit rows**, then double-click a writable cell or press F2.
+**Apply to draft** changes only the local draft. **Review changes** shows each
+row's key, before/after values and generated SQL. Enter a reason and save or
+submit for approval. Every row is a separate guarded write with a before-image
+capture; successful and pending requests link to the write workflow. A row changed
+or deleted since it was loaded is refused, including when approval happens later.
+Unsaved drafts remain available to review or revert, and leaving the workspace
+prompts before discarding them. Drafts are kept in memory only.
+
+Editing requires an ordinary table, a readable primary key, all columns selected,
+and supported unmasked types. Primary keys, identity and generated columns cannot
+be changed. Tables with expression-generated primary keys, restricted columns,
+views, unsupported types and arbitrary SQL results remain read-only. NULL and an
+empty string are separate choices. PostgreSQL arrays are edited as PostgreSQL
+array literals; their structured inspector is a JSON representation and **Copy
+original** retains syntax and array bounds.
 
 ## Staging and production
 

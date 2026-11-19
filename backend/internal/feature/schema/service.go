@@ -45,6 +45,8 @@ type Column struct {
 	Type               string
 	Nullable           bool
 	PrimaryKeyPosition int
+	Generated          bool
+	Identity           bool
 	// Denied reports that the caller may not read this column. It is reported
 	// rather than the column being hidden: an operator has to be able to see
 	// that a column exists and is refused, or a wide table looks narrow and a

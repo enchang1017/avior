@@ -346,28 +346,29 @@ type UserSession struct {
 }
 
 type WriteRequest struct {
-	ID               pgtype.UUID
-	Database         string
-	Statement        string
-	Kind             string
-	TargetTable      string
-	Reason           string
-	RequestedBy      pgtype.UUID
-	RequestedAt      pgtype.Timestamptz
-	EstimatedRows    int64
-	State            string
-	DecidedBy        pgtype.UUID
-	DecidedAt        pgtype.Timestamptz
-	DecisionNote     string
-	RanAt            pgtype.Timestamptz
-	AffectedRows     *int64
-	DurationMs       *int32
-	Error            string
-	CaptureRows      *int64
-	ReverseStatement string
-	CaptureRemovedAt pgtype.Timestamptz
-	CaptureRemovedBy pgtype.UUID
-	RollbackOf       pgtype.UUID
+	ID                   pgtype.UUID
+	Database             string
+	Statement            string
+	Kind                 string
+	TargetTable          string
+	Reason               string
+	RequestedBy          pgtype.UUID
+	RequestedAt          pgtype.Timestamptz
+	EstimatedRows        int64
+	State                string
+	DecidedBy            pgtype.UUID
+	DecidedAt            pgtype.Timestamptz
+	DecisionNote         string
+	RanAt                pgtype.Timestamptz
+	AffectedRows         *int64
+	DurationMs           *int32
+	Error                string
+	CaptureRows          *int64
+	ReverseStatement     string
+	CaptureRemovedAt     pgtype.Timestamptz
+	CaptureRemovedBy     pgtype.UUID
+	RollbackOf           pgtype.UUID
+	ExpectedAffectedRows *int64
 }
 
 type WriteRequestChange struct {
