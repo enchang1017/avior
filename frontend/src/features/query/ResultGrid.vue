@@ -255,19 +255,27 @@ function edit(row: number, column: number): void {
 
 const rows = computed(() =>
   props.result.rows.map((values, index) => {
-    const cells = values.map((cell, column) =>
-      cellValue(
-        dirty(index, column) ? props.drafts[draftKey(index, column)] : cell,
-        props.result.columns[column],
+    // Virtual rows should defer value presentation too: formatting every hidden
+    // cell makes a large result block the main thread before its first paint.
+    const cells = computed(() =>
+      values.map((cell, column) =>
+        cellValue(
+          dirty(index, column) ? props.drafts[draftKey(index, column)] : cell,
+          props.result.columns[column],
+        ),
       ),
     )
     return {
       ordinal: index + 1 + props.offset,
-      cells,
-      text: cells
-        .map((cell) => (cell.kind === 'NULL' ? 'NULL' : cell.raw))
-        .join(' ')
-        .toLowerCase(),
+      get cells() {
+        return cells.value
+      },
+      get text() {
+        return cells.value
+          .map((cell) => (cell.kind === 'NULL' ? 'NULL' : cell.raw))
+          .join(' ')
+          .toLowerCase()
+      },
     }
   }),
 )
