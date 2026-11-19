@@ -164,16 +164,16 @@ the entered representation; zoned time requires an explicit offset. Numeric
 values remain text throughout editing, including values beyond JavaScript's
 safe integer range.
 
-The **Changes** entry stays available in both Data and SQL. It groups drafts by
+The **Changes** entry stays available in both Data and SQL. Closing it keeps
+your draft. Row tools and SQL are available under **⋯**. It groups drafts by
 database and table and can return to the exact primary-key row without losing
-the saved page or filter. Review compares the complete original snapshot with
-the current row. If it changed, choose **Keep mine** or **Use current** for edited
+the saved page or filter. Review compares fields changed locally or in the database. If it changed, choose **Keep mine** or **Use current** for edited
 fields, then recheck. Deleted rows cannot be rebased. Each ready row is submitted
 separately; rows needing attention remain local. The final write still requires
 exactly one matching row, so another concurrent change safely fails.
 
 Submitted requests remain in the workspace while you navigate, with a link to
-Writes. Pending rows cannot be edited again until their status changes. Refresh
+Writes. Their history stays collapsed while you review new edits. Pending rows cannot be edited again until their status changes. Refresh
 statuses to see approval, failure or undo results; failed or rejected drafts can
 be restored for another review. Drafts and this convenience history are kept in
 memory for the current login, cleared on logout or reload; persisted requests

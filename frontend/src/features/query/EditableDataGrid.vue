@@ -46,6 +46,7 @@ watch(
 const session = useSessionStore()
 const { edits, bridge } = useWorkspaceRowEdits()
 const enabled = ref(false)
+const helpOpen = ref(false)
 const inlineEditor = ref<{
   row: number
   column: string
@@ -79,7 +80,9 @@ const configured = computed(
 )
 const unavailable = computed(() =>
   !configured.value
-    ? 'Row editing requires the write feature and query execution permission. Ask an administrator to enable the writer for this deployment and review your account access.'
+    ? session.caller?.features.includes('write')
+      ? 'Read-only: ask an administrator for query execution access.'
+      : 'Read-only: the governed writer is not enabled.'
     : editUnavailable(props.table, props.columns, props.result),
 )
 const editable = computed(() =>
@@ -203,13 +206,6 @@ function apply(): void {
   editor.value = null
   editingContext = null
 }
-function review(): void {
-  if (flush()) bridge.open.value = true
-}
-
-function discard(): void {
-  if (window.confirm('Discard all pending row edits?')) edits.discard()
-}
 watch(
   [inlineEditor, editor],
   () => {
@@ -245,33 +241,28 @@ watch(
         :title="unavailable || 'Double-click a cell or press F2 to edit'"
         @click="flush() && (enabled = !enabled)"
       >
-        <span>{{ enabled ? 'Finish editing' : 'Edit rows' }}</span>
+        <span>{{ enabled ? 'Stop editing' : 'Edit rows' }}</span>
       </VButton>
-      <span class="text-xs text-fg-muted">{{
-        unavailable ||
-        (enabled
-          ? 'Double-click or F2 to edit. Enter stages, Esc cancels, Tab moves cells, and Alt+Enter toggles NULL.'
-          : 'Read only. Choose Edit rows to stage changes.')
-      }}</span>
-      <VButton
-        v-if="edits.count.value"
-        size="sm"
-        icon="list-checks"
-        :disabled="edits.busy.value"
-        @click="review"
-      >
-        <span>Review {{ edits.count.value }} change(s)</span>
-      </VButton>
-      <VButton
-        v-if="edits.count.value"
-        size="sm"
-        variant="bare"
-        :disabled="edits.busy.value"
-        @click="discard"
-      >
-        <span>Revert all</span>
-      </VButton>
+      <span v-if="unavailable" class="text-xs text-fg-muted">{{ unavailable }}</span>
+      <template v-else-if="enabled">
+        <span class="text-xs text-fg-muted">F2 edit · Enter stage</span>
+        <VButton
+          size="sm"
+          variant="bare"
+          icon="help"
+          aria-label="Editing shortcuts"
+          :aria-expanded="helpOpen"
+          title="Editing shortcuts"
+          @click="helpOpen = !helpOpen"
+        >
+          <span class="sr-only">Editing shortcuts</span>
+        </VButton>
+      </template>
     </div>
+    <p v-if="enabled && helpOpen" class="m-0 border-b border-line px-3 py-2 text-xs text-fg-muted">
+      Double-click or F2 to edit. Enter stages, Esc cancels, Tab moves cells, and Alt+Enter toggles
+      NULL. Unsaved changes stay in this tab until reload or sign-out.
+    </p>
     <VBanner
       v-if="edits.message.value"
       :tone="edits.drafts.value.some((row) => row.error) ? 'danger' : 'info'"
@@ -281,13 +272,13 @@ watch(
     <p v-if="inlineEditor?.error" class="m-0 px-3 py-2 text-xs text-danger" role="alert">
       {{ inlineEditor.error }}
     </p>
-    <p v-if="!configured" class="m-0 px-3 pb-2 text-xs">
+    <p v-if="!session.caller?.features.includes('write')" class="m-0 px-3 pb-2 text-xs">
       <a
         class="text-primary underline"
         href="https://github.com/enchang1017/avior/blob/master/docs/runbooks/local-sidecar.md#edit-existing-rows"
         target="_blank"
         rel="noopener noreferrer"
-        >Set up governed writer credentials</a
+        >Configure governed writer</a
       >
     </p>
     <ResultGrid
@@ -312,8 +303,12 @@ watch(
       @close="editor = null"
     >
       <p class="mt-0 text-xs text-fg-muted">
-        {{ editor?.type }} · Applying here stages the value without saving it.
-        {{ editor ? cellHint(editor) : '' }}
+        {{ editor?.type }}
+        {{
+          editor && ['date', 'time', 'timestamp'].includes(cellKind(editor))
+            ? ' · ' + cellHint(editor)
+            : ''
+        }}
       </p>
       <VCheckbox v-model="setNull" :disabled="!editor?.nullable">Set to NULL</VCheckbox>
       <VJsonView

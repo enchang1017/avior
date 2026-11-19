@@ -159,7 +159,7 @@ describe('staged row edits', () => {
     post.mockResolvedValueOnce(ok({ id: 'pending', state: 'pending' }))
     await edits.submit('why')
     expect(edits.count.value).toBe(0)
-    expect(edits.message.value).toContain('1 awaiting approval')
+    expect(edits.message.value).toContain('1 submitted for approval')
   })
   it('retains edits after transport, policy, template or inspection failures', async () => {
     const edits = stage()
@@ -345,4 +345,41 @@ describe('conflicts and request tracking', () => {
     expect(edits.drafts.value).toHaveLength(0)
     expect(edits.refreshing.value).toBe(false)
   })
+})
+
+it('restores a failed pending request while another row is being checked', async () => {
+  const edits = stage()
+  await review(edits)
+  post.mockResolvedValueOnce(ok({ id: 'pending', state: 'pending' }))
+  await edits.submit('why')
+  edits.stage('db', table, columns, result, 1, 'note', 'another row')
+  let resolveStatus!: (value: unknown) => void
+  get.mockReturnValueOnce(
+    new Promise((done) => {
+      resolveStatus = done
+    }),
+  )
+  const tracking = edits.refreshOutcomes()
+  let resolveLookup!: (value: unknown) => void
+  post.mockReturnValueOnce(
+    new Promise((done) => {
+      resolveLookup = done
+    }),
+  )
+  post
+    .mockResolvedValueOnce(ok({ ...result, rows: [required(result.rows[1])] }))
+    .mockResolvedValueOnce(ok({ statement: 'UPDATE second row' }))
+    .mockResolvedValueOnce(ok({ decision: 'allow', reasons: [] }))
+  const checking = edits.review()
+  resolveStatus(ok({ request: { state: 'failed', error: 'Row changed' } }))
+  await tracking
+  expect(edits.busy.value).toBe(true)
+  expect(
+    edits.drafts.value.find((row) => row.original.id === '9007199254740993')?.changes.note,
+  ).toBe('new')
+  resolveLookup(ok({ statement: 'SELECT current' }))
+  expect(await checking).toBe(false)
+  expect(edits.readyRows.value).toHaveLength(1)
+  expect(edits.drafts.value).toHaveLength(2)
+  expect(edits.outcomes.value[0]?.restored).toBe(true)
 })

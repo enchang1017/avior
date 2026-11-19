@@ -112,14 +112,16 @@ test('a staged table edit reaches PostgreSQL only after a second person approves
     const edit = page.getByRole('textbox', { name: 'Edit status', exact: true })
     await edit.fill('Void')
     await edit.press('Enter')
-    await data.getByRole('button', { name: 'Review 1 change(s)' }).click()
-    const review = page.getByRole('dialog', { name: 'Review row changes', exact: true })
+    await page.getByRole('button', { name: /^Changes \(1\)/u }).click()
+    const review = page.getByRole('dialog', { name: 'Changes', exact: true })
     await review.getByLabel('Reason').fill('Verify a complete grid-to-approval flow')
     const submitted = page.waitForResponse(
       (response) =>
         response.url().endsWith('/api/v1/writes') && response.request().method() === 'POST',
     )
-    await review.getByRole('button', { name: 'Submit for approval', exact: true }).click()
+    await review
+      .getByRole('button', { name: /^Submit(?: \d+(?: ready)? rows?)? for approval$/u })
+      .click()
     const pending = (await (await submitted).json()) as { id: string; state: string }
     expect(pending.state).toBe('pending')
     await expect(review).toBeHidden()
@@ -131,11 +133,11 @@ test('a staged table edit reaches PostgreSQL only after a second person approves
     expect(((await approved.json()) as { request: { state: string } }).request.state).toBe(
       'applied',
     )
-    await page.getByRole('button', { name: /^Changes \(0\).*awaiting approval/u }).click()
+    await page.getByRole('button', { name: /^Changes.*pending/u }).click()
     await expect(review.getByRole('region', { name: 'Submitted requests' })).toContainText(
-      'applied',
+      'Applied',
     )
-    await review.getByRole('button', { name: 'Refresh row', exact: true }).click()
+    await review.getByRole('button', { name: 'Show row', exact: true }).click()
     await expect(data).toContainText('Showing requested row')
     await expect(data.locator('.result td').filter({ hasText: /^Void/u })).toBeVisible()
   } finally {

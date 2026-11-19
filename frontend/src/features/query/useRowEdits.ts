@@ -299,8 +299,7 @@ export function useRowEdits(instanceId = '') {
       if (!active(operation)) return
       if (result.rows.length === 0) {
         row.latest = null
-        row.error =
-          'This row was deleted. Keep a copy of your draft or revert it; a deleted row cannot be rebased.'
+        row.error = 'This row was deleted. Copy your draft or discard its changes.'
         return
       }
       const latest = rowSnapshot(result, 0)
@@ -324,7 +323,7 @@ export function useRowEdits(instanceId = '') {
             ? 'mine'
             : ''
       row.error =
-        'The database row changed. Compare the complete row and choose how to resolve edited fields.'
+        'This row changed in the database. Review the current values and apply your choices.'
     } finally {
       finish(operation)
     }
@@ -332,7 +331,7 @@ export function useRowEdits(instanceId = '') {
   function rebase(row: RowDraft): boolean {
     if (!row.latest) return false
     if (Object.keys(row.changes).some((column) => !row.choices[column])) {
-      row.error = 'Choose Keep mine or Use current for every conflicting edited field.'
+      row.error = 'Choose Keep mine or Use current for each edited field.'
       return false
     }
     const changes = Object.fromEntries(
@@ -399,7 +398,13 @@ export function useRowEdits(instanceId = '') {
       drafts.value = drafts.value.filter((row) => !settled.has(row.id))
       const saved = submitted.filter((row) => row.state === 'applied').length
       const pending = submitted.filter((row) => row.state === 'pending').length
-      message.value = `${saved} saved, ${pending} awaiting approval, ${drafts.value.length} unsaved.`
+      message.value = [
+        saved ? `${saved} saved` : '',
+        pending ? `${pending} submitted for approval` : '',
+        drafts.value.length ? `${drafts.value.length} unsaved` : '',
+      ]
+        .filter(Boolean)
+        .join(' · ')
       checked.value = false
     } finally {
       finish(operation)
@@ -429,7 +434,6 @@ export function useRowEdits(instanceId = '') {
     }
   }
   function restore(outcome: WriteOutcome): void {
-    if (busy.value) return
     if (drafts.value.some((row) => row.id === outcome.row.id)) {
       outcome.restored = true
       outcome.notice =
