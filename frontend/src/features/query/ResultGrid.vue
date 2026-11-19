@@ -8,6 +8,8 @@ const VJsonView = lazy(
   'Loading JSON viewer',
 )
 
+import VInlineCellInput from '@/components/Data/VInlineCellInput/VInlineCellInput.vue'
+import { nextTick } from 'vue'
 import { arrayColumn, cellValue } from './cellValue'
 import { rowWindow } from './rowWindow'
 import { playScan } from './scan'
@@ -30,16 +32,106 @@ const props = withDefaults(
     offset?: number
     editableColumns?: string[]
     drafts?: Record<string, string | null>
+    inlineEditor?: {
+      row: number
+      column: string
+      value: string | null
+      error: string
+      nullable: boolean
+    } | null
+    blockedRows?: Record<number, string>
+    readOnlyReasons?: Record<string, string>
   }>(),
   {
     animate: true,
     offset: 0,
     editableColumns: () => [],
     drafts: () => ({}),
+    inlineEditor: null,
+    blockedRows: () => ({}),
+    readOnlyReasons: () => ({}),
   },
 )
 
-const emit = defineEmits<{ edit: [row: number, column: number] }>()
+const emit = defineEmits<{
+  edit: [row: number, column: number]
+  'inline-value': [value: string | null]
+  'inline-save': []
+  'inline-cancel': []
+}>()
+function inline(row: number, column: number): boolean {
+  return (
+    props.inlineEditor?.row === row &&
+    props.inlineEditor.column === props.result.columns[column]?.name
+  )
+}
+async function finishInline(
+  row: number,
+  column: number,
+  direction: number,
+  cancel = false,
+): Promise<void> {
+  const previous = shown.value.map((item) => item.ordinal)
+  const originalPosition = previous.indexOf(row + 1 + props.offset)
+  if (cancel) emit('inline-cancel')
+  else emit('inline-save')
+  await nextTick()
+  if (props.inlineEditor) return
+  let targetRow = row,
+    targetColumn = column
+  let position = originalPosition
+  const visibleOrdinals = new Set(shown.value.map((item) => item.ordinal))
+  if (direction) {
+    do {
+      targetColumn += direction
+      if (targetColumn >= props.result.columns.length) {
+        position++
+        targetColumn = 0
+      } else if (targetColumn < 0) {
+        position--
+        targetColumn = props.result.columns.length - 1
+      }
+      const ordinal = previous[position]
+      const candidate = ordinal === undefined ? undefined : { ordinal }
+      if (!candidate) {
+        targetRow = row
+        targetColumn = column
+        break
+      }
+      targetRow = candidate.ordinal - 1 - props.offset
+    } while (
+      !visibleOrdinals.has(targetRow + 1 + props.offset) ||
+      !editable(targetColumn, targetRow)
+    )
+  }
+  if (!visibleOrdinals.has(targetRow + 1 + props.offset)) {
+    const nearest = shown.value[Math.min(Math.max(originalPosition, 0), shown.value.length - 1)]
+    copyStatus.value =
+      'The edited row no longer matches Search results. Focus moved to the nearest matching row.'
+    if (!nearest) {
+      scroller.value?.closest('section')?.querySelector<HTMLInputElement>('input')?.focus()
+      return
+    }
+    targetRow = nearest.ordinal - 1 - props.offset
+    position = shown.value.indexOf(nearest)
+  } else position = shown.value.findIndex((item) => item.ordinal === targetRow + 1 + props.offset)
+  const visible = drawn.value.some((item) => item.ordinal === targetRow + 1 + props.offset)
+  if (!visible && scroller.value) {
+    scroller.value.scrollTop = Math.max(0, position) * rowHeight.value
+    scrollTop.value = scroller.value.scrollTop
+    await nextTick()
+  }
+
+  const ordinal = targetRow + 1 + props.offset
+  const drawnRow = Array.from(
+    scroller.value?.querySelectorAll<HTMLTableRowElement>('tr[data-row]') ?? [],
+  ).find((element) => element.querySelector('th')?.textContent?.trim() === String(ordinal))
+  const target = drawnRow?.children[targetColumn + 1]
+  if (target instanceof HTMLElement) {
+    target.focus()
+    target.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  }
+}
 const filter = ref('')
 const cellDetail = ref<{
   title: string
@@ -77,7 +169,7 @@ function cellKey(
     void copyValue(value)
     return
   }
-  if (event.key === 'F2' && editable(column)) {
+  if (event.key === 'F2' && editable(column, row)) {
     event.preventDefault()
     emit('edit', row, column)
     return
@@ -146,7 +238,8 @@ function onScroll(): void {
   scrollTop.value = scroller.value?.scrollTop ?? 0
 }
 
-function editable(column: number): boolean {
+function editable(column: number, row?: number): boolean {
+  if (row !== undefined && props.blockedRows[row]) return false
   const metadata = props.result.columns[column]
   return metadata !== undefined && !metadata.masked && props.editableColumns.includes(metadata.name)
 }
@@ -157,7 +250,7 @@ function dirty(row: number, column: number): boolean {
   return Object.prototype.hasOwnProperty.call(props.drafts, draftKey(row, column))
 }
 function edit(row: number, column: number): void {
-  if (editable(column)) emit('edit', row, column)
+  if (editable(column, row)) emit('edit', row, column)
 }
 
 const rows = computed(() =>
@@ -354,31 +447,44 @@ function quote(value: string): string {
             :key="i"
             :class="{
               'nul text-fg-muted italic': cell.special && cell.kind !== 'Masked',
-              'pr-10': cell.expandable && !editable(i),
-              'pr-20': editable(i),
+              'pr-10': cell.expandable && !editable(i, row.ordinal - 1 - props.offset),
+              'pr-20': editable(i, row.ordinal - 1 - props.offset),
+              'py-0 pr-0': inline(row.ordinal - 1 - props.offset, i),
               'bg-warn-bg': dirty(row.ordinal - 1 - props.offset, i),
             }"
             class="group relative cursor-text focus:outline-2 focus:-outline-offset-2 focus:outline-primary"
             :tabindex="row.ordinal === drawn[0]?.ordinal && i === 0 ? 0 : -1"
             v-bind="cell.special ? { 'aria-label': cell.kind } : {}"
             :title="
-              cell.copyable
+              props.blockedRows[row.ordinal - 1 - props.offset] ||
+              props.readOnlyReasons[props.result.columns[i]?.name ?? ''] ||
+              (cell.copyable
                 ? 'Use arrow keys to move, Ctrl/Cmd+C to copy, or Enter to inspect.'
                 : cell.kind === 'Masked'
                   ? 'Masked value. Inspection and copying are unavailable.'
-                  : 'NULL: no stored value. Use arrow keys to move.'
+                  : 'NULL: no stored value. Use arrow keys to move.')
             "
             @click="focusCell"
             @keydown="cellKey($event, cell, i, row.ordinal - 1 - props.offset)"
             @dblclick="edit(row.ordinal - 1 - props.offset, i)"
           >
-            {{ cell.preview }}
+            <VInlineCellInput
+              v-if="inline(row.ordinal - 1 - props.offset, i) && props.inlineEditor"
+              :value="props.inlineEditor.value"
+              :nullable="props.inlineEditor.nullable"
+              :error="props.inlineEditor.error"
+              :label="props.inlineEditor.column"
+              @value="emit('inline-value', $event)"
+              @save="finishInline(row.ordinal - 1 - props.offset, i, $event)"
+              @cancel="finishInline(row.ordinal - 1 - props.offset, i, 0, true)"
+            />
+            <span v-else>{{ cell.preview }}</span>
             <VButton
-              v-if="cell.expandable"
+              v-if="cell.expandable && !inline(row.ordinal - 1 - props.offset, i)"
               variant="bare"
               size="sm"
               class="absolute top-0 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-100"
-              :class="editable(i) ? 'right-10' : 'right-0'"
+              :class="editable(i, row.ordinal - 1 - props.offset) ? 'right-10' : 'right-0'"
               icon="eye"
               title="Inspect value (Enter)"
               :aria-label="'Inspect ' + (props.result.columns[i]?.name ?? 'cell')"
@@ -387,7 +493,10 @@ function quote(value: string): string {
               <span class="sr-only">Inspect value</span>
             </VButton>
             <VButton
-              v-if="editable(i)"
+              v-if="
+                editable(i, row.ordinal - 1 - props.offset) &&
+                !inline(row.ordinal - 1 - props.offset, i)
+              "
               variant="bare"
               size="sm"
               icon="file-pen"

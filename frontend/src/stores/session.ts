@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
+import { resetRowWorkspace } from '@/features/query/rowWorkspace'
 
 import { api, classify, unreachable, type CurrentUser, type Failure } from '@/shared/api'
 
@@ -7,6 +8,11 @@ export const useSessionStore = defineStore('session', () => {
   const caller = ref<CurrentUser | null>(null)
   const failure = ref<Failure | null>(null)
   const busy = ref(false)
+  watch(
+    () => caller.value?.id,
+    () => resetRowWorkspace(),
+    { flush: 'sync' },
+  )
 
   async function refresh(): Promise<void> {
     busy.value = true
@@ -41,6 +47,7 @@ export const useSessionStore = defineStore('session', () => {
    * still accepts one, and an account carrying a secret is still held to it.
    */
   async function signIn(username: string, password: string): Promise<boolean> {
+    resetRowWorkspace()
     busy.value = true
     failure.value = null
     try {
@@ -65,6 +72,7 @@ export const useSessionStore = defineStore('session', () => {
   }
 
   async function signOut(): Promise<void> {
+    resetRowWorkspace()
     try {
       await api.POST('/auth/logout')
     } catch (thrown) {

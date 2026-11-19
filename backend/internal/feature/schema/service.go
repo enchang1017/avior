@@ -41,6 +41,7 @@ type Table struct {
 
 // Column is one column of a table or view.
 type Column struct {
+	EnumValues         []string
 	Name               string
 	Type               string
 	Nullable           bool

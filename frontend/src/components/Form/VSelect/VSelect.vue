@@ -29,10 +29,11 @@ const props = withDefaults(
     modelValue: string
     options: readonly SelectOption[]
     disabled?: boolean
+    ariaLabel?: string
     /** Matches VButton's, so a row of controls is one height. */
     size?: 'md' | 'sm'
   }>(),
-  { disabled: false, size: 'md' },
+  { disabled: false, size: 'md', ariaLabel: '' },
 )
 
 const emit = defineEmits<{ 'update:modelValue': [string] }>()
@@ -90,6 +91,7 @@ watch(open, (isOpen) => {
     <input
       :id="props.id"
       ref="field"
+      :aria-label="props.ariaLabel"
       class="w-full cursor-pointer pr-7 pl-2 font-[inherit]"
       :class="[controlBox, controlSize(props.size)]"
       type="text"
@@ -102,6 +104,7 @@ watch(open, (isOpen) => {
       :placeholder="shown"
       @input="onInput"
       @focus="list.show()"
+      @click="list.show()"
       @blur="list.blur()"
       @keydown.down.prevent="list.move(1)"
       @keydown.up.prevent="list.move(-1)"

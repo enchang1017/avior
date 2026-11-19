@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { onBeforeRouteLeave } from 'vue-router'
+import { computed, onBeforeUnmount, ref, watch, nextTick } from 'vue'
 
 import ResultGrid from './ResultGrid.vue'
-import { editUnavailable, useRowEdits } from './useRowEdits'
+import { editUnavailable, useWorkspaceRowEdits } from './useRowEdits'
+import { inlineCell, validateCell, cellKind, cellHint } from './cellEditing'
 import { cellValue } from './cellValue'
-import { VBanner, VButton, VCheckbox, VDialog, VInput, VSelect, VSql, VTable } from '@/components'
+import { VBanner, VButton, VCheckbox, VDialog, VInput, VSelect } from '@/components'
 import VTextarea from '@/components/Form/VTextarea/VTextarea.vue'
 import { lazy } from '@/shared/lazy'
 import { useSessionStore } from '@/stores/session'
@@ -24,19 +24,46 @@ const props = defineProps<{
   result: QueryResult | null
   offset: number
   loading: boolean
+  focusRow?: number
 }>()
-const emit = defineEmits<{ saved: [] }>()
+
+const grid = ref<HTMLElement | null>(null)
+let focused = 0
+watch(
+  () => [props.focusRow, props.result] as const,
+  async () => {
+    if (!props.focusRow || props.focusRow === focused || !props.result?.rows.length) return
+    await nextTick()
+    const cell = grid.value?.querySelector<HTMLElement>('.result tr[data-row] td')
+    if (cell) {
+      focused = props.focusRow
+      cell.focus()
+      cell.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+    }
+  },
+  { flush: 'post' },
+)
 const session = useSessionStore()
-const edits = useRowEdits()
+const { edits, bridge } = useWorkspaceRowEdits()
 const enabled = ref(false)
-const reviewOpen = ref(false)
-const openSQL = ref(new Set<string>())
-function toggleSQL(id: string, event: Event): void {
-  if ((event.target as HTMLDetailsElement).open) openSQL.value.add(id)
-  else openSQL.value.delete(id)
+const inlineEditor = ref<{
+  row: number
+  column: string
+  value: string | null
+  error: string
+  nullable: boolean
+} | null>(null)
+type EditContext = {
+  database: string
+  table: TableRef
+  columns: ColumnRef[]
+  result: QueryResult
+  row: number
+  column: ColumnRef
 }
-const reason = ref('')
-const editor = ref<{ row: number; column: string; type: string; nullable: boolean } | null>(null)
+let editingContext: EditContext | null = null
+const fieldError = ref('')
+const editor = ref<ColumnRef | null>(null)
 const text = ref('')
 const jsonValid = ref(true)
 type JSONEditorHandle = { currentValue: () => { text: string; valid: boolean } }
@@ -52,11 +79,11 @@ const configured = computed(
 )
 const unavailable = computed(() =>
   !configured.value
-    ? 'Writing is not enabled for this account or deployment.'
+    ? 'Row editing requires the write feature and query execution permission. Ask an administrator to enable the writer for this deployment and review your account access.'
     : editUnavailable(props.table, props.columns, props.result),
 )
 const editable = computed(() =>
-  enabled.value && !unavailable.value
+  enabled.value && !unavailable.value && !edits.busy.value
     ? props.columns
         .filter((column) => !column.generated && !(column.primaryKeyPosition ?? 0))
         .map((column) => column.name)
@@ -67,20 +94,70 @@ const overlays = computed(() =>
     ? edits.overlay(props.database, props.table, props.columns, props.result)
     : {},
 )
-const json = computed(() => /^jsonb?$/iu.test(editor.value?.type ?? ''))
-const approval = computed(() => session.caller?.writeApprovalRequired !== false)
-const canSubmit = computed(
-  () =>
-    configured.value &&
-    edits.checked.value &&
-    reason.value.trim() !== '' &&
-    edits.drafts.value.length > 0 &&
-    edits.drafts.value.every((row) => row.statement && !row.error) &&
-    !edits.busy.value,
+const json = computed(() => editor.value !== null && cellKind(editor.value) === 'json')
+const blocked = computed(() =>
+  props.database && props.table && props.result
+    ? edits.blockedRows(props.database, props.table, props.columns, props.result)
+    : {},
 )
+const readOnlyReasons = computed(() =>
+  Object.fromEntries(
+    props.columns
+      .filter((column) => column.generated || (column.primaryKeyPosition ?? 0) > 0)
+      .map((column) => [
+        column.name,
+        column.generated
+          ? 'Generated and identity values are maintained by PostgreSQL.'
+          : 'Primary keys identify staged rows and are read-only.',
+      ]),
+  ),
+)
+function flush(): boolean {
+  if (inlineEditor.value) return applyInline()
+  return editor.value === null
+}
+bridge.flush = flush
+function stage(value: string | null): boolean {
+  const context = editingContext
+  if (!context) return false
+  const invalid = validateCell(context.column, value)
+  if (inlineEditor.value) inlineEditor.value.error = invalid
+  fieldError.value = invalid
+  if (invalid) return false
+  edits.stage(
+    context.database,
+    context.table,
+    context.columns,
+    context.result,
+    context.row,
+    context.column.name,
+    value,
+  )
+  return true
+}
+function applyInline(): boolean {
+  if (!inlineEditor.value) return true
+  if (!stage(inlineEditor.value.value)) return false
+  inlineEditor.value = null
+  editingContext = null
+  return true
+}
+function cancelInline(): void {
+  inlineEditor.value = null
+  editingContext = null
+  fieldError.value = ''
+}
 
 function begin(row: number, column: number): void {
-  if (!props.result || !props.database || !props.table || unavailable.value) return
+  if (
+    !flush() ||
+    !props.result ||
+    !props.database ||
+    !props.table ||
+    unavailable.value ||
+    blocked.value[row]
+  )
+    return
   const field = props.result.columns[column]
   const metadata = props.columns.find((item) => item.name === field?.name)
   if (!field || !metadata || !editable.value.includes(field.name)) return
@@ -91,7 +168,26 @@ function begin(row: number, column: number): void {
   text.value = source === null || source === undefined ? '' : cellValue(source, field).raw
   jsonValid.value = true
   setNull.value = source === null
-  editor.value = { row, column: field.name, type: metadata.type, nullable: metadata.nullable }
+  editingContext = {
+    database: props.database,
+    table: { ...props.table },
+    columns: props.columns.map((column) => ({ ...column })),
+    result: props.result,
+    row,
+    column: metadata,
+  }
+  fieldError.value = ''
+  if (inlineCell(metadata, source === null ? null : text.value)) {
+    inlineEditor.value = {
+      row,
+      column: field.name,
+      value: source === null ? null : text.value,
+      error: '',
+      nullable: metadata.nullable,
+    }
+    return
+  }
+  editor.value = { ...metadata }
 }
 function apply(): void {
   if (!editor.value || !props.database || !props.table || !props.result) return
@@ -103,63 +199,43 @@ function apply(): void {
     }
     text.value = current.text
   }
-  edits.stage(
-    props.database,
-    props.table,
-    props.columns,
-    props.result,
-    editor.value.row,
-    editor.value.column,
-    setNull.value ? null : text.value,
-  )
+  if (!stage(setNull.value ? null : text.value)) return
   editor.value = null
+  editingContext = null
 }
-async function review(): Promise<void> {
-  reviewOpen.value = true
-  await edits.review()
+function review(): void {
+  if (flush()) bridge.open.value = true
 }
-async function submit(): Promise<void> {
-  if (!canSubmit.value) return
-  await edits.submit(reason.value)
-  if (edits.drafts.value.length === 0) {
-    reviewOpen.value = false
-    reason.value = ''
-  }
-  emit('saved')
-}
+
 function discard(): void {
   if (window.confirm('Discard all pending row edits?')) edits.discard()
 }
-function beforeUnload(event: BeforeUnloadEvent): void {
-  if (edits.count.value > 0 || editor.value !== null) event.preventDefault()
-}
-window.addEventListener('beforeunload', beforeUnload)
-onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
+watch(
+  [inlineEditor, editor],
+  () => {
+    bridge.editing.value = inlineEditor.value !== null || editor.value !== null
+  },
+  { flush: 'sync' },
+)
+onBeforeUnmount(() => {
+  if (bridge.flush === flush) bridge.flush = null
+  bridge.editing.value = false
+})
 watch(
   () => session.caller?.id,
   (id, before) => {
     if (before && id !== before) {
-      edits.discard()
+      edits.reset()
       editor.value = null
-      reviewOpen.value = false
+      cancelInline()
+      bridge.open.value = false
     }
   },
 )
-onBeforeRouteLeave((to) => {
-  if (to.path === '/login') {
-    edits.discard()
-    editor.value = null
-    return true
-  }
-  return (
-    (edits.count.value === 0 && editor.value === null) ||
-    window.confirm('Leave Query and discard pending row edits?')
-  )
-})
 </script>
 
 <template>
-  <div class="flex min-h-0 flex-1 flex-col">
+  <div ref="grid" class="flex min-h-0 flex-1 flex-col">
     <div class="flex flex-wrap items-center gap-2 border-b border-line px-3 py-1.5">
       <VButton
         v-if="configured"
@@ -167,14 +243,14 @@ onBeforeRouteLeave((to) => {
         icon="file-pen"
         :disabled="Boolean(unavailable) || props.loading || edits.busy.value"
         :title="unavailable || 'Double-click a cell or press F2 to edit'"
-        @click="enabled = !enabled"
+        @click="flush() && (enabled = !enabled)"
       >
         <span>{{ enabled ? 'Finish editing' : 'Edit rows' }}</span>
       </VButton>
       <span class="text-xs text-fg-muted">{{
         unavailable ||
         (enabled
-          ? 'Double-click or F2 to edit. Changes stay pending until reviewed.'
+          ? 'Double-click or F2 to edit. Enter stages, Esc cancels, Tab moves cells, and Alt+Enter toggles NULL.'
           : 'Read only. Choose Edit rows to stage changes.')
       }}</span>
       <VButton
@@ -202,24 +278,18 @@ onBeforeRouteLeave((to) => {
     >
       <span>{{ edits.message.value }}</span>
     </VBanner>
-    <div
-      v-if="edits.outcomes.value.length"
-      class="flex flex-wrap gap-3 px-3 py-2 text-xs"
-      role="status"
-    >
-      <VButton
-        v-for="outcome in edits.outcomes.value"
-        :key="outcome.id"
-        size="sm"
-        variant="bare"
-        :to="'/writes?id=' + outcome.id"
+    <p v-if="inlineEditor?.error" class="m-0 px-3 py-2 text-xs text-danger" role="alert">
+      {{ inlineEditor.error }}
+    </p>
+    <p v-if="!configured" class="m-0 px-3 pb-2 text-xs">
+      <a
+        class="text-primary underline"
+        href="https://github.com/enchang1017/avior/blob/master/docs/runbooks/local-sidecar.md#edit-existing-rows"
+        target="_blank"
+        rel="noopener noreferrer"
+        >Set up governed writer credentials</a
       >
-        <span
-          >{{ outcome.state === 'pending' ? 'Awaiting approval' : outcome.state }} ·
-          {{ outcome.id.slice(0, 8) }}</span
-        >
-      </VButton>
-    </div>
+    </p>
     <ResultGrid
       v-if="props.result"
       :result="props.result"
@@ -227,16 +297,23 @@ onBeforeRouteLeave((to) => {
       :offset="props.offset"
       :editable-columns="editable"
       :drafts="overlays"
+      :inline-editor="inlineEditor"
+      :blocked-rows="blocked"
+      :read-only-reasons="readOnlyReasons"
+      @inline-value="inlineEditor && ((inlineEditor.value = $event), (inlineEditor.error = ''))"
+      @inline-save="applyInline"
+      @inline-cancel="cancelInline"
       @edit="begin"
     />
     <VDialog
       :open="editor !== null"
-      :title="'Edit ' + (editor?.column ?? 'value')"
+      :title="'Edit ' + (editor?.name ?? 'value')"
       motion="fade"
       @close="editor = null"
     >
       <p class="mt-0 text-xs text-fg-muted">
         {{ editor?.type }} · Applying here stages the value without saving it.
+        {{ editor ? cellHint(editor) : '' }}
       </p>
       <VCheckbox v-model="setNull" :disabled="!editor?.nullable">Set to NULL</VCheckbox>
       <VJsonView
@@ -245,6 +322,13 @@ onBeforeRouteLeave((to) => {
         v-model:value="text"
         :read-only="false"
         @valid="jsonValid = $event"
+      />
+      <VSelect
+        v-else-if="editor?.enumValues?.length && !setNull"
+        id="row-edit-enum"
+        v-model="text"
+        :options="editor.enumValues.map((value) => ({ value, label: JSON.stringify(value) }))"
+        aria-label="New value"
       />
       <VSelect
         v-else-if="editor?.type === 'boolean' && !setNull"
@@ -256,95 +340,26 @@ onBeforeRouteLeave((to) => {
         ]"
         aria-label="New value"
       />
+      <VInput
+        v-else-if="
+          editor && ['date', 'time', 'timestamp', 'number'].includes(cellKind(editor)) && !setNull
+        "
+        v-model="text"
+        :type="
+          cellKind(editor) === 'date' && (text === '' || /^\d{4}-\d{2}-\d{2}$/u.test(text))
+            ? 'date'
+            : 'text'
+        "
+        aria-label="New value"
+      />
       <VTextarea v-else v-model="text" :disabled="setNull" rows="8" aria-label="New value" />
+      <p v-if="fieldError" class="text-sm text-danger" role="alert">{{ fieldError }}</p>
       <template #footer>
         <VButton @click="editor = null">
           <span>Cancel</span>
         </VButton>
         <VButton variant="primary" :disabled="json && !setNull && !jsonValid" @click="apply">
           <span>Apply to draft</span>
-        </VButton>
-      </template>
-    </VDialog>
-    <VDialog
-      :open="reviewOpen"
-      class="leading-5"
-      motion="fade"
-      title="Review row changes"
-      @close="reviewOpen = false"
-    >
-      <div class="max-h-[calc(var(--spacing-dialog-body-max)-var(--spacing)*32)] overflow-auto">
-        <p class="mt-0 text-sm">
-          Each row is a separate guarded write.
-          {{
-            approval ? 'Changes wait for approval.' : 'Changes save immediately after submission.'
-          }}
-          A stale row fails without overwriting newer data.
-        </p>
-        <section
-          v-for="row in edits.drafts.value"
-          :key="row.id"
-          class="mb-4 border-b border-line pb-4"
-        >
-          <h3 class="font-mono text-sm font-normal">
-            {{ row.database }} / {{ row.schema }}.{{ row.table }}
-          </h3>
-          <p class="font-mono text-xs text-fg-muted">Key: {{ row.keyLabel }}</p>
-          <VTable>
-            <template #caption>Pending values</template>
-            <template #head>
-              <th scope="col">Column</th>
-              <th scope="col">Before</th>
-              <th scope="col">After</th>
-            </template>
-            <tr v-for="(value, column) in row.changes" :key="column">
-              <th scope="row" class="font-mono text-sm font-normal">{{ column }}</th>
-              <td>
-                <pre class="max-h-40 max-w-48 overflow-auto whitespace-pre-wrap">{{
-                  row.original[column] === null ? 'NULL' : JSON.stringify(row.original[column])
-                }}</pre>
-              </td>
-              <td>
-                <pre class="max-h-40 max-w-48 overflow-auto whitespace-pre-wrap">{{
-                  value === null ? 'NULL' : JSON.stringify(value)
-                }}</pre>
-              </td>
-            </tr>
-          </VTable>
-          <VButton
-            size="sm"
-            variant="bare"
-            :disabled="edits.busy.value"
-            @click="edits.discardRow(row.id)"
-          >
-            <span>Revert this row</span>
-          </VButton>
-          <p v-if="row.error" class="text-sm text-danger" role="alert">{{ row.error }}</p>
-          <details v-if="row.statement" @toggle="toggleSQL(row.id, $event)">
-            <summary class="cursor-pointer text-xs">
-              Generated SQL · requires exactly one affected row
-            </summary>
-            <VSql v-if="openSQL.has(row.id)" :code="row.statement" />
-          </details>
-        </section>
-        <p v-if="edits.message.value" class="text-sm" role="status">{{ edits.message.value }}</p>
-        <label for="row-edit-reason" class="text-sm">Reason</label>
-        <VInput
-          id="row-edit-reason"
-          v-model="reason"
-          maxlength="2000"
-          :disabled="edits.busy.value"
-        />
-      </div>
-      <template #footer>
-        <VButton :disabled="edits.busy.value" @click="reviewOpen = false">
-          <span>Keep editing</span>
-        </VButton>
-        <VButton :disabled="edits.busy.value" @click="edits.review">
-          <span>Check again</span>
-        </VButton>
-        <VButton variant="primary" :disabled="!canSubmit" @click="submit">
-          <span>{{ approval ? 'Submit for approval' : 'Save changes' }}</span>
         </VButton>
       </template>
     </VDialog>

@@ -2836,6 +2836,31 @@ paths:
               schema:
                 $ref: "#/components/schemas/WriteRefusal"
 
+  /writes/row-current-template:
+    post:
+      tags: [write]
+      operationId: buildRowLookup
+      summary: Generate a guarded SELECT for the exact primary key of a staged row
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RowLookupRequest"
+      responses:
+        "200":
+          description: A full-row SELECT to execute through the existing read guard and audit
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WriteTemplate"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
   /writes/row-template:
     post:
       tags: [write]
@@ -4570,6 +4595,12 @@ components:
           type: boolean
           description: An identity column. Expression-generated primary keys make a table read-only in the grid.
 
+        enumValues:
+          type: array
+          items:
+            type: string
+          description: Exact PostgreSQL enum labels in declared order; empty or absent for other types.
+
     ObjectType:
       type: string
       description: |
@@ -4970,6 +5001,31 @@ components:
     WriteKind:
       type: string
       enum: [insert, update, delete]
+
+    RowLookupRequest:
+      type: object
+      required: [database, schema, table, original]
+      additionalProperties: false
+      properties:
+        database:
+          type: string
+          minLength: 1
+          maxLength: 128
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+        table:
+          type: string
+          minLength: 1
+          maxLength: 128
+        original:
+          type: object
+          minProperties: 1
+          additionalProperties:
+            type: string
+            nullable: true
+            maxLength: 65536
 
     RowUpdateRequest:
       type: object
