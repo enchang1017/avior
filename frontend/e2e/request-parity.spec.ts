@@ -25,7 +25,11 @@ import { administrator, get, serveFixedApi } from './visual/api'
 
 const recording = new URL('./request-parity/53c30bf.json', import.meta.url)
 
+// Data browsing deliberately adds a bounded generated SELECT before the SQL
+// workflow. Its end-to-end contract is covered in data-browser.spec.ts.
 const introduced = [
+  /^POST \/query\/template .*"offset":/u,
+  /^POST \/query\/execute .*"maxRows":/u,
   /^GET \/search(\?|$)/u,
   /^GET \/schema\/graph(\?|$)/u,
   /^GET \/audit\/histogram(\?|$)/u,
@@ -137,6 +141,9 @@ async function pickTable(page: Page): Promise<void> {
     .first()
     .click()
   await page.getByRole('button', { name: /^member\s+public/u }).click()
+  if (new URL(page.url()).pathname === '/') {
+    await page.getByRole('button', { name: 'Insert', exact: true }).click()
+  }
   await expect(page.locator('.cm-content').first()).toContainText('public.member')
 }
 

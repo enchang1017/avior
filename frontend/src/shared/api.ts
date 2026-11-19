@@ -51,6 +51,7 @@ function timeoutFetch(input: Request): Promise<Response> {
 export const api = createClient<paths>({
   baseUrl,
   credentials: 'include',
+  headers: { 'X-Avior-Exact-Integers': 'true' },
   fetch: timeoutFetch,
 })
 

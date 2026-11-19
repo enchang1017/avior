@@ -117,6 +117,9 @@ type Config struct {
 	// is not configured. Every write endpoint refuses while it is empty.
 	WriteDSN string
 
+	TargetLabel string
+	UIDir       string
+
 	// TargetDSN is the credential an operator's read runs as: avior_governed,
 	// which holds SELECT and EXECUTE and cannot issue DDL. FEAT-002.
 	TargetDSN string
@@ -265,6 +268,8 @@ func Load() (*Config, error) {
 		LocalAccountsFile:  stringOr("AVIOR_LOCAL_ACCOUNTS_FILE", ""),
 		WriteDSN:           stringOr("AVIOR_WRITE_DSN", ""),
 		TargetDSN:          stringOr("AVIOR_TARGET_DSN", ""),
+		TargetLabel:        strings.TrimSpace(stringOr("AVIOR_TARGET_LABEL", "")),
+		UIDir:              stringOr("AVIOR_UI_DIR", ""),
 		DeployDSN:          stringOr("AVIOR_DEPLOY_DSN", ""),
 		ProvisionDSN:       stringOr("AVIOR_PROVISION_DSN", ""),
 		LDAPAllowPlaintext: boolOr("AVIOR_LDAP_ALLOW_PLAINTEXT", false),

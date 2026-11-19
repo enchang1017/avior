@@ -27,6 +27,7 @@
   "dependencies": {
     "@codemirror/autocomplete": "6.20.3",
     "@codemirror/commands": "6.11.0",
+    "@codemirror/lang-json": "6.0.2",
     "@codemirror/lang-sql": "6.10.0",
     "@codemirror/language": "6.12.4",
     "@codemirror/search": "6.7.1",
@@ -36,8 +37,10 @@
     "@lezer/highlight": "1.2.3",
     "@lucide/vue": "1.48.0",
     "@replit/codemirror-vim": "6.4.0",
+    "lossless-json": "4.3.4",
     "openapi-fetch": "0.13.4",
     "pinia": "2.3.1",
+    "postgres-array": "3.0.4",
     "vue": "3.5.13",
     "vue-router": "4.5.0"
   },

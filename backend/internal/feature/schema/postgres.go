@@ -3,6 +3,7 @@ package schema
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -170,7 +171,12 @@ func (r *PostgresReader) Columns(
 	const query = `
 		SELECT a.attname,
 		       pg_catalog.format_type(a.atttypid, a.atttypmod),
-		       NOT a.attnotnull
+		       NOT a.attnotnull,
+               COALESCE((SELECT array_position(i.indkey::smallint[], a.attnum) + 1
+                         FROM pg_catalog.pg_index i
+                         WHERE i.indrelid = c.oid AND i.indisprimary), 0),
+               (a.attgenerated <> '' OR a.attidentity <> ''), a.attidentity <> '',
+ COALESCE((SELECT json_agg(e.enumlabel ORDER BY e.enumsortorder)::text FROM pg_catalog.pg_enum e WHERE e.enumtypid = a.atttypid), '[]')
 		FROM pg_catalog.pg_attribute a
 		JOIN pg_catalog.pg_class c ON c.oid = a.attrelid
 		JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
@@ -196,8 +202,12 @@ func (r *PostgresReader) Columns(
 	out := []Column{}
 	for rows.Next() {
 		var column Column
-		if err := rows.Scan(&column.Name, &column.Type, &column.Nullable); err != nil {
+		var labels string
+		if err := rows.Scan(&column.Name, &column.Type, &column.Nullable, &column.PrimaryKeyPosition, &column.Generated, &column.Identity, &labels); err != nil {
 			return nil, fmt.Errorf("scan column: %w", err)
+		}
+		if err := json.Unmarshal([]byte(labels), &column.EnumValues); err != nil {
+			return nil, fmt.Errorf("read enum labels: %w", err)
 		}
 		out = append(out, column)
 	}

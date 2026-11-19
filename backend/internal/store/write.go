@@ -36,14 +36,15 @@ func (s *Store) Writes() *WriteStore { return &WriteStore{store: s} }
 func (s *WriteStore) Insert(ctx context.Context, req write.Request) (write.Request, error) {
 	err := s.store.tx(ctx, func(q *storegen.Queries) error {
 		params := storegen.InsertWriteRequestParams{
-			ID:            fromUUID(req.ID),
-			Database:      req.Database,
-			Statement:     req.Statement,
-			Kind:          string(req.Kind),
-			TargetTable:   req.Table,
-			Reason:        req.Reason,
-			RequestedBy:   fromUUID(req.RequestedBy),
-			EstimatedRows: req.EstimatedRows,
+			ID:                   fromUUID(req.ID),
+			Database:             req.Database,
+			Statement:            req.Statement,
+			Kind:                 string(req.Kind),
+			TargetTable:          req.Table,
+			Reason:               req.Reason,
+			RequestedBy:          fromUUID(req.RequestedBy),
+			EstimatedRows:        req.EstimatedRows,
+			ExpectedAffectedRows: req.ExpectedAffectedRows,
 		}
 		if req.RollbackOf != uuid.Nil {
 			params.RollbackOf = fromUUID(req.RollbackOf)
@@ -285,27 +286,28 @@ func writeRequestFrom(row storegen.ListWriteRequestsRow) (write.Request, error) 
 	}
 
 	request := write.Request{
-		ID:               id,
-		Database:         row.Database,
-		Statement:        row.Statement,
-		Kind:             sqlguard.WriteKind(row.Kind),
-		Table:            row.TargetTable,
-		Reason:           row.Reason,
-		RequestedBy:      requester,
-		RequesterName:    row.RequesterName,
-		RequestedAt:      row.RequestedAt.Time,
-		EstimatedRows:    row.EstimatedRows,
-		State:            write.State(row.State),
-		DeciderName:      derefString(row.DeciderName),
-		DecidedAt:        row.DecidedAt.Time,
-		DecisionNote:     row.DecisionNote,
-		RanAt:            row.RanAt.Time,
-		AffectedRows:     row.AffectedRows,
-		Error:            row.Error,
-		CaptureRows:      row.CaptureRows,
-		ReverseStatement: row.ReverseStatement,
-		CaptureRemovedAt: row.CaptureRemovedAt.Time,
-		RemoverName:      derefString(row.RemoverName),
+		ID:                   id,
+		Database:             row.Database,
+		Statement:            row.Statement,
+		Kind:                 sqlguard.WriteKind(row.Kind),
+		Table:                row.TargetTable,
+		Reason:               row.Reason,
+		RequestedBy:          requester,
+		RequesterName:        row.RequesterName,
+		RequestedAt:          row.RequestedAt.Time,
+		EstimatedRows:        row.EstimatedRows,
+		ExpectedAffectedRows: row.ExpectedAffectedRows,
+		State:                write.State(row.State),
+		DeciderName:          derefString(row.DeciderName),
+		DecidedAt:            row.DecidedAt.Time,
+		DecisionNote:         row.DecisionNote,
+		RanAt:                row.RanAt.Time,
+		AffectedRows:         row.AffectedRows,
+		Error:                row.Error,
+		CaptureRows:          row.CaptureRows,
+		ReverseStatement:     row.ReverseStatement,
+		CaptureRemovedAt:     row.CaptureRemovedAt.Time,
+		RemoverName:          derefString(row.RemoverName),
 	}
 	if row.DurationMs != nil {
 		ms := int(*row.DurationMs)

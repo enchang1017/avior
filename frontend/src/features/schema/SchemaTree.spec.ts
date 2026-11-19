@@ -1,5 +1,5 @@
-import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { flushPromises, mount } from '@vue/test-utils'
+import { describe, expect, it, vi } from 'vitest'
 
 import SchemaTree from './SchemaTree.vue'
 import type { ColumnRef, TableRef } from '@/shared/api'
@@ -175,6 +175,8 @@ describe('SchemaTree', () => {
         temporalColumns: ['register_time'],
       })
       await tree.find('#order-column').trigger('focus')
+      await vi.dynamicImportSettled()
+      await flushPromises()
 
       const options = tree.findAll('.option').map((option) => option.text())
       expect(options).toEqual(['nothing', 'register_time · date', 'member_id'])
@@ -186,6 +188,8 @@ describe('SchemaTree', () => {
         temporalColumns: ['register_time'],
       })
       await tree.find('#order-column').trigger('focus')
+      await vi.dynamicImportSettled()
+      await flushPromises()
       await tree.findAll('.option')[1]?.trigger('mousedown')
 
       expect(tree.emitted('order-by')?.at(-1)).toEqual(['register_time'])
@@ -197,6 +201,8 @@ describe('SchemaTree', () => {
     it('offers a way back to no ordering', async () => {
       const tree = render({ orderBy: 'register_time', orderableColumns: ['register_time'] })
       await tree.find('#order-column').trigger('focus')
+      await vi.dynamicImportSettled()
+      await flushPromises()
       await tree.findAll('.option')[0]?.trigger('mousedown')
 
       expect(tree.emitted('order-by')?.at(-1)).toEqual([''])

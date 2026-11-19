@@ -4,6 +4,7 @@ import { expect, test } from '@playwright/test'
 import type { Locator, Page } from '@playwright/test'
 
 import { administrator, serveFixedApi } from './visual/api'
+import { selectEditableTable, serveEditableTable } from './visual/editing'
 import { addressOf, nodes } from './visual/lineage'
 
 /*
@@ -37,6 +38,7 @@ type Scene = {
   signedIn?: boolean
   /** The deployment the page believes it is on; the fixture's is staging. */
   environment?: 'production'
+  setup?: (page: Page) => Promise<void>
   arrange?: (page: Page) => Promise<void>
   /** What the page prints that depends on where it is served from, not how it is styled. */
   varies?: (page: Page) => Locator[]
@@ -86,13 +88,81 @@ async function pick(page: Page, control: string, label: string): Promise<void> {
 }
 
 const scenes: Scene[] = [
+  ...(['json-tree', 'json-code', 'row-edit-review', 'row-edit-sql'] as const).map(
+    (name): Scene => ({
+      name,
+      path: '/',
+      setup: async (page) => {
+        await serveEditableTable(page, true)
+      },
+      arrange: async (page) => {
+        await selectEditableTable(page)
+        const row = page.locator('.result tr[data-row]').first()
+        if (name === 'row-edit-review' || name === 'row-edit-sql') {
+          await row.locator('td').nth(1).dblclick()
+          const editor = page.getByRole('textbox', { name: 'Edit username', exact: true })
+          await editor.fill('alice corrected')
+          await editor.press('Enter')
+          await page.getByRole('button', { name: /^Changes \(1\)/u }).click()
+          const review = page.getByRole('dialog', { name: 'Changes', exact: true })
+          await review.getByLabel('Reason').fill('Correct a customer name')
+          await expect(
+            review.getByRole('button', { name: 'Submit 1 row for approval', exact: true }),
+          ).toBeEnabled()
+          if (name === 'row-edit-sql') {
+            await review.getByRole('button', { name: /^More actions for/u }).click()
+            await review.getByRole('button', { name: 'SQL', exact: true }).click()
+            await expect(review.locator('.cm-editor')).toHaveCount(1)
+          }
+          await quiet(page)
+        } else {
+          await row.locator('td').nth(2).press('Enter')
+          const viewer = page.getByRole('dialog', { name: 'payload', exact: true })
+          await expect(
+            viewer.getByRole('region', { name: 'JSON fields', exact: true }),
+          ).toContainText('9007199254740993')
+          if (name === 'json-code') {
+            await viewer.getByRole('tab', { name: 'Code', exact: true }).click()
+            await expect(viewer.locator('.cm-content')).toContainText('9007199254740993')
+          }
+        }
+      },
+    }),
+  ),
   { name: 'login', path: '/login', signedIn: false },
+  {
+    name: 'data-browser',
+    path: '/',
+    arrange: async (page) => {
+      await page.getByRole('button', { name: /aviorfixture/ }).click()
+      await page.getByRole('button', { name: /^member\s+public/u }).click()
+      await expect(
+        page
+          .getByRole('region', { name: 'Table data' })
+          .getByRole('cell', { name: 'alice', exact: true }),
+      ).toBeVisible()
+    },
+  },
+  {
+    name: 'cell-detail',
+    path: '/',
+    arrange: async (page) => {
+      await page.getByRole('button', { name: /aviorfixture/ }).click()
+      await page.getByRole('button', { name: /^member\s+public/u }).click()
+      await page
+        .getByRole('region', { name: 'Table data' })
+        .getByRole('cell', { name: 'alice', exact: true })
+        .press('Enter')
+      await expect(page.getByRole('dialog', { name: 'username', exact: true })).toBeVisible()
+    },
+  },
   {
     name: 'query-console',
     path: '/',
     arrange: async (page) => {
       await page.getByRole('button', { name: /aviorfixture/ }).click()
       await page.getByRole('button', { name: /^member\s+public/u }).click()
+      await page.getByRole('button', { name: 'Insert', exact: true }).click()
       await expect(page.locator('.cm-content')).toContainText('LIMIT 100')
       await page.getByRole('button', { name: 'Execute' }).click()
       await expect(page.getByRole('cell', { name: 'alice', exact: true })).toBeVisible()
@@ -105,6 +175,7 @@ const scenes: Scene[] = [
     arrange: async (page) => {
       await page.getByRole('button', { name: /aviorfixture/ }).click()
       await page.getByRole('button', { name: /^member\s+public/u }).click()
+      await page.getByRole('button', { name: 'Insert', exact: true }).click()
       await expect(page.locator('.cm-content')).toContainText('LIMIT 100')
       await page.getByRole('button', { name: 'Execute' }).click()
       await expect(page.getByRole('cell', { name: 'alice', exact: true })).toBeVisible()
@@ -142,6 +213,7 @@ const scenes: Scene[] = [
     arrange: async (page) => {
       await page.getByRole('button', { name: /aviorfixture/ }).click()
       await page.getByRole('button', { name: /^member\s+public/u }).click()
+      await page.getByRole('button', { name: 'Insert', exact: true }).click()
       await expect(page.locator('.cm-content')).toContainText('LIMIT 100')
       await page.getByRole('button', { name: 'Inspect' }).click()
       await expect(page.getByText('This column is restricted.')).toBeVisible()
@@ -153,6 +225,7 @@ const scenes: Scene[] = [
     arrange: async (page) => {
       await page.getByRole('button', { name: /aviorfixture/ }).click()
       await page.getByRole('button', { name: /^member\s+public/u }).click()
+      await page.getByRole('button', { name: 'Insert', exact: true }).click()
       await page.locator('#order-column').click()
       await expect(page.getByRole('listbox')).toBeVisible()
     },
@@ -382,6 +455,7 @@ for (const scene of scenes) {
           route.fulfill({ json: { ...administrator, environment } }),
         )
       }
+      if (scene.setup) await scene.setup(page)
       await prepare(page, look)
       await page.goto(scene.path)
       await page.waitForLoadState('networkidle')

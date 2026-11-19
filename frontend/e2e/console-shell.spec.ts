@@ -26,6 +26,7 @@ async function pickMember(page: Page): Promise<void> {
     .first()
     .click()
   await page.getByRole('button', { name: /^member\s+public/u }).click()
+  await page.getByRole('button', { name: 'Insert', exact: true }).click()
   await expect(page.locator('.cm-content')).toContainText('public.member')
 }
 
@@ -292,6 +293,7 @@ test('the target readout follows what the console is pointed at', async ({ page 
     .click()
   await expect(readout).toHaveText(`${administrator.instance.name} / aviorfixture`)
   await page.getByRole('button', { name: /^member\s+public/u }).click()
+  await page.getByRole('button', { name: 'Insert', exact: true }).click()
   await expect(readout).toHaveText(`${administrator.instance.name} / aviorfixture / public.member`)
   await expect(page.locator('.tabs .crumb.instance')).toHaveText(administrator.instance.name)
 })

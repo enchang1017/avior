@@ -10,6 +10,7 @@ async function pointAtMember(page: Page): Promise<void> {
   await page.goto('/')
   await page.getByRole('button', { name: /aviorfixture/u }).click()
   await page.getByRole('button', { name: /^member\s+public/u }).click()
+  await page.getByRole('button', { name: 'Insert', exact: true }).click()
   await expect(page.locator('.cm-content')).toContainText('LIMIT 100')
 }
 
@@ -19,6 +20,8 @@ function queue(
   answers: { status?: number; body: unknown }[],
 ): Promise<void> {
   return answer(page, path, (route: Route) => {
+    const body = route.request().postDataJSON() as { maxRows?: number }
+    if (body.maxRows !== undefined) return route.fulfill({ json: result(40) })
     const next = answers.shift() ?? {
       body: { code: 'none', message: 'no more answers' },
       status: 500,

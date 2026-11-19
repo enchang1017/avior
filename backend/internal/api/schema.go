@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"errors"
+	"sort"
 	"time"
 
 	"github.com/enchang1017/avior/backend/internal/feature/schema"
@@ -102,10 +103,14 @@ func (s *Server) ListColumns(ctx context.Context, request gen.ListColumnsRequest
 	out := make([]gen.ColumnRef, 0, len(columns))
 	for _, column := range columns {
 		out = append(out, gen.ColumnRef{
-			Name:     column.Name,
-			Type:     column.Type,
-			Nullable: column.Nullable,
-			Denied:   column.Denied,
+			Name:               column.Name,
+			Type:               column.Type,
+			Nullable:           column.Nullable,
+			Denied:             column.Denied,
+			PrimaryKeyPosition: &column.PrimaryKeyPosition,
+			Generated:          &column.Generated,
+			Identity:           &column.Identity,
+			EnumValues:         &column.EnumValues,
 		})
 	}
 	return gen.ListColumns200JSONResponse(out), nil
@@ -143,6 +148,9 @@ func (s *Server) BuildSelectTemplate(ctx context.Context, request gen.BuildSelec
 	if body.OrderBy != nil && *body.OrderBy != "" {
 		requested = append(append([]string{}, requested...), *body.OrderBy)
 	}
+	if body.Filter != nil {
+		requested = append(append([]string{}, requested...), body.Filter.Column)
+	}
 	if reason := firstDeniedColumn(columns, requested); reason != "" {
 		return gen.BuildSelectTemplate422JSONResponse{ValidationFailedJSONResponse: gen.ValidationFailedJSONResponse{
 			Code:    "schema.column_denied",
@@ -150,7 +158,21 @@ func (s *Server) BuildSelectTemplate(ctx context.Context, request gen.BuildSelec
 		}}, nil
 	}
 
-	top := s.defaults.MaxRows
+	statement, err := renderSelectTemplate(body, s.defaults.MaxRows, columns)
+	if err != nil {
+		// A name the generator will not quote is the caller's mistake, not a
+		// fault: it becomes a 422 rather than being propagated as a 500.
+		//nolint:nilerr // a rejected identifier is a response, not an error
+		return gen.BuildSelectTemplate422JSONResponse{ValidationFailedJSONResponse: gen.ValidationFailedJSONResponse{
+			Code:    "schema.invalid_target",
+			Message: err.Error(),
+		}}, nil
+	}
+	return gen.BuildSelectTemplate200JSONResponse(gen.SelectTemplate{Statement: statement}), nil
+}
+
+func renderSelectTemplate(body *gen.SelectTemplateRequest, defaultTop int, columns []schema.Column) (string, error) {
+	top := defaultTop
 	if body.Top != nil && *body.Top > 0 {
 		top = *body.Top
 	}
@@ -169,16 +191,45 @@ func (s *Server) BuildSelectTemplate(ctx context.Context, request gen.BuildSelec
 		order,
 		top,
 	)
-	if err != nil {
-		// A name the generator will not quote is the caller's mistake, not a
-		// fault: it becomes a 422 rather than being propagated as a 500.
-		//nolint:nilerr // a rejected identifier is a response, not an error
-		return gen.BuildSelectTemplate422JSONResponse{ValidationFailedJSONResponse: gen.ValidationFailedJSONResponse{
-			Code:    "schema.invalid_target",
-			Message: err.Error(),
-		}}, nil
+	if err == nil && (body.Offset != nil || body.Filter != nil) {
+		offset := 0
+		if body.Offset != nil {
+			offset = *body.Offset
+		}
+		var filter *sqlguard.Filter
+		if body.Filter != nil {
+			filter = &sqlguard.Filter{Column: body.Filter.Column, Operator: string(body.Filter.Operator)}
+			if body.Filter.Value != nil {
+				filter.Value = *body.Filter.Value
+			}
+		}
+		statement, err = sqlguard.BuildBrowseSelect(
+			sqlguard.Target{Schema: body.Schema, Table: body.Table},
+			body.Columns, order, top, offset, filter, readableKey(columns)...,
+		)
 	}
-	return gen.BuildSelectTemplate200JSONResponse(gen.SelectTemplate{Statement: statement}), nil
+	return statement, err
+}
+
+// A partial primary key cannot provide a stable ordering. If any key column is
+// denied, the generator falls back to the selected readable values instead.
+func readableKey(columns []schema.Column) []string {
+	var key []schema.Column
+	for _, column := range columns {
+		if column.PrimaryKeyPosition == 0 {
+			continue
+		}
+		if column.Denied {
+			return nil
+		}
+		key = append(key, column)
+	}
+	sort.Slice(key, func(i, j int) bool { return key[i].PrimaryKeyPosition < key[j].PrimaryKeyPosition })
+	names := make([]string, len(key))
+	for i, column := range key {
+		names[i] = column.Name
+	}
+	return names
 }
 
 // firstDeniedColumn returns the name of the first requested column the caller

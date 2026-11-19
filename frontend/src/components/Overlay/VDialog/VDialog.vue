@@ -74,13 +74,13 @@ function onBackdrop(event: MouseEvent) {
 <template>
   <dialog
     ref="element"
-    class="m-auto max-h-dialog-max w-dialog overflow-hidden rounded-card border border-line-strong bg-surface-raised p-0 text-fg shadow-sheet backdrop:bg-backdrop"
+    class="m-auto max-h-dialog-max w-dialog overflow-hidden rounded-card border border-line-strong bg-surface-raised p-0 text-fg shadow-sheet backdrop:bg-backdrop open:flex open:flex-col"
     :class="props.motion === 'fade' ? 'open:animate-fade' : 'open:animate-appear'"
     :aria-labelledby="headingId"
     @cancel.prevent="dismiss"
     @click="onBackdrop"
   >
-    <header class="flex items-center justify-between gap-4 border-b border-line px-4 py-3">
+    <header class="flex shrink-0 items-center justify-between gap-4 border-b border-line px-4 py-3">
       <div class="flex min-w-0 items-center gap-2">
         <h2 :id="headingId" class="title m-0 text-lg font-semibold">{{ props.title }}</h2>
         <slot name="badge" />
@@ -95,10 +95,13 @@ function onBackdrop(event: MouseEvent) {
         <VIcon name="x" />
       </button>
     </header>
-    <div class="max-h-dialog-body-max overflow-auto p-4">
+    <div class="max-h-dialog-body-max min-h-0 overflow-auto p-4">
       <slot />
     </div>
-    <footer v-if="$slots.footer" class="flex justify-end gap-2 border-t border-line px-4 py-3">
+    <footer
+      v-if="$slots.footer"
+      class="flex shrink-0 justify-end gap-2 border-t border-line px-4 py-3"
+    >
       <slot name="footer" />
     </footer>
   </dialog>

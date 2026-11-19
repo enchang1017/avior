@@ -1,7 +1,17 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import {
+  computed,
+  defineAsyncComponent,
+  provide,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  watch,
+} from 'vue'
 
 import GuardChip from './GuardChip.vue'
+import { createRowWorkspace, rowWorkspaceKey } from './rowWorkspace'
+import type { RowDraft } from './useRowEdits'
 import { readRules } from './guardRules'
 import SqlEditor from './SqlEditor.vue'
 import { maxTabs, useEditorTabs } from './useEditorTabs'
@@ -14,9 +24,9 @@ import {
   VIcon,
   VInput,
   VLoader,
-  VReadout,
   VResultPane,
   VToolbar,
+  VTabs,
   type ReadoutPart,
   type ResultTab,
 } from '@/components'
@@ -36,10 +46,24 @@ const defaultTop = 100
  * What only a statement that ran needs is fetched when one has: the console's
  * first load carries the editor and nothing it cannot use yet (ADR 0009 P2).
  */
+const VReadout = defineAsyncComponent(() => import('@/components/Data/VReadout/VReadout.vue'))
 const ResultGrid = lazy(() => import('./ResultGrid.vue'), 'Loading the rows')
+const DataBrowserView = lazy(() => import('./DataBrowserView.vue'), 'Loading data browser')
+const workspaceMode = ref('sql')
+const dataOpened = ref(false)
+watch(
+  workspaceMode,
+  (mode) => {
+    if (mode === 'data') dataOpened.value = true
+  },
+  { flush: 'sync' },
+)
 const GuardVerdictPanel = lazy(() => import('./GuardVerdictPanel.vue'), 'Loading the plan')
 
 const session = useSessionStore()
+const rowBridge = createRowWorkspace(session.caller?.id ?? '', session.caller?.instance.id ?? '')
+provide(rowWorkspaceKey, rowBridge)
+const RowEditWorkspace = lazy(() => import('./RowEditWorkspace.vue'), 'Loading pending changes')
 
 /**
  * The deployment names itself, and the server it governs, on the current user.
@@ -64,7 +88,20 @@ const instanceId = session.caller?.instance.id ?? ''
 
 const vim = useVimMode()
 const browser = useSchemaBrowser(instanceId)
+watch(workspaceMode, (mode, before) => {
+  if (before === 'data' && rowBridge.flush && !rowBridge.flush()) {
+    workspaceMode.value = before
+    return
+  }
+  if (mode === 'sql' && browser.database.value !== editorTabs.active.value.database) {
+    void browser.chooseDatabase(editorTabs.active.value.database)
+  }
+})
+
 const panel = useQueryConsole()
+const browserError = computed(() =>
+  browser.failure.value ? describeFailure(browser.failure.value) : null,
+)
 /*
  * FEAT-065 AC-5: up to eight statements, each with its own database, kept in
  * this browser. `statement` is always the open tab's, so everything below reads
@@ -129,8 +166,14 @@ const messageCount = computed(() => {
   return reasons + (bannerText.value === null ? 0 : 1)
 })
 
-watch(statement, (text) => editorTabs.update({ statement: text }))
-watch(browser.database, (database) => editorTabs.update({ database }))
+watch(statement, (text) => editorTabs.update({ statement: text }), { flush: 'sync' })
+watch(
+  browser.database,
+  (database) => {
+    if (workspaceMode.value === 'sql') editorTabs.update({ database })
+  },
+  { flush: 'sync' },
+)
 
 function showActive(): void {
   statement.value = editorTabs.active.value.statement
@@ -138,12 +181,14 @@ function showActive(): void {
 }
 
 function switchTab(id: string): void {
+  workspaceMode.value = 'sql'
   if (id === editorTabs.activeId.value) return
   editorTabs.select(id)
   showActive()
 }
 
 function openTab(): void {
+  workspaceMode.value = 'sql'
   if (editorTabs.open()) showActive()
 }
 
@@ -188,20 +233,29 @@ function request() {
 
 async function insert(): Promise<void> {
   const built = await browser.buildStatement(top.value)
-  if (built !== null) statement.value = built
+  if (built !== null) openGenerated(built)
 }
 
 /**
- * Picking a table writes the statement for it.
- *
- * Every readable column starts ticked, so the statement an operator wanted is
- * the one the tick boxes already describe — and making them press Insert to get
- * it was a step between them and the thing they came here to do. Insert stays,
- * for after they change the ticks.
+ * Table selection opens the Data workspace without touching a SQL draft.
+ * SQL generation is an explicit action that preserves every nonempty draft.
  */
+async function chooseDatabase(database: string | null): Promise<void> {
+  if (rowBridge.flush && !rowBridge.flush()) return
+  await browser.chooseDatabase(database)
+}
 async function chooseTable(next: TableRef | null): Promise<void> {
+  if (rowBridge.flush && !rowBridge.flush()) return
+  if (next !== null) workspaceMode.value = 'data'
   await browser.chooseTable(next)
-  if (next !== null) await insert()
+}
+
+rowBridge.navigate = async (row: RowDraft) => {
+  if (rowBridge.flush && !rowBridge.flush()) return
+  workspaceMode.value = 'data'
+  if (browser.database.value !== row.database) await browser.chooseDatabase(row.database)
+  await browser.chooseTable({ schema: row.schema, name: row.table, kind: 'table' })
+  rowBridge.focus.value = row
 }
 
 useRouteTarget(browser, chooseTable)
@@ -215,12 +269,12 @@ const PlanCostGauge = defineAsyncComponent(() => import('./PlanCostGauge.vue'))
  */
 async function orderBy(column: string): Promise<void> {
   browser.orderBy.value = column
-  await insert()
+  if (workspaceMode.value === 'sql') await insert()
 }
 
 async function toggleDirection(): Promise<void> {
   browser.descending.value = !browser.descending.value
-  await insert()
+  if (workspaceMode.value === 'sql') await insert()
 }
 
 /**
@@ -243,6 +297,13 @@ const catalogue = computed(() => {
 const defaultTable = computed(() => browser.table.value?.name ?? '')
 const defaultSchema = computed(() => browser.table.value?.schema ?? '')
 
+function openGenerated(text: string): void {
+  if (editorTabs.active.value.statement.trim() !== '' && !editorTabs.open()) return
+  editorTabs.update({ database: browser.database.value, statement: text })
+  statement.value = text
+  workspaceMode.value = 'sql'
+}
+
 function execute(): void {
   if (canRun.value) void panel.execute(request())
 }
@@ -260,7 +321,7 @@ function inspect(): void {
  * only reason anyone will find them.
  */
 function onKeydown(event: KeyboardEvent): void {
-  if (!(event.metaKey || event.ctrlKey)) return
+  if (workspaceMode.value !== 'sql' || !(event.metaKey || event.ctrlKey)) return
   if (event.key === 'Enter') {
     event.preventDefault()
     execute()
@@ -278,7 +339,7 @@ onMounted(() => {
     editorTabs.keepReachable(browser.databases.value)
     statement.value = editorTabs.active.value.statement
     const database = editorTabs.active.value.database
-    if (database !== null) void browser.chooseDatabase(database)
+    if (database !== null && browser.database.value === null) void browser.chooseDatabase(database)
   })
   window.addEventListener('keydown', onKeydown)
 })
@@ -301,11 +362,12 @@ onBeforeUnmount(() => {
       :selected="browser.selected.value"
       :all-selected="browser.allSelected.value"
       :busy="browser.busy.value"
+      :browsing="workspaceMode === 'data'"
       :order-by="browser.orderBy.value"
       :descending="browser.descending.value"
       :orderable-columns="browser.orderableColumns.value"
       :temporal-columns="browser.temporalColumns.value"
-      @choose-database="browser.chooseDatabase"
+      @choose-database="chooseDatabase"
       @choose-table="chooseTable"
       @order-by="orderBy"
       @toggle-direction="toggleDirection"
@@ -325,162 +387,200 @@ onBeforeUnmount(() => {
 
     <main class="editor-pane flex min-h-0 min-w-0 flex-col overflow-hidden bg-surface">
       <h1 class="sr-only">Query</h1>
-      <VToolbar :busy="panel.busy.value" busy-label="running">
-        <template #lead>
-          <VButton variant="primary" :disabled="!canRun" @click="execute">
-            <VIcon name="play" />
-            Execute
-            <span class="kbd">⌘↵</span>
-          </VButton>
-          <VButton :disabled="!canRun" @click="inspect">
-            <VIcon name="scan" />
-            Inspect
-            <span class="kbd">⌘E</span>
-          </VButton>
-          <GuardChip :rules="readRules" />
-        </template>
-
-        <label class="flex items-center gap-1.5">
-          <span class="hud text-fg-muted">Limit</span>
-          <span class="flex w-20 font-mono">
-            <VInput v-model.number="top" size="sm" type="number" min="1" max="100000" />
-          </span>
-        </label>
-      </VToolbar>
-
-      <div
-        class="tabs flex h-10 flex-none items-end gap-2 border-b border-line bg-surface-sunken px-2"
-      >
-        <div class="flex min-w-0 items-end gap-px" role="tablist" aria-label="Open statements">
-          <VEditorTab
-            v-for="tab in editorTabs.tabs.value"
-            :key="tab.id"
-            :label="tab.database ?? 'Untitled'"
-            :environment="environment"
-            :active="tab.id === editorTabs.activeId.value"
-            @select="switchTab(tab.id)"
-            @close="closeTab(tab.id)"
-          />
-        </div>
-        <button
-          type="button"
-          class="new-tab mb-1 grid size-7 flex-none cursor-pointer place-items-center rounded-control border-0 bg-transparent p-0 text-fg-muted hover:bg-surface hover:text-fg"
-          :aria-label="`Open another statement (at most ${maxTabs})`"
-          @click="openTab"
-        >
-          <VIcon name="plus" size="sm" />
-        </button>
-        <p v-if="editorTabs.refusal.value" class="refusal m-0 mb-2 text-xs text-warn" role="status">
-          {{ editorTabs.refusal.value }}
-        </p>
-        <div class="ml-auto flex min-w-0 self-center">
-          <VConnectionBar
-            :instance="instanceName"
-            :environment="environment"
-            :database="browser.database.value"
-            :table="tableLabel"
-            :databases="browser.databases.value"
-            @choose="browser.chooseDatabase"
-          />
-        </div>
-      </div>
-
-      <div class="editor-holder flex-none bg-surface">
-        <SqlEditor
-          v-model="statement"
-          :schema="catalogue"
-          :default-table="defaultTable"
-          :default-schema="defaultSchema"
-          :vim-enabled="vim.enabled.value"
-          @update:vim-mode="vim.mode.value = $event"
+      <div class="flex items-center gap-4 border-b border-line px-3">
+        <VTabs
+          v-model="workspaceMode"
+          :tabs="[
+            { id: 'data', label: 'Data' },
+            { id: 'sql', label: 'SQL' },
+          ]"
+          label="Query workspace"
         />
-        <!-- Outside the editor on purpose: somebody who turned Vim on by
-             accident cannot type, and the way out must not need Vim (AC-5). -->
-        <div
-          class="modeline flex h-7 items-center justify-end gap-2 border-t border-line bg-surface-sunken px-2"
+        <RowEditWorkspace v-if="dataOpened || rowBridge.state.value" />
+        <span class="ml-auto font-mono text-xs text-fg-muted"
+          >{{ instanceName }} / {{ browser.database.value ?? 'Choose database' }}</span
         >
-          <span class="mode font-mono text-xs font-semibold text-target">{{
-            vimLabel(vim.mode.value)
-          }}</span>
-          <VButton
-            size="sm"
-            variant="bare"
-            :icon="vim.enabled.value ? 'square-check' : 'square'"
-            :aria-pressed="vim.enabled.value"
-            :title="
-              vim.enabled.value
-                ? 'Turn Vim keybindings off. Remembered in this browser.'
-                : 'Vim keybindings, remembered in this browser.'
-            "
-            @click="vim.enabled.value = !vim.enabled.value"
-          >
-            Vim
-          </VButton>
-        </div>
       </div>
+      <VBanner v-if="editorTabs.refusal.value && workspaceMode === 'data'" icon="circle-x">
+        {{ editorTabs.refusal.value }}
+      </VBanner>
+      <VBanner v-if="workspaceMode === 'data' && browserError" icon="circle-x">
+        {{ browserError }}
+      </VBanner>
+      <DataBrowserView
+        v-if="dataOpened"
+        v-show="workspaceMode === 'data'"
+        :active="workspaceMode === 'data'"
+        :instance-id="instanceId"
+        :database="browser.database.value"
+        :table="browser.table.value"
+        :columns="browser.columns.value"
+        :selected="browser.selectedColumns.value"
+        :metadata-busy="browser.busy.value"
+        @sql="openGenerated"
+      />
+      <div v-show="workspaceMode === 'sql'" class="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <VToolbar :busy="panel.busy.value" busy-label="running">
+          <template #lead>
+            <VButton variant="primary" :disabled="!canRun" @click="execute">
+              <VIcon name="play" />
+              Execute
+              <span class="kbd">⌘↵</span>
+            </VButton>
+            <VButton :disabled="!canRun" @click="inspect">
+              <VIcon name="scan" />
+              Inspect
+              <span class="kbd">⌘E</span>
+            </VButton>
+            <GuardChip :rules="readRules" />
+          </template>
 
-      <VResultPane v-model="pane" :messages="messageCount">
-        <template #readout>
-          <VReadout
-            v-if="readout.length > 0"
-            :parts="readout"
-            label="What the last statement did"
-          />
-        </template>
-        <template #result>
-          <div v-if="runningLabel" class="flex justify-center py-10">
-            <VLoader size="section" :label="runningLabel" />
+          <label class="flex items-center gap-1.5">
+            <span class="hud text-fg-muted">Limit</span>
+            <span class="flex w-20 font-mono">
+              <VInput v-model.number="top" size="sm" type="number" min="1" max="100000" />
+            </span>
+          </label>
+        </VToolbar>
+
+        <div
+          class="tabs flex h-10 flex-none items-end gap-2 border-b border-line bg-surface-sunken px-2"
+        >
+          <div class="flex min-w-0 items-end gap-px" role="tablist" aria-label="Open statements">
+            <VEditorTab
+              v-for="tab in editorTabs.tabs.value"
+              :key="tab.id"
+              :label="tab.database ?? 'Untitled'"
+              :environment="environment"
+              :active="tab.id === editorTabs.activeId.value"
+              @select="switchTab(tab.id)"
+              @close="closeTab(tab.id)"
+            />
           </div>
-          <ResultGrid v-else-if="panel.result.value" :result="panel.result.value" />
-          <p v-else class="m-0 px-4 py-10 text-center text-sm text-fg-muted">
-            Rows appear here when a statement runs.
-          </p>
-        </template>
-        <template #gauge>
-          <PlanCostGauge
-            :verdict="panel.verdict.value"
-            :result="panel.result.value"
-            :statement="statement"
-          />
-        </template>
-        <template #plan>
-          <div v-if="runningLabel" class="flex justify-center py-10">
-            <VLoader size="section" :label="runningLabel" />
-          </div>
-          <GuardVerdictPanel v-else-if="panel.verdict.value" :verdict="panel.verdict.value" />
-          <p v-else class="m-0 px-4 py-10 text-center text-sm text-fg-muted">
-            Inspect a statement to read its plan.
-          </p>
-        </template>
-        <template #messages>
-          <div v-if="runningLabel" class="flex justify-center py-10">
-            <VLoader size="section" :label="runningLabel" />
-          </div>
-          <VBanner v-if="bannerText" icon="circle-x">{{ bannerText }}</VBanner>
-          <ul
-            v-if="panel.verdict.value?.decision === 'deny'"
-            class="messages m-0 flex list-none flex-col gap-2 p-4"
+          <button
+            type="button"
+            class="new-tab mb-1 grid size-7 flex-none cursor-pointer place-items-center rounded-control border-0 bg-transparent p-0 text-fg-muted hover:bg-surface hover:text-fg"
+            :aria-label="`Open another statement (at most ${maxTabs})`"
+            @click="openTab"
           >
-            <li
-              v-for="(reason, index) in panel.verdict.value.reasons"
-              :key="index"
-              class="flex items-baseline gap-2 text-sm"
-            >
-              <span
-                class="rule flex-none rounded-control border border-danger-line bg-danger-bg px-1.25 font-mono text-xs text-danger"
-                >{{ reason.rule }}</span
-              >
-              <span>{{ describeReason(reason) }}</span>
-            </li>
-          </ul>
+            <VIcon name="plus" size="sm" />
+          </button>
           <p
-            v-if="messageCount === 0 && !runningLabel"
-            class="m-0 px-4 py-10 text-center text-sm text-fg-muted"
+            v-if="editorTabs.refusal.value"
+            class="refusal m-0 mb-2 text-xs text-warn"
+            role="status"
           >
-            No messages.
+            {{ editorTabs.refusal.value }}
           </p>
-        </template>
-      </VResultPane>
+          <div class="ml-auto flex min-w-0 self-center">
+            <VConnectionBar
+              :instance="instanceName"
+              :environment="environment"
+              :database="browser.database.value"
+              :table="tableLabel"
+              :databases="browser.databases.value"
+              @choose="browser.chooseDatabase"
+            />
+          </div>
+        </div>
+
+        <div class="editor-holder flex-none bg-surface">
+          <SqlEditor
+            v-model="statement"
+            :schema="catalogue"
+            :default-table="defaultTable"
+            :default-schema="defaultSchema"
+            :vim-enabled="vim.enabled.value"
+            @update:vim-mode="vim.mode.value = $event"
+          />
+          <!-- Outside the editor on purpose: somebody who turned Vim on by
+             accident cannot type, and the way out must not need Vim (AC-5). -->
+          <div
+            class="modeline flex h-7 items-center justify-end gap-2 border-t border-line bg-surface-sunken px-2"
+          >
+            <span class="mode font-mono text-xs font-semibold text-target">{{
+              vimLabel(vim.mode.value)
+            }}</span>
+            <VButton
+              size="sm"
+              variant="bare"
+              :icon="vim.enabled.value ? 'square-check' : 'square'"
+              :aria-pressed="vim.enabled.value"
+              :title="
+                vim.enabled.value
+                  ? 'Turn Vim keybindings off. Remembered in this browser.'
+                  : 'Vim keybindings, remembered in this browser.'
+              "
+              @click="vim.enabled.value = !vim.enabled.value"
+            >
+              Vim
+            </VButton>
+          </div>
+        </div>
+
+        <VResultPane v-if="workspaceMode === 'sql'" v-model="pane" :messages="messageCount">
+          <template #readout>
+            <VReadout
+              v-if="readout.length > 0"
+              :parts="readout"
+              label="What the last statement did"
+            />
+          </template>
+          <template #result>
+            <div v-if="runningLabel" class="flex justify-center py-10">
+              <VLoader size="section" :label="runningLabel" />
+            </div>
+            <ResultGrid v-else-if="panel.result.value" :result="panel.result.value" />
+            <p v-else class="m-0 px-4 py-10 text-center text-sm text-fg-muted">
+              Rows appear here when a statement runs.
+            </p>
+          </template>
+          <template #gauge>
+            <PlanCostGauge
+              :verdict="panel.verdict.value"
+              :result="panel.result.value"
+              :statement="statement"
+            />
+          </template>
+          <template #plan>
+            <div v-if="runningLabel" class="flex justify-center py-10">
+              <VLoader size="section" :label="runningLabel" />
+            </div>
+            <GuardVerdictPanel v-else-if="panel.verdict.value" :verdict="panel.verdict.value" />
+            <p v-else class="m-0 px-4 py-10 text-center text-sm text-fg-muted">
+              Inspect a statement to read its plan.
+            </p>
+          </template>
+          <template #messages>
+            <div v-if="runningLabel" class="flex justify-center py-10">
+              <VLoader size="section" :label="runningLabel" />
+            </div>
+            <VBanner v-if="bannerText" icon="circle-x">{{ bannerText }}</VBanner>
+            <ul
+              v-if="panel.verdict.value?.decision === 'deny'"
+              class="messages m-0 flex list-none flex-col gap-2 p-4"
+            >
+              <li
+                v-for="(reason, index) in panel.verdict.value.reasons"
+                :key="index"
+                class="flex items-baseline gap-2 text-sm"
+              >
+                <span
+                  class="rule flex-none rounded-control border border-danger-line bg-danger-bg px-1.25 font-mono text-xs text-danger"
+                  >{{ reason.rule }}</span
+                >
+                <span>{{ describeReason(reason) }}</span>
+              </li>
+            </ul>
+            <p
+              v-if="messageCount === 0 && !runningLabel"
+              class="m-0 px-4 py-10 text-center text-sm text-fg-muted"
+            >
+              No messages.
+            </p>
+          </template>
+        </VResultPane>
+      </div>
     </main>
   </div>
 </template>

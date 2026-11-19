@@ -541,3 +541,11 @@ migrate:
 migrate-status:
 	cd $(BACKEND) && go run $(GOOSE) -dir ../db/migrations postgres \
 		"$${AVIOR_STORE_DSN:-$(AVIOR_LOCAL_STORE_DSN)}" status
+
+# The all-in-one image has an additional real-container startup contract.
+# TMPDIR must be the caller's approved external scratch workspace.
+.PHONY: verify-standalone
+verify-standalone:
+	@test -n "$$TMPDIR" || { echo "Set TMPDIR to an approved task scratch workspace"; exit 1; }
+	docker build -f deploy/standalone/Dockerfile -t avior-standalone:$(AVIOR_STACK) .
+	AVIOR_TEST_IMAGE=avior-standalone:$(AVIOR_STACK) python3 tools/standalone/verify.py

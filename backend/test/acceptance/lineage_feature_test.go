@@ -720,6 +720,9 @@ func lineageSnapshotCases(t *testing.T, f lineageCase) {
 		client := h.signIn(f.username, fixturePassword)
 		late := table(s, "late_table")
 		lineageReady(t, h, client, path)
+		// The ready read also starts a probe. Finish it before changing DDL so
+		// the post-DDL request cannot reuse a probe with an older snapshot.
+		h.lineage.Wait()
 		execSpare(t, `CREATE TABLE `+s+`.late_table (member_id int REFERENCES `+s+`.member (id))`)
 		h.get(client, path)
 		h.lineage.Wait()
@@ -734,6 +737,7 @@ func lineageSnapshotCases(t *testing.T, f lineageCase) {
 		client := h.signIn(f.username, fixturePassword)
 		var before, after gen.LineageGraph
 		h.decode(lineageReady(t, h, client, path), &before)
+		h.lineage.Wait()
 		execSpare(t, `CREATE OR REPLACE FUNCTION `+s+`.count_bets() RETURNS bigint LANGUAGE sql AS $$ SELECT count(*) + 0 FROM `+s+`.bet $$`)
 		h.get(client, path)
 		h.lineage.Wait()

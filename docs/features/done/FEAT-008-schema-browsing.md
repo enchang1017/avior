@@ -124,6 +124,35 @@ governed table. The audit trail begins when the operator inspects or executes
 | AC-7 | `an unauthenticated caller reaches none of it` |
 | AC-8 | `a table the database does not hold is refused by name` |
 
+## Data browsing (issues #3–#4)
+
+The Query workspace adds a Data view beside the SQL drafts. Picking a table
+runs an explicit-column SELECT through the existing guarded execution endpoint.
+Browsing never replaces a SQL draft. Each table keeps its filter, ordering and
+page while the workspace stays open. Opening the generated SELECT preserves every nonempty SQL draft, reusing an
+empty draft or opening another slot. Eight nonempty drafts require closing one
+before another can be opened.
+
+- **AC-9** — A table in a user schema is listed and its rows can be paged,
+  sorted and filtered through generated SELECTs, with each execution audited.
+- **AC-10** — Filtering or ordering by a denied or unknown column is refused.
+- **AC-11** — Filter values remain literal data, including quotes and backslashes.
+- **Frontend workflow** — Data browsing preserves SQL drafts and per-table browsing state.
+
+Paging uses an explicit order and a fully readable primary key when available.
+Views and tables without a fully readable key use readable-column text tie breakers. Identical
+projected rows are indistinguishable; concurrent data changes can move rows
+between pages. No total count query runs against a production table.
+
+| AC | Test |
+| --- | --- |
+| AC-9 | `non-public rows are paged filtered sorted and audited` |
+| AC-10 | `a denied filter column is refused` |
+| AC-11 | `filter metacharacters remain literal data` |
+
+Frontend coverage: `data browsing keeps drafts and table state` in
+`frontend/e2e/data-browser.spec.ts`.
+
 ## Outstanding
 
 - The instance is hard-coded in the frontend to the seeded fixture. FEAT-012
@@ -133,3 +162,127 @@ governed table. The audit trail begins when the operator inspects or executes
   they read. Filtering the list needs FEAT-004.
 - Column-level denials are per database, so the same table in two databases can
   differ. That is correct but unexplained in the UI.
+
+### Reading and copying cells
+
+A single click focuses a cell without opening a dialog. Arrow keys move between
+cells; Ctrl/Cmd+C copies the complete API value, preserving native text selections.
+Enter opens a read-only inspector. Long values (over 64 characters), multiline
+text, whitespace-only strings, JSON and arrays also offer an explicit Expand
+button. Previews stay on one line so virtual rows retain their height.
+
+NULL, empty strings and whitespace-only strings have distinct muted labels.
+NULL has no copy value; an empty string copies zero characters. Masked columns
+show only their mask and cannot be inspected or copied through these controls.
+JSON strings, numbers, dates, UUIDs and binary representations retain the API's
+representation: no number parsing, time-zone conversion, link activation, HTML
+execution or binary decoding occurs. Structured API objects have a formatted
+inspector, while copying uses their compact JSON representation. The inspector
+closes when a new result arrives so it cannot show a previous page's value.
+
+Frontend coverage: `cellValue.spec.ts`, `ResultGrid.spec.ts` and
+`cells focus quietly, expand deliberately and copy exact values` in
+`frontend/e2e/result-cell.spec.ts`.
+
+## Staged table edits and structured inspection
+
+The workspace serves developers checking production records and correcting local
+fixtures. Dense rows remain the focal surface: existing neutral surfaces,
+monospace values, amber targeting and blue focus are retained. Inspection uses
+an icon with a named tooltip; pending edits use the existing warning tone and a
+separate review step. Controls retain the shared four-pixel spacing rhythm and
+native dialog focus behavior.
+
+- Inspect structured cells with a lazily loaded Tree/Code viewer. Original,
+  formatted and selected-path copies are separate actions. JSON numeric tokens
+  retain their precision via lossless-json. A compact native tree provides
+  selection and search; CodeMirror provides JSON syntax, folding, search and
+  editing. The tree bounds rendering to 500 fields and 64 levels; Code retains
+  the complete document. Malformed JSON falls back to plain text or editable Code.
+- Editing changes existing rows of an ordinary table with a complete readable
+  primary key. All columns must be selected and readable. Views, arbitrary SQL
+  results, primary keys, generated/identity columns and unsupported types remain
+  read-only. Tables with expression-generated primary keys are read-only.
+  Unsupported metadata explains why editing is unavailable.
+- Double-click or F2 edits a writable cell; edits are staged in memory. NULL is
+  an explicit choice, distinct from an empty string. Applying the cell editor
+  changes no database data.
+- Review lists before/after values, generated SQL and a required reason. Long
+  values scroll while review actions remain reachable; SQL previews mount on
+  expansion. Each
+  row is a separate guarded write and may have its own outcome. Applied or
+  queued rows leave the draft; failed rows remain available to correct/revert.
+- The generated UPDATE compares the full original row, including NULL values,
+  and targets its primary key. Exactly one affected row is required, checked
+  inside the capture transaction. A conflict rolls back both change and capture,
+  including when a queued production request is approved later.
+- The existing deployment approval policy decides Save versus Submit for
+  approval. Backup, audit, permissions and write preparation remain enforced.
+- Drafts survive paging, filtering, table/database changes and switching to SQL
+  within the workspace. Leaving/reloading a workspace with drafts warns before
+  discarding them. No row data is persisted to browser storage.
+
+## Developer editing workflow refinement
+
+- Short text and numeric cells edit in place. Enter stages, Escape cancels, and
+  Tab/Shift+Tab stage and move between writable cells. Invalid input remains
+  editable with an announced error. No key submits a database write. Unapplied
+  input is retained across navigation or explicitly confirmed before discard.
+- A persistent Changes entry is available in both Data and SQL. Drafts are
+  grouped by database and table, with row keys, per-row revert, and a return-to-row
+  action that loads the exact primary key without losing the table's page/filter.
+- Conflicts expose original, latest readable database values, and the draft.
+  Concurrently changed edited fields require an explicit keep-mine/use-current
+  choice. Rebase adopts the latest complete snapshot, invalidates prior SQL and
+  guard checks, and requires a fresh review. Deleted rows cannot be rebased.
+  Lookup and recheck use the existing read guard and audit. No conflict action
+  bypasses expected-one-row transactional enforcement or permission checks.
+- Boolean and enum values use explicit options, including exact enum labels.
+  Dates offer a calendar when their representation is supported. Time and timestamp
+  editors explain timezone semantics and preserve fractional seconds; zoned input
+  requires an explicit offset. Numbers preserve every digit, scale and exponent.
+  NULL stays a separate choice from an empty string or false.
+- Submitted requests remain visible in Query. Refresh and visibility-aware polling
+  report pending/applied/rejected/failed/undone states. Failure or rejection restores
+  the submitted draft unless a newer local edit must be retained separately.
+  Applied results offer exact-row refresh. No drafts or row data enter localStorage.
+- Read-only explanations name the blocker and a concrete next step, including
+  writer setup documentation, missing keys, restricted columns, unsupported types,
+  generated keys, and selecting all columns.
+- Acceptance includes an independent sub-agent review in the role of a developer,
+  with concrete findings corrected and re-reviewed until no known actionable UX
+  issue remains. Review findings and outcomes are recorded in the PR.
+
+## Focused change review
+
+- Changes is the single review entry in Data and SQL. The grid has no duplicate
+  Review or Revert-all toolbar actions. Closing review keeps drafts; X and Escape
+  are the dismissal controls, without a duplicate Keep editing button.
+- Normal review shows target, key, changed values, reason and a single submit
+  action. It checks automatically. Retry is offered only after a failed check
+  or write; conflicts keep their own resolution action. Partial submission names
+  the number of ready rows in the primary action.
+- Status uses an existing semantic icon plus a short label, without relying on
+  colour alone. Original values are muted; changed values receive restrained
+  emphasis. No persistent paragraphs explain internal guard mechanics.
+- Show row remains directly available. Copy, discard and SQL are revealed through
+  per-row More actions. A blocked or deleted row keeps Copy draft directly
+  available. Conflict comparisons default to locally or remotely changed fields;
+  the server still checks the complete original snapshot.
+- Submitted history is collapsed while edits are being reviewed, with pending and failure counts
+  visible at its entry. Rejected/failed requests restore a clearly marked draft.
+  History-only review has no empty edit form or disabled submission footer.
+- Keyboard help and in-memory draft lifetime remain available on demand. A
+  persistent warning still protects navigation/reload from unsaved data loss.
+- Acceptance includes independent developer review of density, duplicate controls,
+  discoverability, semantic colour/icon usage and recovery, in addition to the
+  functional safety checks.
+
+- Long comparisons scroll within the dialog body. The header Close control and
+  submission footer remain fully visible after field focus and resolution
+  selection at 900×650, including mixed ready/conflicting rows.
+
+- Boolean, enum and resolution lists remain fully readable above dialog overflow,
+  fit available viewport space, and scroll to keyboard selection. Escape first
+  closes an open list; a second Escape can close its dialog. Closing a dialog
+  removes its floating options.

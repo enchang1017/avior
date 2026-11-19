@@ -1535,6 +1535,12 @@ paths:
         reaches the database, whatever the verdict.
       parameters:
         - $ref: "#/components/parameters/RequestedBy"
+        - in: header
+          name: X-Avior-Exact-Integers
+          required: false
+          description: Opt in to decimal strings for bigint values outside JavaScript's safe integer range. Other callers retain JSON numbers.
+          schema:
+            type: boolean
       requestBody:
         required: true
         content:
@@ -2829,6 +2835,56 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/WriteRefusal"
+
+  /writes/row-current-template:
+    post:
+      tags: [write]
+      operationId: buildRowLookup
+      summary: Generate a guarded SELECT for the exact primary key of a staged row
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RowLookupRequest"
+      responses:
+        "200":
+          description: A full-row SELECT to execute through the existing read guard and audit
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WriteTemplate"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /writes/row-template:
+    post:
+      tags: [write]
+      operationId: buildRowUpdate
+      summary: Generate a guarded UPDATE from a complete original row and staged values
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RowUpdateRequest"
+      responses:
+        "200":
+          description: A literal UPDATE with a full-row concurrency predicate
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WriteTemplate"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
 
   /writes/template:
     post:
@@ -4527,6 +4583,24 @@ components:
           type: boolean
           description: The caller may not read this column. Selecting it will be refused.
 
+        primaryKeyPosition:
+          type: integer
+          minimum: 0
+          description: One-based position in the primary key, or zero for a non-key column.
+        generated:
+          type: boolean
+          description: Generated or identity columns cannot be changed in the row editor.
+
+        identity:
+          type: boolean
+          description: An identity column. Expression-generated primary keys make a table read-only in the grid.
+
+        enumValues:
+          type: array
+          items:
+            type: string
+          description: Exact PostgreSQL enum labels in declared order; empty or absent for other types.
+
     ObjectType:
       type: string
       description: |
@@ -4677,6 +4751,27 @@ components:
         descending:
           type: boolean
           default: false
+
+        offset:
+          type: integer
+          minimum: 0
+          maximum: 1000000
+          description: Enables deterministic data browsing, including offset zero.
+        filter:
+          type: object
+          required: [column, operator]
+          additionalProperties: false
+          properties:
+            column:
+              type: string
+              minLength: 1
+              maxLength: 63
+            operator:
+              type: string
+              enum: [eq, ne, lt, lte, gt, gte, contains, isNull, isNotNull]
+            value:
+              type: string
+              maxLength: 4096
 
     SelectTemplate:
       type: object
@@ -4862,6 +4957,9 @@ components:
 
             The permission is separate and unaffected: the author still holds
             write.approve or decides nothing.
+        writeApprovalRequired:
+          type: boolean
+          description: Whether submitting a write waits for approval in this deployment.
         instance:
           $ref: "#/components/schemas/GovernedInstance"
 
@@ -4904,6 +5002,63 @@ components:
       type: string
       enum: [insert, update, delete]
 
+    RowLookupRequest:
+      type: object
+      required: [database, schema, table, original]
+      additionalProperties: false
+      properties:
+        database:
+          type: string
+          minLength: 1
+          maxLength: 128
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+        table:
+          type: string
+          minLength: 1
+          maxLength: 128
+        original:
+          type: object
+          minProperties: 1
+          additionalProperties:
+            type: string
+            nullable: true
+            maxLength: 65536
+
+    RowUpdateRequest:
+      type: object
+      required: [database, schema, table, original, changes]
+      additionalProperties: false
+      properties:
+        database:
+          type: string
+          minLength: 1
+          maxLength: 128
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+        table:
+          type: string
+          minLength: 1
+          maxLength: 128
+        original:
+          type: object
+          additionalProperties:
+            type: string
+            nullable: true
+            maxLength: 65536
+        changes:
+          type: object
+          minProperties: 1
+          maxProperties: 64
+          additionalProperties:
+            type: string
+            nullable: true
+            maxLength: 65536
+
     WriteSubmission:
       type: object
       required: [database, statement, reason]
@@ -4921,6 +5076,13 @@ components:
           type: string
           minLength: 1
           maxLength: 2000
+
+        expectedAffectedRows:
+          type: integer
+          format: int64
+          minimum: 1
+          maximum: 1
+          description: Require exactly one changed row, rolling back on a stale row or unexpected count.
 
     WriteDecision:
       type: object

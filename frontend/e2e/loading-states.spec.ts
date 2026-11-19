@@ -76,6 +76,7 @@ test('FEAT-074 AC-6: the query console shows it is loading, never its empty text
   await page.goto('/')
   await page.getByRole('button', { name: /aviorfixture/ }).click()
   await page.getByRole('button', { name: /^member\s+public/u }).click()
+  await page.getByRole('button', { name: 'Insert', exact: true }).click()
   await expect(page.locator('.cm-content')).toContainText('LIMIT 100')
 
   const execute = await hold(page, '/query/execute', 'POST')

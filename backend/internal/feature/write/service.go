@@ -42,25 +42,27 @@ const (
 
 // Submission is what a developer asks for.
 type Submission struct {
-	Database  string
-	Statement string
-	Reason    string
-	Requester identity.Caller
+	ExpectedAffectedRows *int64
+	Database             string
+	Statement            string
+	Reason               string
+	Requester            identity.Caller
 }
 
 // Request is one write request and everything that happened to it.
 type Request struct {
-	ID            uuid.UUID
-	Database      string
-	Statement     string
-	Kind          sqlguard.WriteKind
-	Table         string
-	Reason        string
-	RequestedBy   uuid.UUID
-	RequesterName string
-	RequestedAt   time.Time
-	EstimatedRows int64
-	State         State
+	ExpectedAffectedRows *int64
+	ID                   uuid.UUID
+	Database             string
+	Statement            string
+	Kind                 sqlguard.WriteKind
+	Table                string
+	Reason               string
+	RequestedBy          uuid.UUID
+	RequesterName        string
+	RequestedAt          time.Time
+	EstimatedRows        int64
+	State                State
 
 	DecidedBy    uuid.UUID
 	DeciderName  string
@@ -323,6 +325,9 @@ func (s *Service) SelfApprovalAllowed() bool { return !s.approval.needsSecondPer
 // unchanged: the guard, the capture and the record are not what approval was
 // protecting. AC-12.
 func (s *Service) Submit(ctx context.Context, sub Submission) (Request, error) {
+	if sub.ExpectedAffectedRows != nil && *sub.ExpectedAffectedRows != 1 {
+		return Request{}, errors.New("write: expected affected rows must be one")
+	}
 	statement := trimStatement(sub.Statement)
 	if strings.TrimSpace(sub.Reason) == "" {
 		return Request{}, ErrReasonMissing
@@ -362,15 +367,16 @@ func (s *Service) Submit(ctx context.Context, sub Submission) (Request, error) {
 	}
 
 	request := Request{
-		ID:            uuid.New(),
-		Database:      sub.Database,
-		Statement:     statement,
-		Kind:          verdict.Statement.Kind,
-		Table:         verdict.Plan.Table,
-		Reason:        strings.TrimSpace(sub.Reason),
-		RequestedBy:   sub.Requester.ID,
-		EstimatedRows: int64(verdict.Plan.EstimatedRows),
-		State:         StatePending,
+		ID:                   uuid.New(),
+		ExpectedAffectedRows: sub.ExpectedAffectedRows,
+		Database:             sub.Database,
+		Statement:            statement,
+		Kind:                 verdict.Statement.Kind,
+		Table:                verdict.Plan.Table,
+		Reason:               strings.TrimSpace(sub.Reason),
+		RequestedBy:          sub.Requester.ID,
+		EstimatedRows:        int64(verdict.Plan.EstimatedRows),
+		State:                StatePending,
 	}
 	stored, err := s.store.Insert(ctx, request)
 	if err != nil {
@@ -577,11 +583,12 @@ func (s *Service) run(ctx context.Context, request Request, actor *uuid.UUID) (R
 	}
 
 	result, runErr := s.runner.Run(ctx, RunRequest{
-		RequestID: request.ID.String(),
-		Database:  request.Database,
-		Statement: request.Statement,
-		Kind:      request.Kind,
-		Table:     request.Table,
+		RequestID:            request.ID.String(),
+		ExpectedAffectedRows: request.ExpectedAffectedRows,
+		Database:             request.Database,
+		Statement:            request.Statement,
+		Kind:                 request.Kind,
+		Table:                request.Table,
 	})
 	if runErr != nil {
 		return s.recordFailure(ctx, request, actor, runErr)

@@ -20,6 +20,27 @@ func TestGuardedQueryFeature(t *testing.T) {
 
 	generous := sqlguard.Limits{MaxSubtreeCost: 1000, MaxEstimatedRows: 1_000_000}
 
+	t.Run("large bigint values survive the JSON response exactly", func(t *testing.T) {
+		h := newHarness(t, generous)
+		client := h.signIn(fixtureUsername, fixturePassword)
+		statement := uniqueStatement("SELECT 9223372036854775807::bigint AS big_id, '-9223372036854775808'::bigint AS negative_id, 42::bigint AS small_id FROM public.member WHERE login_name <> '%s' LIMIT 1")
+		status, payload := h.doWithHeader(client, http.MethodPost, "/query/execute", map[string]any{
+			"instanceId": fixtureInstanceID, "database": fixtureDatabase, "statement": statement,
+		}, "X-Avior-Exact-Integers", "true")
+		if status != http.StatusOK {
+			t.Fatalf("status = %d; body %s", status, payload)
+		}
+		var result gen.QueryResult
+		h.decode(payload, &result)
+		if len(result.Rows) != 1 {
+			t.Fatalf("rows = %v, want one", result.Rows)
+		}
+		row := result.Rows[0]
+		if len(row) != 3 || row[0] != "9223372036854775807" || row[1] != "-9223372036854775808" || row[2] != float64(42) {
+			t.Fatalf("JSON values lost their representation: %#v", row)
+		}
+	})
+
 	t.Run("an allowed statement returns rows and is audited with its outcome", func(t *testing.T) {
 		h := newHarness(t, generous)
 		client := h.signIn(fixtureUsername, fixturePassword)
