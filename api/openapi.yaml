@@ -1535,6 +1535,12 @@ paths:
         reaches the database, whatever the verdict.
       parameters:
         - $ref: "#/components/parameters/RequestedBy"
+        - in: header
+          name: X-Avior-Exact-Integers
+          required: false
+          description: Opt in to decimal strings for bigint values outside JavaScript's safe integer range. Other callers retain JSON numbers.
+          schema:
+            type: boolean
       requestBody:
         required: true
         content:

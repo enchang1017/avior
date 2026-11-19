@@ -218,7 +218,11 @@ func (s *Server) ExecuteQuery(ctx context.Context, request gen.ExecuteQueryReque
 	if err != nil {
 		return s.executeFailure(err)
 	}
-	return gen.ExecuteQuery200JSONResponse(toResult(result)), nil
+	out := toResult(result)
+	if request.Params.XAviorExactIntegers != nil && *request.Params.XAviorExactIntegers {
+		out.Rows = browserRows(out.Rows)
+	}
+	return gen.ExecuteQuery200JSONResponse(out), nil
 }
 
 // executeFailure maps a failed execution onto the contract. A guard rejection is

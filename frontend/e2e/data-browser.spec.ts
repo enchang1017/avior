@@ -41,6 +41,8 @@ test('data browsing keeps drafts and table state', async ({ page }) => {
   await data.getByRole('cell', { name: '1', exact: true }).focus()
   await page.keyboard.press('ArrowRight')
   await expect(data.getByRole('cell', { name: 'alice', exact: true })).toBeFocused()
+  await data.getByRole('cell', { name: 'alice', exact: true }).click()
+  await expect(page.getByRole('dialog')).toBeHidden()
   await page.keyboard.press('Enter')
   await expect(page.getByRole('dialog')).toContainText('alice')
   await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click()
