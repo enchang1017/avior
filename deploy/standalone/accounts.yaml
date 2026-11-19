@@ -1,0 +1,3 @@
+- username: developer
+  password: local-development-only
+  roles: [developer]

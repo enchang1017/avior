@@ -7,8 +7,11 @@ from the checkout and is not affected by anything here.
 
 ## The images
 
-Every published release pushes three images, for `linux/amd64` and
+Every published release pushes four images, for `linux/amd64` and
 `linux/arm64`:
+
+The optional `ghcr.io/enchang1017/avior` image serves both UI and API; see
+`docs/runbooks/local-sidecar.md` for development setup.
 
 | Image | Built from | Does |
 | --- | --- | --- |

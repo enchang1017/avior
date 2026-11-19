@@ -3,9 +3,13 @@
 package acceptance
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/google/uuid"
 
 	"github.com/enchang1017/avior/backend/internal/gen"
 	"github.com/enchang1017/avior/backend/internal/sqlguard"
@@ -327,6 +331,102 @@ func TestSchemaBrowsingFeature(t *testing.T) {
 		h.decode(payload, &missing)
 		if missing.Code != "schema.table_unknown" {
 			t.Errorf("template code = %q, want schema.table_unknown", missing.Code)
+		}
+	})
+
+	t.Run("non-public rows are paged filtered sorted and audited", func(t *testing.T) {
+		h := newHarness(t, generous)
+		client := h.signIn(fixtureUsername, fixturePassword)
+		schemaName := "browse_" + uuid.New().String()[:8]
+		ownerExec(t,
+			`CREATE SCHEMA %[1]s`,
+			`CREATE TABLE %[1]s.users (id int PRIMARY KEY, note text)`,
+			`INSERT INTO %[1]s.users VALUES (1, 'alpha'), (2, 'alpha'), (3, 'beta')`,
+			`GRANT USAGE ON SCHEMA %[1]s TO avior_governed`,
+			`GRANT SELECT ON ALL TABLES IN SCHEMA %[1]s TO avior_governed`,
+		)(schemaName)
+		t.Cleanup(func() {
+			owner := openFixtureOwner(t)
+			defer func() { _ = owner.Close() }()
+			if _, err := owner.ExecContext(context.Background(), "DROP SCHEMA "+schemaName+" CASCADE"); err != nil {
+				t.Error(err)
+			}
+		})
+		status, payload := h.get(client, "/schema/tables"+target)
+		if status != http.StatusOK || !strings.Contains(string(payload), schemaName) {
+			t.Fatalf("schema not listed: %d %s", status, payload)
+		}
+		for offset, wantID := range []float64{2, 1} {
+			status, payload = h.post(client, "/query/template", map[string]any{
+				"instanceId": fixtureInstanceID, "database": fixtureDatabase, "schema": schemaName,
+				"table": "users", "columns": []string{"id", "note"}, "top": 1, "offset": offset,
+				"orderBy": "id", "descending": true,
+				"filter": map[string]string{"column": "note", "operator": "eq", "value": "alpha"},
+			})
+			if status != http.StatusOK {
+				t.Fatalf("template: %d %s", status, payload)
+			}
+			var template gen.SelectTemplate
+			h.decode(payload, &template)
+			status, payload = h.post(client, "/query/execute", map[string]any{
+				"instanceId": fixtureInstanceID, "database": fixtureDatabase, "statement": template.Statement,
+			})
+			if status != http.StatusOK {
+				t.Fatalf("execute: %d %s", status, payload)
+			}
+			var result gen.QueryResult
+			h.decode(payload, &result)
+			if result.RowCount != 1 || result.Rows[0][0] != wantID {
+				t.Fatalf("page %d: %+v", offset, result)
+			}
+			row := latestAudit(t, template.Statement)
+			if row.Decision != "allow" || row.RowCount == nil || *row.RowCount != 1 {
+				t.Fatalf("missing completed audit: %+v", row)
+			}
+		}
+	})
+
+	t.Run("a denied filter column is refused", func(t *testing.T) {
+		h := newHarness(t, generous)
+		requireRestrictedColumn(t, fixtureDatabase, "public.member", "id_card_number")
+		client := h.signIn(fixtureUsername, fixturePassword)
+		for _, column := range []string{"id_card_number", "unknown_column"} {
+			status, payload := h.post(client, "/query/template", map[string]any{
+				"instanceId": fixtureInstanceID, "database": fixtureDatabase, "schema": "public", "table": "member",
+				"columns": []string{"member_id"}, "offset": 0,
+				"filter": map[string]string{"column": column, "operator": "eq", "value": "secret"},
+			})
+			if status != http.StatusUnprocessableEntity {
+				t.Fatalf("filter %s: %d %s", column, status, payload)
+			}
+		}
+	})
+
+	t.Run("filter metacharacters remain literal data", func(t *testing.T) {
+		h := newHarness(t, generous)
+		client := h.signIn(fixtureUsername, fixturePassword)
+		for _, value := range []string{"%", "_", `' OR '1'='1`, `\'; DROP TABLE member; --`} {
+			status, payload := h.post(client, "/query/template", map[string]any{
+				"instanceId": fixtureInstanceID, "database": fixtureDatabase, "schema": "public", "table": "member",
+				"columns": []string{"member_id"}, "offset": 0,
+				"filter": map[string]string{"column": "login_name", "operator": "contains", "value": value},
+			})
+			if status != http.StatusOK {
+				t.Fatalf("template: %d %s", status, payload)
+			}
+			var template gen.SelectTemplate
+			h.decode(payload, &template)
+			status, payload = h.post(client, "/query/execute", map[string]any{
+				"instanceId": fixtureInstanceID, "database": fixtureDatabase, "statement": template.Statement,
+			})
+			if status != http.StatusOK {
+				t.Fatalf("literal %q: %d %s", value, status, payload)
+			}
+			var result gen.QueryResult
+			h.decode(payload, &result)
+			if result.RowCount != 0 {
+				t.Fatal(fmt.Sprintf("literal %q matched fixture rows", value))
+			}
 		}
 	})
 

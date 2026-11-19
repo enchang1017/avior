@@ -124,6 +124,35 @@ governed table. The audit trail begins when the operator inspects or executes
 | AC-7 | `an unauthenticated caller reaches none of it` |
 | AC-8 | `a table the database does not hold is refused by name` |
 
+## Data browsing (issues #3–#4)
+
+The Query workspace adds a Data view beside the SQL drafts. Picking a table
+runs an explicit-column SELECT through the existing guarded execution endpoint.
+Browsing never replaces a SQL draft. Each table keeps its filter, ordering and
+page while the workspace stays open. Opening the generated SELECT preserves every nonempty SQL draft, reusing an
+empty draft or opening another slot. Eight nonempty drafts require closing one
+before another can be opened.
+
+- **AC-9** — A table in a user schema is listed and its rows can be paged,
+  sorted and filtered through generated SELECTs, with each execution audited.
+- **AC-10** — Filtering or ordering by a denied or unknown column is refused.
+- **AC-11** — Filter values remain literal data, including quotes and backslashes.
+- **Frontend workflow** — Data browsing preserves SQL drafts and per-table browsing state.
+
+Paging uses an explicit order and a fully readable primary key when available.
+Views and tables without a fully readable key use readable-column text tie breakers. Identical
+projected rows are indistinguishable; concurrent data changes can move rows
+between pages. No total count query runs against a production table.
+
+| AC | Test |
+| --- | --- |
+| AC-9 | `non-public rows are paged filtered sorted and audited` |
+| AC-10 | `a denied filter column is refused` |
+| AC-11 | `filter metacharacters remain literal data` |
+
+Frontend coverage: `data browsing keeps drafts and table state` in
+`frontend/e2e/data-browser.spec.ts`.
+
 ## Outstanding
 
 - The instance is hard-coded in the frontend to the seeded fixture. FEAT-012

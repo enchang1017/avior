@@ -1,0 +1,13 @@
+.git
+**/node_modules
+**/dist
+**/coverage
+**/test-results
+**/playwright-report
+.tools
+.env
+deploy/compose/gateway.env
+deploy/compose/migrate.env
+deploy/compose/secrets
+deploy/standalone/local.env
+deploy/standalone/bootstrap.env

@@ -671,3 +671,21 @@ func TestTheObservatoryRefusesAnIntervalUnderFiveMinutesAndNoIdleDays(t *testing
 		})
 	}
 }
+
+func TestTargetLabelDoesNotChangeTheConnection(t *testing.T) {
+	for _, label := range []string{"", "  CDP local  "} {
+		setEnv(t, map[string]string{
+			"AVIOR_STORE_DSN":      "postgres://store@localhost/avior",
+			"AVIOR_TARGET_DSN":     "postgres://reader@localhost/cdp",
+			"AVIOR_SESSION_SECRET": validSecret,
+			"AVIOR_TARGET_LABEL":   label,
+		})
+		cfg, err := Load()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cfg.TargetLabel != strings.TrimSpace(label) || cfg.TargetDSN != "postgres://reader@localhost/cdp" {
+			t.Fatalf("label changed the connection: %+v", cfg.TargetLabel)
+		}
+	}
+}

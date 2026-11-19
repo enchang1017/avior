@@ -47,6 +47,7 @@ import (
 	"github.com/enchang1017/avior/backend/internal/platform/telemetry"
 	"github.com/enchang1017/avior/backend/internal/sqlguard"
 	"github.com/enchang1017/avior/backend/internal/store"
+	"github.com/enchang1017/avior/backend/internal/webui"
 )
 
 // version is stamped at build time with -ldflags "-X main.version=...".
@@ -103,6 +104,10 @@ func run() error {
 	}
 
 	handler, startJobs, err := buildHandler(cfg, log, metadata)
+	if err != nil {
+		return err
+	}
+	handler, err = webui.WithUI(handler, cfg.UIDir)
 	if err != nil {
 		return err
 	}
@@ -729,7 +734,11 @@ func readTargetInstance(cfg *config.Config) (targetInstance, error) {
 	if port == 0 {
 		port = defaultTargetPort
 	}
-	return targetInstance{id: id, name: parsed.Host, host: parsed.Host, port: port}, nil
+	name := parsed.Host
+	if cfg.TargetLabel != "" {
+		name = cfg.TargetLabel
+	}
+	return targetInstance{id: id, name: name, host: parsed.Host, port: port}, nil
 }
 
 // registerTargetInstance records the governed server named by AVIOR_TARGET_DSN.

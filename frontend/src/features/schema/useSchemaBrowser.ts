@@ -1,4 +1,4 @@
-import { computed, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 
 import {
   api,
@@ -47,7 +47,14 @@ export function useSchemaBrowser(instanceId: string) {
   const descending = ref(true)
 
   const failure = ref<Failure | null>(null)
-  const busy = ref(false)
+  type Scope = 'databases' | 'tables' | 'columns' | 'template'
+  const pending = reactive<Record<Scope, boolean>>({
+    databases: false,
+    tables: false,
+    columns: false,
+    template: false,
+  })
+  const busy = computed(() => Object.values(pending).some(Boolean))
 
   const selectableColumns = computed(() => columns.value.filter((column) => !column.denied))
   const selectedColumns = computed(() =>
@@ -59,24 +66,32 @@ export function useSchemaBrowser(instanceId: string) {
       selectableColumns.value.every((column) => selected.value.has(column.name)),
   )
 
-  async function guard<T>(work: () => Promise<T>): Promise<T | null> {
-    busy.value = true
+  const versions: Record<Scope, number> = { databases: 0, tables: 0, columns: 0, template: 0 }
+
+  async function guard<T>(
+    scope: Scope,
+    work: (current: () => boolean) => Promise<T>,
+  ): Promise<T | null> {
+    const version = ++versions[scope]
+    pending[scope] = true
     failure.value = null
     try {
-      return await work()
+      const value = await work(() => version === versions[scope])
+      return version === versions[scope] ? value : null
     } catch (thrown) {
-      failure.value = unreachable(thrown)
+      if (version === versions[scope]) failure.value = unreachable(thrown)
       return null
     } finally {
-      busy.value = false
+      if (version === versions[scope]) pending[scope] = false
     }
   }
 
   async function loadDatabases(): Promise<void> {
-    await guard(async () => {
+    await guard('databases', async (current) => {
       const { data, error, response } = await api.GET('/schema/databases', {
         params: { query: { instanceId } },
       })
+      if (!current()) return
       if (data === undefined) {
         failure.value = classify(response.status, error)
         return
@@ -86,31 +101,40 @@ export function useSchemaBrowser(instanceId: string) {
   }
 
   async function chooseDatabase(name: string | null): Promise<void> {
+    versions.tables++
+    pending.tables = false
     database.value = name
     tables.value = []
     await chooseTable(null)
     if (name === null) return
 
-    await guard(async () => {
+    await guard('tables', async (current) => {
       const { data, error, response } = await api.GET('/schema/tables', {
         params: { query: { instanceId, database: name } },
       })
+      if (!current()) return
       if (data === undefined) {
         failure.value = classify(response.status, error)
         return
       }
+      if (database.value !== name) return
       tables.value = data
     })
   }
 
   async function chooseTable(next: TableRef | null): Promise<void> {
+    versions.columns++
+    versions.template++
+    pending.columns = false
+    pending.template = false
+    failure.value = null
     table.value = next
     columns.value = []
     selected.value = new Set()
     if (next === null || database.value === null) return
 
     const currentDatabase = database.value
-    await guard(async () => {
+    await guard('columns', async (current) => {
       const { data, error, response } = await api.GET('/schema/columns', {
         params: {
           query: {
@@ -121,10 +145,17 @@ export function useSchemaBrowser(instanceId: string) {
           },
         },
       })
+      if (!current()) return
       if (data === undefined) {
         failure.value = classify(response.status, error)
         return
       }
+      if (
+        database.value !== currentDatabase ||
+        table.value?.schema !== next.schema ||
+        table.value?.name !== next.name
+      )
+        return
       columns.value = data
       // Every readable column starts selected, which is what an operator wants
       // nine times in ten and matches the predecessor's Insert button.
@@ -195,8 +226,9 @@ export function useSchemaBrowser(instanceId: string) {
       top,
       ...(orderBy.value === '' ? {} : { orderBy: orderBy.value, descending: descending.value }),
     }
-    return await guard(async () => {
+    return await guard('template', async (current) => {
       const { data, error, response } = await api.POST('/query/template', { body })
+      if (!current()) return null
       if (data === undefined) {
         failure.value = classify(response.status, error)
         return null
