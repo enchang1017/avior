@@ -1,6 +1,9 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, ref, watch, onBeforeUnmount } from 'vue'
 
+import { rowWorkspace } from './rowWorkspace'
+import { lookupRow } from './rowLookup'
+import type { RowDraft } from './useRowEdits'
 import { lazy } from '@/shared/lazy'
 const EditableDataGrid = lazy(() => import('./EditableDataGrid.vue'), 'Loading table rows')
 import { VBanner, VButton, VInput, VLoader, VPager, VSelect, VToolbar } from '@/components'
@@ -21,6 +24,24 @@ import {
 
 const VReadout = defineAsyncComponent(() => import('@/components/Data/VReadout/VReadout.vue'))
 
+const bridge = rowWorkspace()
+const located = ref<RowDraft | null>(null)
+const focusVersion = ref(0)
+let controller: AbortController | null = null
+onBeforeUnmount(() => {
+  generation++
+  controller?.abort()
+})
+watch(bridge.focus, (row) => {
+  if (!row) return
+  located.value = row
+  focusVersion.value++
+  bridge.focus.value = null
+  void load()
+})
+watch(bridge.refresh, () => {
+  if (ready.value) void load()
+})
 const props = defineProps<{
   active: boolean
   instanceId: string
@@ -103,7 +124,12 @@ const result = computed<QueryResult | null>(() => {
 })
 
 async function load(reset = false): Promise<void> {
+  if (located.value && reset) return
+  if (bridge.flush && !bridge.flush()) return
   if (reset) current.value.page = 0
+  controller?.abort()
+  controller = new AbortController()
+  const signal = controller.signal
   const token = ++generation
   failure.value = null
   built.value = ''
@@ -119,6 +145,18 @@ async function load(reset = false): Promise<void> {
   states.set(key.value, { ...state })
   busy.value = true
   try {
+    const target = located.value
+    if (
+      target &&
+      target.database === database &&
+      target.schema === table.schema &&
+      target.table === table.name
+    ) {
+      const row = await lookupRow(target, props.instanceId, signal)
+      if (token !== generation) return
+      panel.value = { result: row, verdict: null, failure: null }
+      return
+    }
     const body: Schemas['SelectTemplateRequest'] = {
       instanceId: props.instanceId,
       database,
@@ -134,7 +172,7 @@ async function load(reset = false): Promise<void> {
           }
         : {}),
     }
-    const { data, error: issue, response } = await api.POST('/query/template', { body })
+    const { data, error: issue, response } = await api.POST('/query/template', { body, signal })
     if (token !== generation) return
     if (!data) {
       failure.value = classify(response.status, issue)
@@ -143,6 +181,7 @@ async function load(reset = false): Promise<void> {
     built.value = data.statement
     applied.value = { ...body, top: Number(state.size) }
     const executed = await api.POST('/query/execute', {
+      signal,
       body: {
         instanceId: props.instanceId,
         database,
@@ -177,6 +216,12 @@ watch(
   key,
   () => {
     generation++
+    if (
+      located.value &&
+      key.value !==
+        JSON.stringify([located.value.database, located.value.schema, located.value.table])
+    )
+      located.value = null
     current.value = {
       ...(states.get(key.value) ?? {
         page: 0,
@@ -199,14 +244,20 @@ watch(
   { immediate: true },
 )
 function page(delta: number): void {
+  if (located.value || (bridge.flush && !bridge.flush())) return
+  if (bridge.flush && !bridge.flush()) return
   current.value.page += delta
   void load()
 }
 function order(value: string): void {
+  if (located.value || (bridge.flush && !bridge.flush())) return
+  if (bridge.flush && !bridge.flush()) return
   current.value.order = value
   void load(true)
 }
 function resize(value: string): void {
+  if (located.value || (bridge.flush && !bridge.flush())) return
+  if (bridge.flush && !bridge.flush()) return
   current.value.size = value
   void load(true)
 }
@@ -234,13 +285,20 @@ async function openSQL(): Promise<void> {
 }
 
 function clear(): void {
+  if (located.value || (bridge.flush && !bridge.flush())) return
   current.value.column = ''
   current.value.value = ''
   void load(true)
 }
 function toggleSort(): void {
+  if (located.value || (bridge.flush && !bridge.flush())) return
   current.value.descending = !current.value.descending
   void load(true)
+}
+function returnToBrowse(): void {
+  if (bridge.flush && !bridge.flush()) return
+  located.value = null
+  void load()
 }
 </script>
 
@@ -260,7 +318,7 @@ function toggleSort(): void {
           id="browse-size"
           :model-value="current.size"
           :options="sizeOptions"
-          :disabled="busy"
+          :disabled="located !== null || busy"
           @update:model-value="resize"
         />
       </div>
@@ -275,7 +333,7 @@ function toggleSort(): void {
           id="browse-column"
           v-model="current.column"
           :options="[{ value: '', label: 'No filter' }, ...options]"
-          :disabled="busy"
+          :disabled="located !== null || busy"
         />
       </div>
       <label for="browse-operator" class="sr-only">Filter operator</label>
@@ -285,7 +343,7 @@ function toggleSort(): void {
           v-model="current.operator"
           aria-label="Filter operator"
           :options="operators"
-          :disabled="busy || !current.column"
+          :disabled="located !== null || busy || !current.column"
         />
       </div>
       <div class="w-40">
@@ -293,23 +351,23 @@ function toggleSort(): void {
           v-model="current.value"
           aria-label="Filter value"
           placeholder="Value"
-          :disabled="busy || !current.column || nullFilter"
+          :disabled="located !== null || busy || !current.column || nullFilter"
           maxlength="4096"
         />
       </div>
-      <VButton type="submit" :disabled="!ready || busy">Apply</VButton>
-      <VButton :disabled="!ready || busy" @click="clear">Clear</VButton>
+      <VButton type="submit" :disabled="!ready || busy || located !== null">Apply</VButton>
+      <VButton :disabled="!ready || busy || located !== null" @click="clear">Clear</VButton>
       <label for="browse-order" class="text-xs text-fg-muted">Sort</label>
       <div class="w-40">
         <VSelect
           id="browse-order"
           :model-value="current.order"
           :options="[{ value: '', label: 'Stable default' }, ...options]"
-          :disabled="busy"
+          :disabled="located !== null || busy"
           @update:model-value="order"
         />
       </div>
-      <VButton :disabled="busy || !current.order" @click="toggleSort">
+      <VButton :disabled="located !== null || busy || !current.order" @click="toggleSort">
         {{ current.descending ? 'DESC' : 'ASC' }}
       </VButton>
     </form>
@@ -335,21 +393,30 @@ function toggleSort(): void {
     <p v-else-if="!error && !panel.verdict" class="m-0 p-4 text-sm text-fg-muted">
       Choose a table and at least one readable column to browse its rows.
     </p>
+    <VBanner v-if="located" tone="info">
+      <span
+        >Showing requested row: {{ located.keyLabel }}.
+        {{ result?.rows.length === 0 ? 'The row no longer exists or is not readable.' : '' }}</span
+      >
+      <VButton size="sm" variant="bare" @click="returnToBrowse">
+        <span>Return to saved page and filter</span>
+      </VButton>
+    </VBanner>
     <EditableDataGrid
       :database="props.database"
       :table="props.table"
       :columns="props.columns"
       :result="result"
-      :offset="current.page * Number(current.size)"
+      :offset="located ? 0 : current.page * Number(current.size)"
+      :focus-row="located ? focusVersion : 0"
       :loading="busy"
-      @saved="load()"
     />
     <div class="mt-auto">
       <VPager
-        :page="current.page + 1"
-        :can-go-back="current.page > 0"
-        :has-more="hasMore && (current.page + 1) * Number(current.size) <= 1000000"
-        :busy="busy"
+        :page="located ? 1 : current.page + 1"
+        :can-go-back="!located && current.page > 0"
+        :has-more="!located && hasMore && (current.page + 1) * Number(current.size) <= 1000000"
+        :busy="busy || located !== null"
         @previous="page(-1)"
         @next="page(1)"
       />

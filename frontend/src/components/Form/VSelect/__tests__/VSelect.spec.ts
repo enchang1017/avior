@@ -18,11 +18,28 @@ function labels(select: ReturnType<typeof render>) {
 }
 
 describe('VSelect', () => {
+  it('names the interactive combobox for assistive technology', () => {
+    const select = mount(VSelect, {
+      props: { id: 'enum', modelValue: '', options: verdicts, ariaLabel: 'New value' },
+    })
+    expect(select.get('[role=combobox]').attributes('aria-label')).toBe('New value')
+    expect(select.attributes('aria-label')).toBeUndefined()
+  })
+
   // The label is what a person reads; the value is what the server is sent.
   // A control showing `allow` where the list said `Allowed` has two names for
   // one thing and makes the reader work out which.
   it('shows the label of what is chosen, not its value', () => {
     expect(render('allow').find('input').attributes('value')).toBe('Allowed')
+  })
+
+  it('reopens when its already focused field is clicked after choosing', async () => {
+    const select = render()
+    await select.find('input').trigger('focus')
+    await select.findAll('.option')[1]?.trigger('mousedown')
+    expect(select.find('[role=listbox]').exists()).toBe(false)
+    await select.find('input').trigger('click')
+    expect(select.find('[role=listbox]').exists()).toBe(true)
   })
 
   it('offers every option when opened', async () => {

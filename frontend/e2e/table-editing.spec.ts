@@ -2,6 +2,12 @@ import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
 import { openEditableTable, originalJSON, serveEditableTable } from './visual/editing'
 
+function firstRecord(records: (string | null)[][]): (string | null)[] {
+  const record = records[0]
+  if (!record) throw new Error('Missing fixture row')
+  return record
+}
+
 async function mockClipboard(page: Page): Promise<void> {
   await page.addInitScript(() =>
     Object.defineProperty(navigator, 'clipboard', {
@@ -70,9 +76,8 @@ test('edits stay staged across pages and SQL, then save with a full original sna
   await openEditableTable(page)
   const cell = () => page.locator('.result tr[data-row]').first().locator('td').nth(1)
   await cell().dblclick()
-  const editor = page.getByRole('dialog', { name: 'Edit username', exact: true })
-  await editor.getByLabel('New value').fill('alice edited')
-  await editor.getByRole('button', { name: 'Apply to draft' }).click()
+  await page.getByRole('textbox', { name: 'Edit username', exact: true }).fill('alice edited')
+  await page.getByRole('textbox', { name: 'Edit username', exact: true }).press('Enter')
   expect(writes).toHaveLength(0)
   await expect(cell()).toContainText('alice edited')
   await page
@@ -134,7 +139,7 @@ test('JSON edits use the current editor content and conflicts retain the pending
   await expect(review).toContainText('9007199254740995')
   await review.getByLabel('Reason').fill('change a profile')
   await review.getByRole('button', { name: 'Submit for approval', exact: true }).click()
-  await expect(review.getByRole('alert')).toContainText('write conflict')
+  await expect(review.getByRole('alert').filter({ hasText: 'write conflict' })).toBeVisible()
   await expect(
     review.getByRole('button', { name: 'Submit for approval', exact: true }),
   ).toBeDisabled()
@@ -184,11 +189,11 @@ test('NULL is an explicit draft choice and revert leaves the saved empty string 
   await serveEditableTable(page)
   await openEditableTable(page)
   await page.locator('.result tr[data-row]').first().locator('td').last().dblclick()
-  const editor = page.getByRole('dialog', { name: 'Edit note', exact: true })
-  await expect(editor.getByLabel('New value')).toHaveValue('')
-  await editor.getByRole('checkbox', { name: 'Set to NULL' }).check()
-  await expect(editor.getByLabel('New value')).toBeDisabled()
-  await editor.getByRole('button', { name: 'Apply to draft' }).click()
+  const editor = page.getByRole('textbox', { name: 'Edit note', exact: true })
+  await expect(editor).toHaveValue('')
+  await editor.press('Alt+Enter')
+  await expect(editor).toHaveAttribute('placeholder', 'NULL')
+  await editor.press('Enter')
   await page.getByRole('button', { name: 'Review 1 change(s)' }).click()
   const review = page.getByRole('dialog', { name: 'Review row changes', exact: true })
   await expect(review.getByRole('cell', { name: '""', exact: true })).toBeVisible()
@@ -234,9 +239,9 @@ test('long draft values scroll while review actions remain reachable', async ({ 
   await serveEditableTable(page)
   await openEditableTable(page)
   await page.locator('.result tr[data-row]').first().locator('td').nth(1).dblclick()
-  const editor = page.getByRole('dialog', { name: 'Edit username', exact: true })
-  await editor.getByLabel('New value').fill('A long fixture value with spaces.\n'.repeat(80))
-  await editor.getByRole('button', { name: 'Apply to draft' }).click()
+  const editor = page.getByRole('textbox', { name: 'Edit username', exact: true })
+  await editor.fill('A long fixture value with spaces. '.repeat(80))
+  await editor.press('Enter')
   await page.getByRole('button', { name: 'Review 1 change(s)' }).click()
   const review = page.getByRole('dialog', { name: 'Review row changes', exact: true })
   await review.getByLabel('Reason').fill('Check a long draft before saving')
@@ -246,3 +251,190 @@ test('long draft values scroll while review actions remain reachable', async ({ 
   const value = review.locator('td pre').last()
   expect(await value.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
 })
+
+test('inline keyboard editing cancels, preserves IME text and commits with Tab without opening a dialog', async ({
+  page,
+}) => {
+  await serveEditableTable(page)
+  await openEditableTable(page)
+  const cell = page.locator('.result tr[data-row]').first().locator('td').nth(1)
+  await cell.press('F2')
+  let input = page.getByRole('textbox', { name: 'Edit username', exact: true })
+  await input.fill('cancelled')
+  await input.press('Escape')
+  await expect(cell).toContainText('alice')
+  await expect(cell).toBeFocused()
+  await cell.press('F2')
+  input = page.getByRole('textbox', { name: 'Edit username', exact: true })
+  await input.fill('正在組字')
+  await input.dispatchEvent('compositionstart')
+  await input.press('Enter')
+  await expect(input).toBeVisible()
+  await input.dispatchEvent('compositionend')
+  await input.press('Tab')
+  await expect(input).toHaveCount(0)
+  await expect(cell).toContainText('正在組字')
+  await expect(page.getByRole('dialog', { name: 'Edit payload', exact: true })).toHaveCount(0)
+  await expect(page.locator('.result tr[data-row]').first().locator('td').nth(2)).toBeFocused()
+})
+
+test('conflicts compare three values and explicitly rebase before saving', async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 650 })
+  const records = await serveEditableTable(page)
+  await openEditableTable(page)
+  await page.locator('.result tr[data-row]').first().locator('td').nth(1).dblclick()
+  const input = page.getByRole('textbox', { name: 'Edit username', exact: true })
+  await input.fill('my change')
+  await input.press('Enter')
+  firstRecord(records)[1] = 'someone else'
+  await page.getByRole('button', { name: /^Changes \(1\)/ }).click()
+  const review = page.getByRole('dialog', { name: 'Review row changes', exact: true })
+  await expect(review).toContainText('Current database')
+  for (const text of ['"alice"', '"someone else"', '"my change"'])
+    await expect(review.getByRole('cell', { name: text, exact: true })).toBeVisible()
+  await review.getByLabel('Reason').fill('resolve a concurrent change')
+  await expect(review.getByRole('button', { name: 'Save changes', exact: true })).toBeDisabled()
+  await expect(review.getByRole('combobox', { name: 'Resolve username' })).toBeInViewport()
+  expect(
+    await review.locator('table').evaluate((element) => element.scrollWidth <= element.clientWidth),
+  ).toBe(true)
+  await review.getByRole('combobox', { name: 'Resolve username' }).click()
+  await review.getByRole('option', { name: 'Keep mine', exact: true }).click()
+  await review.getByRole('button', { name: 'Use resolutions and recheck' }).click()
+  await expect(review).not.toContainText('Current database')
+  await expect(review.getByRole('button', { name: 'Save changes', exact: true })).toBeEnabled()
+  await expect(review.getByRole('cell', { name: '"someone else"', exact: true })).toBeVisible()
+})
+
+test('fixed Changes entry works from SQL and returns to an exact row without losing the saved page', async ({
+  page,
+}) => {
+  await serveEditableTable(page)
+  await openEditableTable(page)
+  await page.locator('.result tr[data-row]').first().locator('td').nth(1).dblclick()
+  const input = page.getByRole('textbox', { name: 'Edit username', exact: true })
+  await input.fill('draft')
+  await input.press('Enter')
+  const region = page.getByRole('region', { name: 'Table data', exact: true })
+  await region.getByRole('button', { name: 'Next', exact: true }).click()
+  await expect(region).toContainText('member-50')
+  await page.getByRole('tab', { name: 'SQL', exact: true }).click()
+  await page.getByRole('button', { name: /^Changes \(1\)/ }).click()
+  const review = page.getByRole('dialog', { name: 'Review row changes', exact: true })
+  await review.getByRole('button', { name: 'Return to row', exact: true }).click()
+  await expect(region).toContainText('Showing requested row')
+  await expect(region).toContainText('draft')
+  await expect(region.getByRole('button', { name: 'Next', exact: true })).toBeDisabled()
+  await expect(region.getByLabel('Rows', { exact: true })).toBeDisabled()
+  await region.getByRole('button', { name: 'Return to saved page and filter' }).click()
+  await expect(region).toContainText('member-50')
+})
+
+test('pending requests remain in the workspace and rejected requests restore their draft', async ({
+  page,
+}) => {
+  await serveEditableTable(page, true)
+  await page.route('**/api/v1/writes', (route) =>
+    route.fulfill({ json: { id: '00000000-0000-0000-0000-000000000002', state: 'pending' } }),
+  )
+  let state = 'pending'
+  await page.route('**/api/v1/writes/00000000-0000-0000-0000-000000000002', (route) =>
+    route.fulfill({
+      json: { request: { state, decisionNote: state === 'rejected' ? 'Add more context' : '' } },
+    }),
+  )
+  await openEditableTable(page)
+  await page.locator('.result tr[data-row]').first().locator('td').nth(1).dblclick()
+  const input = page.getByRole('textbox', { name: 'Edit username', exact: true })
+  await input.fill('pending draft')
+  await input.press('Enter')
+  await page.getByRole('button', { name: /^Changes \(1\)/ }).click()
+  const review = page.getByRole('dialog', { name: 'Review row changes', exact: true })
+  await review.getByLabel('Reason').fill('please review')
+  await review.getByRole('button', { name: 'Submit for approval', exact: true }).click()
+  await expect(review).toBeHidden()
+  await page.getByRole('button', { name: /^Changes \(0\).*awaiting approval/ }).click()
+  await expect(review.getByRole('region', { name: 'Submitted requests' })).toContainText(
+    'Awaiting approval',
+  )
+  state = 'rejected'
+  await review.getByRole('button', { name: 'Refresh statuses', exact: true }).click()
+  await expect(review).toContainText('pending draft')
+  await expect(review).toContainText('Add more context')
+  await expect(
+    review.getByRole('button', { name: 'Submit for approval', exact: true }),
+  ).toBeDisabled()
+  await review.getByRole('button', { name: 'Check again', exact: true }).click()
+  await expect(
+    review.getByRole('button', { name: 'Submit for approval', exact: true }),
+  ).toBeDisabled()
+  await review.getByLabel('Reason').fill('more context for the retry')
+  await expect(
+    review.getByRole('button', { name: 'Submit for approval', exact: true }),
+  ).toBeEnabled()
+})
+
+for (const field of [
+  { type: 'numeric(30,12)', initial: '1.000000000001', next: '9007199254740993.000000000001' },
+  { type: 'boolean', initial: 'true', next: 'false' },
+  { type: 'date', initial: '2026-11-19', next: '2026-12-20' },
+  {
+    type: 'timestamp(6) with time zone',
+    initial: '2026-11-19 12:00:00.123456+08:00',
+    next: '2026-11-20 13:00:00.654321+08:00',
+  },
+  { type: 'public.state', initial: 'open', next: 'NULL', enumValues: ['open', '', 'NULL'] },
+]) {
+  test(`typed ${field.type} editor preserves its exact draft representation`, async ({ page }) => {
+    const records = await serveEditableTable(page)
+    firstRecord(records)[1] = field.initial
+    await page.route('**/api/v1/schema/columns**', (route) =>
+      route.fulfill({
+        json: [
+          { name: 'id', type: 'bigint', primaryKeyPosition: 1, nullable: false, denied: false },
+          {
+            name: 'username',
+            type: field.type,
+            nullable: true,
+            denied: false,
+            ...('enumValues' in field ? { enumValues: field.enumValues } : {}),
+          },
+          { name: 'payload', type: 'jsonb', nullable: false, denied: false },
+          { name: 'note', type: 'text', nullable: true, denied: false },
+        ],
+      }),
+    )
+    await openEditableTable(page)
+    await page.locator('.result tr[data-row]').first().locator('td').nth(1).dblclick()
+    if (field.type.startsWith('numeric')) {
+      const input = page.getByRole('textbox', { name: 'Edit username', exact: true })
+      await input.fill(field.next)
+      await input.press('Enter')
+    } else {
+      const editor = page.getByRole('dialog', { name: 'Edit username', exact: true })
+      if (field.type === 'boolean' || 'enumValues' in field) {
+        await editor.getByRole('combobox', { name: 'New value' }).click()
+        await editor
+          .getByRole('option', {
+            name: field.type === 'boolean' ? field.next : JSON.stringify(field.next),
+            exact: true,
+          })
+          .click()
+      } else {
+        const input = editor.getByLabel('New value')
+        if (field.type.startsWith('timestamp')) {
+          await input.fill('2026-11-20 13:00:00.654321')
+          await editor.getByRole('button', { name: 'Apply to draft' }).click()
+          await expect(editor.getByRole('alert')).toContainText('offset')
+        }
+        await input.fill(field.next)
+      }
+      await editor.getByRole('button', { name: 'Apply to draft' }).click()
+    }
+    await page.getByRole('button', { name: /^Changes \(1\)/ }).click()
+    const review = page.getByRole('dialog', { name: 'Review row changes', exact: true })
+    await expect(
+      review.getByRole('cell', { name: JSON.stringify(field.next), exact: true }),
+    ).toBeVisible()
+  })
+}

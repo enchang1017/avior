@@ -100,14 +100,14 @@ const scenes: Scene[] = [
         const row = page.locator('.result tr[data-row]').first()
         if (name === 'row-edit-review') {
           await row.locator('td').nth(1).dblclick()
-          const editor = page.getByRole('dialog', { name: 'Edit username', exact: true })
-          await editor.getByLabel('New value').fill('alice corrected')
-          await editor.getByRole('button', { name: 'Apply to draft' }).click()
+          const editor = page.getByRole('textbox', { name: 'Edit username', exact: true })
+          await editor.fill('alice corrected')
+          await editor.press('Enter')
           await page.getByRole('button', { name: 'Review 1 change(s)' }).click()
           await expect(page.getByRole('button', { name: 'Check again' })).toBeEnabled()
           await page
             .getByRole('dialog', { name: 'Review row changes', exact: true })
-            .locator('summary')
+            .getByRole('button', { name: 'Generated SQL · requires exactly one affected row' })
             .click()
           // Capture the review with its requested SQL preview fully mounted.
           await expect(

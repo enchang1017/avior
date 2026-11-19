@@ -213,3 +213,67 @@ func TestExpectedOneRowRejectsMultipleChanges(t *testing.T) {
 		t.Fatal("a failed write retained capture rows")
 	}
 }
+
+func TestRowCurrentLookupAndEnumEditing(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	owner := openFixtureOwner(t)
+	name := "enum_grid_" + strings.ReplaceAll(uuid.NewString(), "-", "")[:12]
+	_, err := owner.ExecContext(ctx, "CREATE TYPE public."+name+"_state AS ENUM ('','NULL','needs'' review'); CREATE TABLE public."+name+" (id bigint PRIMARY KEY, state public."+name+"_state, note text); GRANT SELECT ON public."+name+" TO avior_governed; GRANT SELECT, UPDATE, INSERT, DELETE ON public."+name+" TO avior_writer; INSERT INTO public."+name+" VALUES (1,'','original')")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_, dropErr := owner.ExecContext(ctx, "DROP TABLE public."+name+"; DROP TYPE public."+name+"_state")
+		if dropErr != nil {
+			t.Error(dropErr)
+		}
+		_ = owner.Close()
+	})
+	h := newHarnessApproving(t, sqlguard.Limits{MaxSubtreeCost: 1000, MaxEstimatedRows: 1_000_000}, writefeature.ApprovalOff)
+	developer := createOperator(t, "developer")
+	client := h.signIn(developer.username, fixturePassword)
+	status, body := h.get(client, "/schema/columns?instanceId="+fixtureInstanceID+"&database="+fixtureDatabase+"&schema=public&table="+name)
+	if status != http.StatusOK {
+		t.Fatalf("columns %d: %s", status, body)
+	}
+	var columns []gen.ColumnRef
+	h.decode(body, &columns)
+	if len(columns) != 3 || columns[1].EnumValues == nil || strings.Join(*columns[1].EnumValues, "|") != "|NULL|needs' review" {
+		t.Fatalf("enum metadata: %+v", columns)
+	}
+	original := rowSnapshotFor(t, h, client, name, "id", 1)
+	_, err = owner.ExecContext(ctx, "UPDATE public."+name+" SET note='changed' WHERE id=1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	status, body = h.post(client, "/writes/row-current-template", map[string]any{"database": fixtureDatabase, "schema": "public", "table": name, "original": original})
+	if status != http.StatusOK {
+		t.Fatalf("lookup %d: %s", status, body)
+	}
+	var template gen.WriteTemplate
+	h.decode(body, &template)
+	status, body = h.post(client, "/query/execute", map[string]any{"instanceId": fixtureInstanceID, "database": fixtureDatabase, "statement": template.Statement})
+	if status != http.StatusOK {
+		t.Fatalf("current row %d: %s", status, body)
+	}
+	var current gen.QueryResult
+	h.decode(body, &current)
+	if len(current.Rows) != 1 || current.Rows[0][2] != "changed" {
+		t.Fatalf("lookup did not find changed row: %+v", current.Rows)
+	}
+	original["note"] = "changed"
+	status, body = h.post(client, "/writes/row-template", map[string]any{"database": fixtureDatabase, "schema": "public", "table": name, "original": original, "changes": map[string]any{"state": "needs' review"}})
+	if status != http.StatusOK {
+		t.Fatalf("enum template %d: %s", status, body)
+	}
+	h.decode(body, &template)
+	request := submitWrite(t, h, client, template.Statement)
+	if request.State != gen.Applied {
+		t.Fatalf("enum write: %+v", request)
+	}
+	status, body = h.post(client, "/writes/row-template", map[string]any{"database": fixtureDatabase, "schema": "public", "table": name, "original": original, "changes": map[string]any{"state": "undeclared"}})
+	if status != http.StatusUnprocessableEntity {
+		t.Fatalf("invalid enum %d: %s", status, body)
+	}
+}

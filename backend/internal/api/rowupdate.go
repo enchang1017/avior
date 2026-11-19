@@ -40,7 +40,7 @@ func (s *Server) BuildRowUpdate(ctx context.Context, request gen.BuildRowUpdateR
 	}
 	metadata := make([]sqlguard.RowColumn, 0, len(columns))
 	for _, column := range columns {
-		metadata = append(metadata, sqlguard.RowColumn{Name: column.Name, Type: column.Type, Key: column.PrimaryKeyPosition, Generated: column.Generated, Identity: column.Identity, Nullable: column.Nullable, Denied: column.Denied})
+		metadata = append(metadata, sqlguard.RowColumn{Name: column.Name, Type: column.Type, Key: column.PrimaryKeyPosition, Generated: column.Generated, Identity: column.Identity, Nullable: column.Nullable, Denied: column.Denied, EnumValues: column.EnumValues})
 	}
 	statement, err := sqlguard.BuildRowUpdate(sqlguard.Target{Schema: body.Schema, Table: body.Table}, metadata, body.Original, body.Changes)
 	if err != nil {
@@ -51,4 +51,33 @@ func (s *Server) BuildRowUpdate(ctx context.Context, request gen.BuildRowUpdateR
 
 func rowUpdateRefusal(message string) gen.BuildRowUpdate422JSONResponse {
 	return gen.BuildRowUpdate422JSONResponse{ValidationFailedJSONResponse: gen.ValidationFailedJSONResponse{Code: "write.row_edit_unavailable", Message: message}}
+}
+
+// BuildRowLookup renders an exact-row read without accepting client SQL or keys.
+func (s *Server) BuildRowLookup(ctx context.Context, request gen.BuildRowLookupRequestObject) (gen.BuildRowLookupResponseObject, error) {
+	caller, ok := CallerFrom(ctx)
+	if !ok {
+		return gen.BuildRowLookup401JSONResponse{UnauthorizedJSONResponse: unauthorised()}, nil
+	}
+	body := request.Body
+	columns, err := s.schema.Columns(ctx, schema.Caller{UserID: caller.ID, Roles: caller.Roles}, body.Database, body.Schema, body.Table)
+	if errors.Is(err, access.ErrDatabaseNotGranted) {
+		return gen.BuildRowLookup403JSONResponse{ForbiddenJSONResponse: databaseNotGranted(body.Database)}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	metadata := make([]sqlguard.RowColumn, 0, len(columns))
+	for _, column := range columns {
+		metadata = append(metadata, sqlguard.RowColumn{Name: column.Name, Type: column.Type, Key: column.PrimaryKeyPosition, Generated: column.Generated, Identity: column.Identity, Nullable: column.Nullable, Denied: column.Denied, EnumValues: column.EnumValues})
+	}
+	statement, err := sqlguard.BuildRowLookup(sqlguard.Target{Schema: body.Schema, Table: body.Table}, metadata, body.Original)
+	if err != nil {
+		return rowLookupRefusal(err.Error()), nil
+	}
+	return gen.BuildRowLookup200JSONResponse{Statement: statement}, nil
+}
+
+func rowLookupRefusal(message string) gen.BuildRowLookup422JSONResponse {
+	return gen.BuildRowLookup422JSONResponse{ValidationFailedJSONResponse: gen.ValidationFailedJSONResponse{Code: "write.row_lookup_unavailable", Message: message}}
 }

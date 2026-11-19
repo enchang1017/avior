@@ -109,9 +109,9 @@ test('a staged table edit reaches PostgreSQL only after a second person approves
     await expect(data.getByRole('cell', { name: String(id), exact: true })).toBeVisible()
     await data.getByRole('button', { name: 'Edit rows', exact: true }).click()
     await data.locator('.result td').filter({ hasText: /^Open/u }).dblclick()
-    const edit = page.getByRole('dialog', { name: 'Edit status', exact: true })
-    await edit.getByLabel('New value').fill('Void')
-    await edit.getByRole('button', { name: 'Apply to draft' }).click()
+    const edit = page.getByRole('textbox', { name: 'Edit status', exact: true })
+    await edit.fill('Void')
+    await edit.press('Enter')
     await data.getByRole('button', { name: 'Review 1 change(s)' }).click()
     const review = page.getByRole('dialog', { name: 'Review row changes', exact: true })
     await review.getByLabel('Reason').fill('Verify a complete grid-to-approval flow')
@@ -131,7 +131,12 @@ test('a staged table edit reaches PostgreSQL only after a second person approves
     expect(((await approved.json()) as { request: { state: string } }).request.state).toBe(
       'applied',
     )
-    await data.getByRole('button', { name: 'Refresh', exact: true }).click()
+    await page.getByRole('button', { name: /^Changes \(0\).*awaiting approval/u }).click()
+    await expect(review.getByRole('region', { name: 'Submitted requests' })).toContainText(
+      'applied',
+    )
+    await review.getByRole('button', { name: 'Refresh row', exact: true }).click()
+    await expect(data).toContainText('Showing requested row')
     await expect(data.locator('.result td').filter({ hasText: /^Void/u })).toBeVisible()
   } finally {
     if (seedRequest) {

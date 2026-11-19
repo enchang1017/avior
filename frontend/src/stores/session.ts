@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
+import { resetRowWorkspace } from '@/features/query/rowWorkspace'
 
 import {
   api,
@@ -19,6 +20,12 @@ export const useSessionStore = defineStore('session', () => {
   const authMethods = ref<AuthMethods | null>(null)
   const authMethodsStatus = ref<AuthMethodsStatus>('idle')
   const authMethodsFailure = ref<Failure | null>(null)
+
+  watch(
+    () => caller.value?.id,
+    () => resetRowWorkspace(),
+    { flush: 'sync' },
+  )
 
   async function loadAuthMethods(): Promise<void> {
     authMethodsStatus.value = 'loading'
@@ -73,6 +80,7 @@ export const useSessionStore = defineStore('session', () => {
    * still accepts one, and an account carrying a secret is still held to it.
    */
   async function signIn(username: string, password: string): Promise<boolean> {
+    resetRowWorkspace()
     busy.value = true
     failure.value = null
     try {
@@ -97,6 +105,7 @@ export const useSessionStore = defineStore('session', () => {
   }
 
   async function signOut(): Promise<void> {
+    resetRowWorkspace()
     try {
       await api.POST('/auth/logout')
     } catch (thrown) {

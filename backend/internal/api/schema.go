@@ -110,6 +110,7 @@ func (s *Server) ListColumns(ctx context.Context, request gen.ListColumnsRequest
 			PrimaryKeyPosition: &column.PrimaryKeyPosition,
 			Generated:          &column.Generated,
 			Identity:           &column.Identity,
+			EnumValues:         &column.EnumValues,
 		})
 	}
 	return gen.ListColumns200JSONResponse(out), nil

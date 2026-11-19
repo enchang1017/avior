@@ -138,7 +138,7 @@ The UI follows the server's effective policy, including development deployments
 that require approval.
 
 In Data, choose **Edit rows**, then double-click a writable cell or press F2.
-**Apply to draft** changes only the local draft. **Review changes** shows each
+**Enter** or **Apply to draft** changes only the local draft. **Changes** shows each
 row's key, before/after values and generated SQL. Enter a reason and save or
 submit for approval. Every row is a separate guarded write with a before-image
 capture; successful and pending requests link to the write workflow. A row changed
@@ -153,6 +153,33 @@ views, unsupported types and arbitrary SQL results remain read-only. NULL and an
 empty string are separate choices. PostgreSQL arrays are edited as PostgreSQL
 array literals; their structured inspector is a JSON representation and **Copy
 original** retains syntax and array bounds.
+
+### Editing workflow and recovery
+
+Short text and numbers edit directly in the cell: **Enter** stages, **Esc**
+cancels, **Tab** moves to the next editable cell, and **Alt+Enter** toggles NULL
+for nullable columns. Longer text and structured values use a focused editor.
+Boolean and enum fields offer their declared choices. Date/time fields preserve
+the entered representation; zoned time requires an explicit offset. Numeric
+values remain text throughout editing, including values beyond JavaScript's
+safe integer range.
+
+The **Changes** entry stays available in both Data and SQL. It groups drafts by
+database and table and can return to the exact primary-key row without losing
+the saved page or filter. Review compares the complete original snapshot with
+the current row. If it changed, choose **Keep mine** or **Use current** for edited
+fields, then recheck. Deleted rows cannot be rebased. Each ready row is submitted
+separately; rows needing attention remain local. The final write still requires
+exactly one matching row, so another concurrent change safely fails.
+
+Submitted requests remain in the workspace while you navigate, with a link to
+Writes. Pending rows cannot be edited again until their status changes. Refresh
+statuses to see approval, failure or undo results; failed or rejected drafts can
+be restored for another review. Drafts and this convenience history are kept in
+memory for the current login, cleared on logout or reload; persisted requests
+and audit records remain available under Writes. Copy a draft before reloading
+if you need to keep unsaved work.
+
 
 ## Staging and production
 

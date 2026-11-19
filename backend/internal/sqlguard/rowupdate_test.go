@@ -107,3 +107,61 @@ func TestRowUpdateAllowsImmutableIdentityKey(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestRowLookupUsesOnlyExactTrustedKeys(t *testing.T) {
+	columns := rowColumns()
+	columns[1].Key = 2
+	original := originalRow()
+	original["note"] = rowText("quote'\\; DROP TABLE members; --")
+	statement, err := BuildRowLookup(Target{Schema: "public", Table: "members"}, columns, original)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, wanted := range []string{"9007199254740993", "quote''", "LIMIT 2"} {
+		if !strings.Contains(statement, wanted) {
+			t.Errorf("missing %q: %s", wanted, statement)
+		}
+	}
+	if strings.Contains(statement, "payload::text =") {
+		t.Fatalf("lookup must find changed rows: %s", statement)
+	}
+}
+
+func TestRowLookupRejectsUntrustedSnapshot(t *testing.T) {
+	for _, name := range []string{"no key", "null key", "missing column", "denied", "unsupported", "computed key"} {
+		t.Run(name, func(t *testing.T) {
+			columns, original := rowColumns(), originalRow()
+			switch name {
+			case "no key":
+				columns[0].Key = 0
+			case "null key":
+				original["id"] = nil
+			case "missing column":
+				delete(original, "payload")
+			case "denied":
+				columns[1].Denied = true
+			case "unsupported":
+				columns[1].Type = "bytea"
+			case "computed key":
+				columns[0].Generated = true
+			}
+			if statement, err := BuildRowLookup(Target{Schema: "public", Table: "members"}, columns, original); err == nil {
+				t.Fatalf("unsafe lookup: %s", statement)
+			}
+		})
+	}
+}
+
+func TestRowEnumValuesAreExactCatalogueLabels(t *testing.T) {
+	columns := rowColumns()
+	columns[1].Type = "public.status"
+	columns[1].EnumValues = []string{"", "NULL", "needs' review"}
+	for _, value := range []*string{nil, rowText(""), rowText("NULL"), rowText("needs' review")} {
+		if _, err := BuildRowUpdate(Target{Schema: "public", Table: "members"}, columns, originalRow(), map[string]*string{"note": value}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := BuildRowUpdate(Target{Schema: "public", Table: "members"}, columns, originalRow(), map[string]*string{"note": rowText("undeclared")}); err == nil {
+		t.Fatal("undeclared enum label accepted")
+	}
+}

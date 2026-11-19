@@ -36,22 +36,30 @@ export async function serveEditableTable(page: Page, approval = false) {
       },
     })
   })
-  await page.route('**/api/v1/query/execute', (route) =>
-    route.fulfill({
+  await page.route('**/api/v1/writes/row-current-template', async (route) => {
+    const body = route.request().postDataJSON() as { original: { id: string } }
+    await route.fulfill({ json: { statement: 'SELECT current:' + body.original.id } })
+  })
+  await page.route('**/api/v1/query/execute', (route) => {
+    const { statement } = route.request().postDataJSON() as { statement: string }
+    const rows = statement.startsWith('SELECT current:')
+      ? records.filter((row) => row[0] === statement.slice('SELECT current:'.length))
+      : records.slice(offset, offset + limit)
+    return route.fulfill({
       json: {
         columns: names.map((name) => ({
           name,
           type: name === 'id' ? 'int8' : name === 'payload' ? 'jsonb' : 'text',
         })),
-        rows: records.slice(offset, offset + limit),
-        rowCount: Math.min(limit, records.length - offset),
+        rows,
+        rowCount: rows.length,
         elapsedMs: 2,
         auditId: 'grid-audit',
         truncated: false,
         limits: { maxCost: 50, maxRows: 1000 },
       },
-    }),
-  )
+    })
+  })
   await page.route('**/api/v1/writes/row-template', async (route) => {
     const body = route.request().postDataJSON() as {
       original: Record<string, string | null>

@@ -1870,6 +1870,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/writes/row-current-template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Generate a guarded SELECT for the exact primary key of a staged row */
+        post: operations["buildRowLookup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/writes/row-template": {
         parameters: {
             query?: never;
@@ -2766,6 +2783,8 @@ export interface components {
             generated?: boolean;
             /** @description An identity column. Expression-generated primary keys make a table read-only in the grid. */
             identity?: boolean;
+            /** @description Exact PostgreSQL enum labels in declared order; empty or absent for other types. */
+            enumValues?: string[];
         };
         /**
          * @description The five types the predecessor's Database Objects menu offers. The allowlist is
@@ -2994,6 +3013,14 @@ export interface components {
         WriteRequestState: "pending" | "rejected" | "withdrawn" | "applied" | "failed";
         /** @enum {string} */
         WriteKind: "insert" | "update" | "delete";
+        RowLookupRequest: {
+            database: string;
+            schema: string;
+            table: string;
+            original: {
+                [key: string]: string | null;
+            };
+        };
         RowUpdateRequest: {
             database: string;
             schema: string;
@@ -6260,6 +6287,33 @@ export interface operations {
                     "application/json": components["schemas"]["WriteRefusal"];
                 };
             };
+        };
+    };
+    buildRowLookup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RowLookupRequest"];
+            };
+        };
+        responses: {
+            /** @description A full-row SELECT to execute through the existing read guard and audit */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WriteTemplate"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["ValidationFailed"];
         };
     };
     buildRowUpdate: {

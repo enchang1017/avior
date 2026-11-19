@@ -1,7 +1,17 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import {
+  computed,
+  defineAsyncComponent,
+  provide,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  watch,
+} from 'vue'
 
 import GuardChip from './GuardChip.vue'
+import { createRowWorkspace, rowWorkspaceKey } from './rowWorkspace'
+import type { RowDraft } from './useRowEdits'
 import { readRules } from './guardRules'
 import SqlEditor from './SqlEditor.vue'
 import { maxTabs, useEditorTabs } from './useEditorTabs'
@@ -51,6 +61,9 @@ watch(
 const GuardVerdictPanel = lazy(() => import('./GuardVerdictPanel.vue'), 'Loading the plan')
 
 const session = useSessionStore()
+const rowBridge = createRowWorkspace(session.caller?.id ?? '', session.caller?.instance.id ?? '')
+provide(rowWorkspaceKey, rowBridge)
+const RowEditWorkspace = lazy(() => import('./RowEditWorkspace.vue'), 'Loading pending changes')
 
 /**
  * The deployment names itself, and the server it governs, on the current user.
@@ -75,7 +88,11 @@ const instanceId = session.caller?.instance.id ?? ''
 
 const vim = useVimMode()
 const browser = useSchemaBrowser(instanceId)
-watch(workspaceMode, (mode) => {
+watch(workspaceMode, (mode, before) => {
+  if (before === 'data' && rowBridge.flush && !rowBridge.flush()) {
+    workspaceMode.value = before
+    return
+  }
   if (mode === 'sql' && browser.database.value !== editorTabs.active.value.database) {
     void browser.chooseDatabase(editorTabs.active.value.database)
   }
@@ -223,9 +240,22 @@ async function insert(): Promise<void> {
  * Table selection opens the Data workspace without touching a SQL draft.
  * SQL generation is an explicit action that preserves every nonempty draft.
  */
+async function chooseDatabase(database: string | null): Promise<void> {
+  if (rowBridge.flush && !rowBridge.flush()) return
+  await browser.chooseDatabase(database)
+}
 async function chooseTable(next: TableRef | null): Promise<void> {
+  if (rowBridge.flush && !rowBridge.flush()) return
   if (next !== null) workspaceMode.value = 'data'
   await browser.chooseTable(next)
+}
+
+rowBridge.navigate = async (row: RowDraft) => {
+  if (rowBridge.flush && !rowBridge.flush()) return
+  workspaceMode.value = 'data'
+  if (browser.database.value !== row.database) await browser.chooseDatabase(row.database)
+  await browser.chooseTable({ schema: row.schema, name: row.table, kind: 'table' })
+  rowBridge.focus.value = row
 }
 
 useRouteTarget(browser, chooseTable)
@@ -337,7 +367,7 @@ onBeforeUnmount(() => {
       :descending="browser.descending.value"
       :orderable-columns="browser.orderableColumns.value"
       :temporal-columns="browser.temporalColumns.value"
-      @choose-database="browser.chooseDatabase"
+      @choose-database="chooseDatabase"
       @choose-table="chooseTable"
       @order-by="orderBy"
       @toggle-direction="toggleDirection"
@@ -366,6 +396,7 @@ onBeforeUnmount(() => {
           ]"
           label="Query workspace"
         />
+        <RowEditWorkspace v-if="dataOpened || rowBridge.state.value" />
         <span class="ml-auto font-mono text-xs text-fg-muted"
           >{{ instanceName }} / {{ browser.database.value ?? 'Choose database' }}</span
         >

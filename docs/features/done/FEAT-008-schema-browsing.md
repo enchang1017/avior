@@ -221,3 +221,34 @@ native dialog focus behavior.
 - Drafts survive paging, filtering, table/database changes and switching to SQL
   within the workspace. Leaving/reloading a workspace with drafts warns before
   discarding them. No row data is persisted to browser storage.
+
+## Developer editing workflow refinement
+
+- Short text and numeric cells edit in place. Enter stages, Escape cancels, and
+  Tab/Shift+Tab stage and move between writable cells. Invalid input remains
+  editable with an announced error. No key submits a database write. Unapplied
+  input is retained across navigation or explicitly confirmed before discard.
+- A persistent Changes entry is available in both Data and SQL. Drafts are
+  grouped by database and table, with row keys, per-row revert, and a return-to-row
+  action that loads the exact primary key without losing the table's page/filter.
+- Conflicts expose original, latest readable database values, and the draft.
+  Concurrently changed edited fields require an explicit keep-mine/use-current
+  choice. Rebase adopts the latest complete snapshot, invalidates prior SQL and
+  guard checks, and requires a fresh review. Deleted rows cannot be rebased.
+  Lookup and recheck use the existing read guard and audit. No conflict action
+  bypasses expected-one-row transactional enforcement or permission checks.
+- Boolean and enum values use explicit options, including exact enum labels.
+  Dates offer a calendar when their representation is supported. Time and timestamp
+  editors explain timezone semantics and preserve fractional seconds; zoned input
+  requires an explicit offset. Numbers preserve every digit, scale and exponent.
+  NULL stays a separate choice from an empty string or false.
+- Submitted requests remain visible in Query. Refresh and visibility-aware polling
+  report pending/applied/rejected/failed/undone states. Failure or rejection restores
+  the submitted draft unless a newer local edit must be retained separately.
+  Applied results offer exact-row refresh. No drafts or row data enter localStorage.
+- Read-only explanations name the blocker and a concrete next step, including
+  writer setup documentation, missing keys, restricted columns, unsupported types,
+  generated keys, and selecting all columns.
+- Acceptance includes an independent sub-agent review in the role of a developer,
+  with concrete findings corrected and re-reviewed until no known actionable UX
+  issue remains. Review findings and outcomes are recorded in the PR.
