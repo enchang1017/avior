@@ -103,10 +103,13 @@ func (s *Server) ListColumns(ctx context.Context, request gen.ListColumnsRequest
 	out := make([]gen.ColumnRef, 0, len(columns))
 	for _, column := range columns {
 		out = append(out, gen.ColumnRef{
-			Name:     column.Name,
-			Type:     column.Type,
-			Nullable: column.Nullable,
-			Denied:   column.Denied,
+			Name:               column.Name,
+			Type:               column.Type,
+			Nullable:           column.Nullable,
+			Denied:             column.Denied,
+			PrimaryKeyPosition: &column.PrimaryKeyPosition,
+			Generated:          &column.Generated,
+			Identity:           &column.Identity,
 		})
 	}
 	return gen.ListColumns200JSONResponse(out), nil

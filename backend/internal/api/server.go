@@ -546,6 +546,7 @@ func (s *Server) GetCurrentUser(ctx context.Context, _ gen.GetCurrentUserRequest
 }
 
 func (s *Server) toCurrentUser(caller identity.Caller) gen.CurrentUser {
+	approvalRequired := s.writes != nil && s.writes.ApprovalRequired()
 	roles := make([]gen.CurrentUserRoles, 0, len(caller.Roles))
 	for _, role := range caller.Roles {
 		roles = append(roles, gen.CurrentUserRoles(role))
@@ -560,7 +561,8 @@ func (s *Server) toCurrentUser(caller identity.Caller) gen.CurrentUser {
 		// False where the write path is not configured at all, which is the
 		// same answer as "you cannot approve your own": there is nothing to
 		// approve.
-		SelfApproval: s.writes != nil && s.writes.SelfApprovalAllowed(),
+		SelfApproval:          s.writes != nil && s.writes.SelfApprovalAllowed(),
+		WriteApprovalRequired: &approvalRequired,
 		Instance: gen.GovernedInstance{
 			Id:   s.defaults.InstanceID,
 			Name: s.defaults.InstanceName,

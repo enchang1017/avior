@@ -3,14 +3,14 @@
 -- name: InsertWriteRequest :one
 INSERT INTO write_request (
     id, database, statement, kind, target_table, reason,
-    requested_by, estimated_rows, state, rollback_of
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', sqlc.narg(rollback_of))
+    requested_by, estimated_rows, state, rollback_of, expected_affected_rows
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', sqlc.narg(rollback_of), sqlc.narg(expected_affected_rows))
 RETURNING id, requested_at;
 
 -- name: GetWriteRequest :one
 SELECT r.id, r.database, r.statement, r.kind, r.target_table, r.reason,
        r.requested_by, requester.username AS requester_name, r.requested_at,
-       r.estimated_rows, r.state,
+       r.estimated_rows, r.state, r.expected_affected_rows,
        r.decided_by, decider.username AS decider_name, r.decided_at, r.decision_note,
        r.ran_at, r.affected_rows, r.duration_ms, r.error,
        r.capture_rows, r.reverse_statement,
@@ -30,7 +30,7 @@ WHERE r.id = $1;
 -- two places for the ordering and the joins to drift.
 SELECT r.id, r.database, r.statement, r.kind, r.target_table, r.reason,
        r.requested_by, requester.username AS requester_name, r.requested_at,
-       r.estimated_rows, r.state,
+       r.estimated_rows, r.state, r.expected_affected_rows,
        r.decided_by, decider.username AS decider_name, r.decided_at, r.decision_note,
        r.ran_at, r.affected_rows, r.duration_ms, r.error,
        r.capture_rows, r.reverse_statement,
@@ -90,7 +90,7 @@ WHERE id = $1;
 -- pruning job, and the ordering serves the ordinary one.
 SELECT r.id, r.database, r.statement, r.kind, r.target_table, r.reason,
        r.requested_by, requester.username AS requester_name, r.requested_at,
-       r.estimated_rows, r.state,
+       r.estimated_rows, r.state, r.expected_affected_rows,
        r.decided_by, decider.username AS decider_name, r.decided_at, r.decision_note,
        r.ran_at, r.affected_rows, r.duration_ms, r.error,
        r.capture_rows, r.reverse_statement,

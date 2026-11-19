@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
-import { cellValue } from './cellValue'
+import { lazy } from '@/shared/lazy'
+
+const VJsonView = lazy(
+  () => import('@/components/Data/VJsonView/VJsonView.vue'),
+  'Loading JSON viewer',
+)
+
+import { arrayColumn, cellValue } from './cellValue'
 import { rowWindow } from './rowWindow'
 import { playScan } from './scan'
 import type { QueryResult } from '@/shared/api'
@@ -17,26 +24,51 @@ import { VBadge, VButton, VDialog, VIcon, VInput, VTable } from '@/components'
  * through the guard.
  */
 const props = withDefaults(
-  defineProps<{ result: QueryResult; animate?: boolean; offset?: number }>(),
+  defineProps<{
+    result: QueryResult
+    animate?: boolean
+    offset?: number
+    editableColumns?: string[]
+    drafts?: Record<string, string | null>
+  }>(),
   {
     animate: true,
     offset: 0,
+    editableColumns: () => [],
+    drafts: () => ({}),
   },
 )
 
+const emit = defineEmits<{ edit: [row: number, column: number] }>()
 const filter = ref('')
-const cellDetail = ref<{ title: string; value: ReturnType<typeof cellValue> } | null>(null)
+const cellDetail = ref<{
+  title: string
+  value: ReturnType<typeof cellValue>
+  json: boolean
+  array: boolean
+} | null>(null)
 const copyStatus = ref('')
 function showCell(value: ReturnType<typeof cellValue>, column: number): void {
   if (!value.copyable) return
-  cellDetail.value = { title: props.result.columns[column]?.name ?? 'Cell value', value }
+  cellDetail.value = {
+    title: props.result.columns[column]?.name ?? 'Cell value',
+    array: arrayColumn(props.result.columns[column]?.type ?? ''),
+    value,
+    json:
+      value.kind === 'JSON / array' || /^jsonb?$/iu.test(props.result.columns[column]?.type ?? ''),
+  }
   copyStatus.value = ''
 }
 function focusCell(event: MouseEvent): void {
   if (event.target instanceof Element && event.target.closest('button')) return
   ;(event.currentTarget as HTMLElement).focus({ preventScroll: true })
 }
-function cellKey(event: KeyboardEvent, value: ReturnType<typeof cellValue>, column: number): void {
+function cellKey(
+  event: KeyboardEvent,
+  value: ReturnType<typeof cellValue>,
+  column: number,
+  row: number,
+): void {
   if (event.target !== event.currentTarget) return
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'c') {
     // Native text selections keep their normal copy behavior.
@@ -45,18 +77,24 @@ function cellKey(event: KeyboardEvent, value: ReturnType<typeof cellValue>, colu
     void copyValue(value)
     return
   }
+  if (event.key === 'F2' && editable(column)) {
+    event.preventDefault()
+    emit('edit', row, column)
+    return
+  }
   if (event.key === 'Enter') {
     event.preventDefault()
     showCell(value, column)
     return
   }
   const cell = event.currentTarget as HTMLTableCellElement
-  const row = cell.parentElement as HTMLTableRowElement
+  const elementRow = cell.parentElement as HTMLTableRowElement
   let next: Element | null | undefined
   if (event.key === 'ArrowLeft') next = cell.previousElementSibling
   else if (event.key === 'ArrowRight') next = cell.nextElementSibling
-  else if (event.key === 'ArrowUp') next = row.previousElementSibling?.children[cell.cellIndex]
-  else if (event.key === 'ArrowDown') next = row.nextElementSibling?.children[cell.cellIndex]
+  else if (event.key === 'ArrowUp')
+    next = elementRow.previousElementSibling?.children[cell.cellIndex]
+  else if (event.key === 'ArrowDown') next = elementRow.nextElementSibling?.children[cell.cellIndex]
   else return
   event.preventDefault()
   if (
@@ -108,9 +146,28 @@ function onScroll(): void {
   scrollTop.value = scroller.value?.scrollTop ?? 0
 }
 
+function editable(column: number): boolean {
+  const metadata = props.result.columns[column]
+  return metadata !== undefined && !metadata.masked && props.editableColumns.includes(metadata.name)
+}
+function draftKey(row: number, column: number): string {
+  return row + ':' + (props.result.columns[column]?.name ?? '')
+}
+function dirty(row: number, column: number): boolean {
+  return Object.prototype.hasOwnProperty.call(props.drafts, draftKey(row, column))
+}
+function edit(row: number, column: number): void {
+  if (editable(column)) emit('edit', row, column)
+}
+
 const rows = computed(() =>
   props.result.rows.map((values, index) => {
-    const cells = values.map((cell, index) => cellValue(cell, props.result.columns[index]))
+    const cells = values.map((cell, column) =>
+      cellValue(
+        dirty(index, column) ? props.drafts[draftKey(index, column)] : cell,
+        props.result.columns[column],
+      ),
+    )
     return {
       ordinal: index + 1 + props.offset,
       cells,
@@ -245,7 +302,9 @@ function quote(value: string): string {
         copyStatus
       }}</span>
       <div class="flex-1" />
-      <VButton size="sm" variant="bare" icon="download" @click="downloadCsv">Export</VButton>
+      <VButton size="sm" variant="bare" icon="download" @click="downloadCsv">
+        <span>{{ Object.keys(props.drafts).length ? 'Export saved rows' : 'Export' }}</span>
+      </VButton>
     </div>
 
     <div
@@ -295,9 +354,11 @@ function quote(value: string): string {
             :key="i"
             :class="{
               'nul text-fg-muted italic': cell.special && cell.kind !== 'Masked',
-              'pr-20': cell.expandable,
+              'pr-10': cell.expandable && !editable(i),
+              'pr-20': editable(i),
+              'bg-warn-bg': dirty(row.ordinal - 1 - props.offset, i),
             }"
-            class="relative cursor-text focus:outline-2 focus:-outline-offset-2 focus:outline-primary"
+            class="group relative cursor-text focus:outline-2 focus:-outline-offset-2 focus:outline-primary"
             :tabindex="row.ordinal === drawn[0]?.ordinal && i === 0 ? 0 : -1"
             v-bind="cell.special ? { 'aria-label': cell.kind } : {}"
             :title="
@@ -308,18 +369,34 @@ function quote(value: string): string {
                   : 'NULL: no stored value. Use arrow keys to move.'
             "
             @click="focusCell"
-            @keydown="cellKey($event, cell, i)"
+            @keydown="cellKey($event, cell, i, row.ordinal - 1 - props.offset)"
+            @dblclick="edit(row.ordinal - 1 - props.offset, i)"
           >
             {{ cell.preview }}
             <VButton
               v-if="cell.expandable"
               variant="bare"
               size="sm"
-              class="absolute top-0 right-0"
-              :aria-label="'Expand ' + (props.result.columns[i]?.name ?? 'cell')"
+              class="absolute top-0 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-100"
+              :class="editable(i) ? 'right-10' : 'right-0'"
+              icon="expand"
+              title="Inspect value (Enter)"
+              :aria-label="'Inspect ' + (props.result.columns[i]?.name ?? 'cell')"
               @click.stop="showCell(cell, i)"
             >
-              <span>Expand</span>
+              <span class="sr-only">Inspect value</span>
+            </VButton>
+            <VButton
+              v-if="editable(i)"
+              variant="bare"
+              size="sm"
+              icon="file-pen"
+              class="absolute top-0 right-0 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-100"
+              :aria-label="'Edit ' + props.result.columns[i]?.name"
+              title="Edit value (F2 or double-click)"
+              @click.stop="edit(row.ordinal - 1 - props.offset, i)"
+            >
+              <span class="sr-only">Edit value</span>
             </VButton>
           </td>
         </tr>
@@ -340,12 +417,15 @@ function quote(value: string): string {
       <p v-if="cellDetail?.value.kind !== 'Value'" class="mt-0 text-xs text-fg-muted">
         {{ cellDetail?.value.kind }}
       </p>
-      <pre class="m-0 overflow-auto font-mono text-sm break-words whitespace-pre-wrap">{{
+      <VJsonView v-if="cellDetail?.json" :value="cellDetail.value.raw" :array="cellDetail.array" />
+      <pre v-else class="m-0 overflow-auto font-mono text-sm break-words whitespace-pre-wrap">{{
         cellDetail?.value.detail
       }}</pre>
       <template #footer>
         <span class="text-xs text-fg-muted" role="status">{{ copyStatus }}</span
-        ><VButton @click="cellDetail && copyValue(cellDetail.value)">Copy value</VButton>
+        ><VButton @click="cellDetail && copyValue(cellDetail.value)">
+          <span>{{ cellDetail?.json ? 'Copy original' : 'Copy value' }}</span>
+        </VButton>
       </template>
     </VDialog>
   </section>

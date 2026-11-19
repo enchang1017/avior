@@ -596,3 +596,18 @@ cannot even connect to. The role itself is made once per cluster by
 
 - **No batches.** One statement per request, so a change needing three
   statements is three requests and three approvals.
+
+### Expected row count for staged grid edits
+
+A write submission may require exactly one affected row. The requirement is
+stored with the request and checked inside the capture transaction, both for
+immediate execution and later approval. Zero or multiple rows roll back the write
+and its capture, record a failed request, and return a conflict message. Ordinary
+SQL submissions without this option keep their existing multi-row semantics.
+
+Captures retain complete rows including generated and identity fields. UPDATE
+undo restores assignable stored columns and lets generated expressions recompute;
+always-generated identity values remain unchanged. DELETE undo restores stored
+columns with explicit identity values using OVERRIDING SYSTEM VALUE and lets
+computed columns regenerate. The original primary key and captured before-image
+still identify the row.

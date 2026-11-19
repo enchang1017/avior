@@ -371,3 +371,19 @@ func assertDeniedUnder(t *testing.T, verdict Verdict, rule Rule) {
 	}
 	t.Fatalf("denied under %v, want %q", verdict.Reasons, rule)
 }
+
+func TestWriteGuardRefusesUpdatesThatCannotRestoreGeneratedIdentity(t *testing.T) {
+	for _, computedKey := range []bool{false, true} {
+		planner := newFake()
+		if computedKey {
+			planner.shape.Generated = []string{"member_id"}
+		} else {
+			planner.shape.IdentityAlways = []string{"login_name"}
+		}
+		got, err := NewWriteGuard(planner).Evaluate(context.Background(), WriteRequest{Database: "aviorfixture", Statement: anUpdate})
+		if err != nil {
+			t.Fatal(err)
+		}
+		assertDeniedUnder(t, got.Verdict, RuleIrreversibleWrite)
+	}
+}

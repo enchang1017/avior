@@ -183,3 +183,41 @@ closes when a new result arrives so it cannot show a previous page's value.
 Frontend coverage: `cellValue.spec.ts`, `ResultGrid.spec.ts` and
 `cells focus quietly, expand deliberately and copy exact values` in
 `frontend/e2e/result-cell.spec.ts`.
+
+## Staged table edits and structured inspection
+
+The workspace serves developers checking production records and correcting local
+fixtures. Dense rows remain the focal surface: existing neutral surfaces,
+monospace values, amber targeting and blue focus are retained. Inspection uses
+an icon with a named tooltip; pending edits use the existing warning tone and a
+separate review step. Controls retain the shared four-pixel spacing rhythm and
+native dialog focus behavior.
+
+- Inspect structured cells with a lazily loaded Tree/Code viewer. Original,
+  formatted and selected-path copies are separate actions. JSON numeric tokens
+  retain their precision via lossless-json. A compact native tree provides
+  selection and search; CodeMirror provides JSON syntax, folding, search and
+  editing. The tree bounds rendering to 500 fields and 64 levels; Code retains
+  the complete document. Malformed JSON falls back to plain text or editable Code.
+- Editing changes existing rows of an ordinary table with a complete readable
+  primary key. All columns must be selected and readable. Views, arbitrary SQL
+  results, primary keys, generated/identity columns and unsupported types remain
+  read-only. Tables with expression-generated primary keys are read-only.
+  Unsupported metadata explains why editing is unavailable.
+- Double-click or F2 edits a writable cell; edits are staged in memory. NULL is
+  an explicit choice, distinct from an empty string. Applying the cell editor
+  changes no database data.
+- Review lists before/after values, generated SQL and a required reason. Long
+  values scroll while review actions remain reachable; SQL previews mount on
+  expansion. Each
+  row is a separate guarded write and may have its own outcome. Applied or
+  queued rows leave the draft; failed rows remain available to correct/revert.
+- The generated UPDATE compares the full original row, including NULL values,
+  and targets its primary key. Exactly one affected row is required, checked
+  inside the capture transaction. A conflict rolls back both change and capture,
+  including when a queued production request is approved later.
+- The existing deployment approval policy decides Save versus Submit for
+  approval. Backup, audit, permissions and write preparation remain enforced.
+- Drafts survive paging, filtering, table/database changes and switching to SQL
+  within the workspace. Leaving/reloading a workspace with drafts warns before
+  discarding them. No row data is persisted to browser storage.

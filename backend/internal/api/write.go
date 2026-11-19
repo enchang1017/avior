@@ -36,6 +36,7 @@ type WriteService interface {
 	// SelfApprovalAllowed reports whether the author of a request may be the
 	// one who decides it. The page draws or withholds a control on the answer.
 	SelfApprovalAllowed() bool
+	ApprovalRequired() bool
 }
 
 // SubmitWriteRequest records a request, and runs it where approval is off.
@@ -52,10 +53,11 @@ func (s *Server) SubmitWriteRequest(
 	}
 
 	stored, err := s.writes.Submit(ctx, write.Submission{
-		Database:  request.Body.Database,
-		Statement: request.Body.Statement,
-		Reason:    request.Body.Reason,
-		Requester: caller,
+		Database:             request.Body.Database,
+		ExpectedAffectedRows: request.Body.ExpectedAffectedRows,
+		Statement:            request.Body.Statement,
+		Reason:               request.Body.Reason,
+		Requester:            caller,
 	})
 	if err != nil {
 		var refusal *write.RefusalError

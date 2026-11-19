@@ -187,7 +187,8 @@ WITH target AS (
     LIMIT 1
 )
 SELECT a.attname,
-       a.attnum = ANY (coalesce((SELECT conkey FROM chosen), '{}'::smallint[])) AS is_key
+       a.attnum = ANY (coalesce((SELECT conkey FROM chosen), '{}'::smallint[])) AS is_key,
+       a.attgenerated <> '' AS is_generated, a.attidentity = 'a' AS identity_always
 FROM pg_catalog.pg_attribute a
 WHERE a.attrelid = (SELECT oid FROM target)
   AND a.attnum > 0 AND NOT a.attisdropped
@@ -221,11 +222,17 @@ func (p *PostgresPlanner) Shape(
 	shape := sqlguard.TableShape{Key: []string{}, Columns: []string{}}
 	for rows.Next() {
 		var column string
-		var isKey bool
-		if err := rows.Scan(&column, &isKey); err != nil {
+		var isKey, generated, identityAlways bool
+		if err := rows.Scan(&column, &isKey, &generated, &identityAlways); err != nil {
 			return sqlguard.TableShape{}, fmt.Errorf("read the table shape: %w", err)
 		}
 		shape.Columns = append(shape.Columns, column)
+		if generated {
+			shape.Generated = append(shape.Generated, column)
+		}
+		if identityAlways {
+			shape.IdentityAlways = append(shape.IdentityAlways, column)
+		}
 		if isKey {
 			shape.Key = append(shape.Key, column)
 		}

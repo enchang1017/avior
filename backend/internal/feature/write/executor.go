@@ -32,10 +32,11 @@ func NewPostgresExecutor(target *pgtarget.Target) *PostgresExecutor {
 
 // RunRequest is one approved write, ready to run.
 type RunRequest struct {
-	RequestID string
-	Database  string
-	Statement string
-	Kind      sqlguard.WriteKind
+	ExpectedAffectedRows *int64
+	RequestID            string
+	Database             string
+	Statement            string
+	Kind                 sqlguard.WriteKind
 	// Table is schema-qualified, as the plan resolved it.
 	Table string
 }
@@ -147,6 +148,10 @@ func (e *PostgresExecutor) Run(ctx context.Context, req RunRequest) (_ RunResult
 	if err := tx.QueryRowContext(ctx, capturedCount, req.RequestID, direction).
 		Scan(&rows); err != nil {
 		return RunResult{}, fmt.Errorf("count the capture: %w", pgtarget.Classify(err))
+	}
+
+	if req.ExpectedAffectedRows != nil && rows != *req.ExpectedAffectedRows {
+		return RunResult{}, fmt.Errorf("write conflict: expected %d row, found %d; reload the row and review your changes", *req.ExpectedAffectedRows, rows)
 	}
 
 	if err := tx.Commit(); err != nil {

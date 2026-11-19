@@ -57,7 +57,7 @@ test('cells focus quietly, expand deliberately and copy exact values', async ({ 
   await expect(cell(0).getByRole('button')).toHaveCount(0)
   await page.keyboard.press('Control+c')
   await expect.poll(() => page.evaluate(() => localStorage.getItem('test.clipboard'))).toBe('short')
-  await cell(1).getByRole('button', { name: 'Expand value', exact: true }).click()
+  await cell(1).getByRole('button', { name: 'Inspect value', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'value', exact: true })
   await expect(dialog.locator('pre')).toHaveText(long)
   await dialog.getByRole('button', { name: 'Copy value' }).click()
@@ -96,7 +96,7 @@ test('cells focus quietly, expand deliberately and copy exact values', async ({ 
   await page.locator('.result input[type="search"]').fill('find-this-tail')
   await expect(rows).toHaveCount(1)
   await expect(
-    rows.first().getByRole('button', { name: 'Expand value', exact: true }),
+    rows.first().getByRole('button', { name: 'Inspect value', exact: true }),
   ).toBeVisible()
 })
 

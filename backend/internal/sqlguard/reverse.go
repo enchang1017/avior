@@ -2,6 +2,7 @@ package sqlguard
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -71,6 +72,9 @@ func BuildReverse(target ReverseTarget) (string, error) {
 
 	switch target.Kind {
 	case WriteDelete:
+		if len(target.Shape.Generated) > 0 || len(target.Shape.IdentityAlways) > 0 {
+			return restoreInsert(target, table, rowOf)
+		}
 		// The rows were removed, so putting them back names nothing that is
 		// there. This is the only one of the three that needs no key.
 		return fmt.Sprintf(
@@ -151,12 +155,9 @@ func keyMatch(shape TableShape, rowOf string) (string, error) {
 	return strings.Join(parts, "\n  AND "), nil
 }
 
-// restoreAssignments renders the SET clause putting every column back.
-//
-// Every column, not only the ones the original statement wrote. The capture
-// holds the whole row, and a restore that assigned a subset would leave the row
-// in a state it was never in — half of what it was and half of what somebody
-// changed it to.
+// restoreAssignments restores all assignable stored columns, not only the
+// fields the original statement wrote. Generated expressions recompute and
+// always-generated identities retain their current value.
 func restoreAssignments(shape TableShape, rowOf string) (string, error) {
 	if len(shape.Columns) == 0 {
 		return "", fmt.Errorf("sqlguard: the table names no column to restore")
@@ -166,8 +167,14 @@ func restoreAssignments(shape TableShape, rowOf string) (string, error) {
 		if err := checkIdentifier("column", column); err != nil {
 			return "", err
 		}
+		if slices.Contains(shape.Generated, column) || slices.Contains(shape.IdentityAlways, column) {
+			continue
+		}
 		name := quoteIdentifier(column)
 		parts = append(parts, fmt.Sprintf("%s = %s.%s", name, rowOf, name))
+	}
+	if len(parts) == 0 {
+		return "", fmt.Errorf("sqlguard: no writable column to restore")
 	}
 	return strings.Join(parts, ",\n    "), nil
 }
@@ -187,4 +194,29 @@ func qualifiedName(table string) (string, error) {
 		rendered = append(rendered, quoteIdentifier(part))
 	}
 	return strings.Join(rendered, "."), nil
+}
+
+// Restore stored values without assigning generated expressions. Identity
+// values are restored explicitly so deleting and undoing keeps row identities.
+func restoreInsert(target ReverseTarget, table, rowOf string) (string, error) {
+	columns, values := []string{}, []string{}
+	for _, column := range target.Shape.Columns {
+		if err := checkIdentifier("column", column); err != nil {
+			return "", err
+		}
+		if slices.Contains(target.Shape.Generated, column) {
+			continue
+		}
+		name := quoteIdentifier(column)
+		columns = append(columns, name)
+		values = append(values, rowOf+"."+name)
+	}
+	if len(columns) == 0 {
+		return "", fmt.Errorf("sqlguard: no stored column to restore")
+	}
+	override := ""
+	if len(target.Shape.IdentityAlways) > 0 {
+		override = " OVERRIDING SYSTEM VALUE"
+	}
+	return fmt.Sprintf("INSERT INTO %s (%s)%s\nSELECT %s\nFROM %s r\nWHERE r.request_id = '%s' AND r.direction = 'before'\nORDER BY r.ordinal;", table, strings.Join(columns, ", "), override, strings.Join(values, ", "), captureTable, target.RequestID), nil
 }
