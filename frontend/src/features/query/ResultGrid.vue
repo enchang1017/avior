@@ -379,7 +379,7 @@ function quote(value: string): string {
               size="sm"
               class="absolute top-0 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-100"
               :class="editable(i) ? 'right-10' : 'right-0'"
-              icon="expand"
+              icon="eye"
               title="Inspect value (Enter)"
               :aria-label="'Inspect ' + (props.result.columns[i]?.name ?? 'cell')"
               @click.stop="showCell(cell, i)"
