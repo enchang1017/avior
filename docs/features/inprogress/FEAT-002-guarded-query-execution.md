@@ -319,3 +319,16 @@ What replaces them:
   depends on whether `ANALYZE` has run. On a governed production database that is
   usually fine; on a freshly restored one it is not. Whether the guard should
   refuse to decide when a relation has no statistics is an open question.
+
+## Exact integer results
+
+The browser opts in with `X-Avior-Exact-Integers: true`. PostgreSQL bigint
+values outside JavaScript's exact integer range
+(-9007199254740991 through 9007199254740991) are returned as decimal strings.
+Smaller integers remain JSON numbers. Calls without this header, including MCP,
+retain the existing numeric representation. Column metadata continues to identify the
+PostgreSQL type; this avoids rounding identifiers before the result grid can
+show or copy them. Numeric text keeps its original precision and scale.
+
+Acceptance: `large bigint values survive the JSON response exactly` in
+`query_feature_test.go`.

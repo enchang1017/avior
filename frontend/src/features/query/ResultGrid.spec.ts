@@ -1,4 +1,4 @@
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import ResultGrid from './ResultGrid.vue'
@@ -25,6 +25,72 @@ function result(overrides: Partial<QueryResult> = {}): QueryResult {
 }
 
 describe('ResultGrid', () => {
+  const inspector = {
+    props: ['open', 'title'],
+    template: '<section v-if="open" data-inspector><slot /><slot name="footer" /></section>',
+  }
+
+  it('does not open an inspector on a single click, but Enter remains available', async () => {
+    const wrapper = mount(ResultGrid, {
+      props: { result: result() },
+      global: { stubs: { VDialog: inspector } },
+    })
+    const cell = wrapper.findAll('tbody td')[1]
+    await cell?.trigger('click')
+    expect(wrapper.find('[data-inspector]').exists()).toBe(false)
+    await cell?.trigger('keydown', { key: 'Enter' })
+    expect(wrapper.get('[data-inspector]').text()).toContain('alice')
+    await wrapper.setProps({ result: result({ auditId: 'next-result' }) })
+    expect(wrapper.find('[data-inspector]').exists()).toBe(false)
+  })
+
+  it('copies complete content rather than its preview and reports clipboard failure', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    vi.stubGlobal('navigator', { clipboard: { writeText } })
+    const value = 'long '.repeat(100)
+    const wrapper = mount(ResultGrid, { props: { result: result({ rows: [[1, value]] }) } })
+    const cell = wrapper.findAll('tbody td')[1]
+    await cell?.trigger('keydown', { key: 'c', ctrlKey: true })
+    await flushPromises()
+    expect(writeText).toHaveBeenCalledWith(value)
+    writeText.mockRejectedValueOnce(new Error('blocked'))
+    await cell?.trigger('keydown', { key: 'c', metaKey: true })
+    await flushPromises()
+    expect(wrapper.text()).toContain('Clipboard unavailable')
+    vi.unstubAllGlobals()
+  })
+
+  it('does not copy masked or NULL values and never renders the hidden source', async () => {
+    const writeText = vi.fn()
+    vi.stubGlobal('navigator', { clipboard: { writeText } })
+    const wrapper = mount(ResultGrid, {
+      props: {
+        result: result({
+          columns: [
+            { name: 'secret', type: 'text', masked: true },
+            { name: 'missing', type: 'text' },
+          ],
+          rows: [['hidden-source', null]],
+        }),
+      },
+    })
+    for (const cell of wrapper.findAll('tbody td'))
+      await cell.trigger('keydown', { key: 'c', ctrlKey: true })
+    expect(writeText).not.toHaveBeenCalled()
+    expect(wrapper.text()).not.toContain('hidden-source')
+    expect(wrapper.text()).toContain('NULL has no value to copy')
+    vi.unstubAllGlobals()
+  })
+
+  it('searches full values beyond the preview', async () => {
+    const wrapper = mount(ResultGrid, {
+      props: { result: result({ rows: [[1, 'x'.repeat(100) + 'needle']] }) },
+    })
+    await wrapper.find('input').setValue('needle')
+    expect(wrapper.findAll('tr[data-row]')).toHaveLength(1)
+    expect(wrapper.findAll('tbody td')[1]?.text()).not.toContain('needle')
+  })
+
   it('renders the columns with their types and every row', () => {
     const wrapper = mount(ResultGrid, { props: { result: result() } })
 

@@ -162,3 +162,24 @@ Frontend coverage: `data browsing keeps drafts and table state` in
   they read. Filtering the list needs FEAT-004.
 - Column-level denials are per database, so the same table in two databases can
   differ. That is correct but unexplained in the UI.
+
+### Reading and copying cells
+
+A single click focuses a cell without opening a dialog. Arrow keys move between
+cells; Ctrl/Cmd+C copies the complete API value, preserving native text selections.
+Enter opens a read-only inspector. Long values (over 64 characters), multiline
+text, whitespace-only strings, JSON and arrays also offer an explicit Expand
+button. Previews stay on one line so virtual rows retain their height.
+
+NULL, empty strings and whitespace-only strings have distinct muted labels.
+NULL has no copy value; an empty string copies zero characters. Masked columns
+show only their mask and cannot be inspected or copied through these controls.
+JSON strings, numbers, dates, UUIDs and binary representations retain the API's
+representation: no number parsing, time-zone conversion, link activation, HTML
+execution or binary decoding occurs. Structured API objects have a formatted
+inspector, while copying uses their compact JSON representation. The inspector
+closes when a new result arrives so it cannot show a previous page's value.
+
+Frontend coverage: `cellValue.spec.ts`, `ResultGrid.spec.ts` and
+`cells focus quietly, expand deliberately and copy exact values` in
+`frontend/e2e/result-cell.spec.ts`.

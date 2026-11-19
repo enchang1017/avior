@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
+import { cellValue } from './cellValue'
 import { rowWindow } from './rowWindow'
 import { playScan } from './scan'
 import type { QueryResult } from '@/shared/api'
@@ -24,16 +25,27 @@ const props = withDefaults(
 )
 
 const filter = ref('')
-const cellDetail = ref<{ title: string; value: string } | null>(null)
+const cellDetail = ref<{ title: string; value: ReturnType<typeof cellValue> } | null>(null)
 const copyStatus = ref('')
-function showCell(cell: unknown, column: number): void {
-  const value =
-    typeof cell === 'object' && cell !== null ? JSON.stringify(cell, null, 2) : render(cell)
+function showCell(value: ReturnType<typeof cellValue>, column: number): void {
+  if (!value.copyable) return
   cellDetail.value = { title: props.result.columns[column]?.name ?? 'Cell value', value }
   copyStatus.value = ''
 }
-function cellKey(event: KeyboardEvent, value: unknown, column: number): void {
-  if (event.key === 'Enter' || event.key === ' ') {
+function focusCell(event: MouseEvent): void {
+  if (event.target instanceof Element && event.target.closest('button')) return
+  ;(event.currentTarget as HTMLElement).focus({ preventScroll: true })
+}
+function cellKey(event: KeyboardEvent, value: ReturnType<typeof cellValue>, column: number): void {
+  if (event.target !== event.currentTarget) return
+  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'c') {
+    // Native text selections keep their normal copy behavior.
+    if (window.getSelection()?.toString()) return
+    event.preventDefault()
+    void copyValue(value)
+    return
+  }
+  if (event.key === 'Enter') {
     event.preventDefault()
     showCell(value, column)
     return
@@ -57,10 +69,16 @@ function cellKey(event: KeyboardEvent, value: unknown, column: number): void {
   }
 }
 
-async function copyCell(): Promise<void> {
+async function copyValue(value: ReturnType<typeof cellValue>): Promise<void> {
+  copyStatus.value = ''
+  if (!value.copyable) {
+    copyStatus.value =
+      value.kind === 'Masked' ? 'Masked values cannot be copied.' : 'NULL has no value to copy.'
+    return
+  }
   try {
-    await navigator.clipboard.writeText(cellDetail.value?.value ?? '')
-    copyStatus.value = 'Copied.'
+    await navigator.clipboard.writeText(value.raw)
+    copyStatus.value = value.kind === 'Empty string' ? 'Empty string copied.' : 'Copied.'
   } catch {
     copyStatus.value = 'Clipboard unavailable. Select the value and copy it.'
   }
@@ -91,11 +109,17 @@ function onScroll(): void {
 }
 
 const rows = computed(() =>
-  props.result.rows.map((cells, index) => ({
-    ordinal: index + 1 + props.offset,
-    cells,
-    text: cells.map(render).join(' ').toLowerCase(),
-  })),
+  props.result.rows.map((values, index) => {
+    const cells = values.map((cell, index) => cellValue(cell, props.result.columns[index]))
+    return {
+      ordinal: index + 1 + props.offset,
+      cells,
+      text: cells
+        .map((cell) => (cell.kind === 'NULL' ? 'NULL' : cell.raw))
+        .join(' ')
+        .toLowerCase(),
+    }
+  }),
 )
 
 const shown = computed(() => {
@@ -130,6 +154,8 @@ function rise(): void {
 watch(
   () => props.result,
   () => {
+    cellDetail.value = null
+    copyStatus.value = ''
     if (props.animate) requestAnimationFrame(() => playScan(scan.value))
   },
   { immediate: true, flush: 'post' },
@@ -160,14 +186,6 @@ onMounted(() => {
 })
 onBeforeUnmount(() => observer?.disconnect())
 
-function render(cell: unknown): string {
-  if (cell === null || cell === undefined) return 'NULL'
-  if (typeof cell === 'object') return JSON.stringify(cell)
-  if (typeof cell === 'string') return cell
-  if (typeof cell === 'number' || typeof cell === 'boolean') return cell.toString()
-  return JSON.stringify(cell) ?? ''
-}
-
 /**
  * The browser writes out what it already holds. Asking the server to format it
  * would be a second read of production for data the operator is looking at;
@@ -176,7 +194,17 @@ function render(cell: unknown): string {
 function downloadCsv(): void {
   const newline = String.fromCharCode(13, 10)
   const header = props.result.columns.map((column) => quote(column.name)).join(',')
-  const body = props.result.rows.map((cells) => cells.map((cell) => quote(render(cell))).join(','))
+  const body = props.result.rows.map((cells) =>
+    cells
+      .map((cell, index) =>
+        quote(
+          cellValue(cell, props.result.columns[index]).kind === 'NULL'
+            ? 'NULL'
+            : cellValue(cell, props.result.columns[index]).raw,
+        ),
+      )
+      .join(','),
+  )
   const blob = new Blob([[header, ...body].join(newline)], { type: 'text/csv;charset=utf-8' })
 
   const link = document.createElement('a')
@@ -213,6 +241,9 @@ function quote(value: string): string {
         rows
       </span>
       <VBadge v-if="props.result.truncated" tone="danger" size="sm">truncated</VBadge>
+      <span :class="copyStatus ? 'text-xs text-fg-muted' : 'sr-only'" role="status">{{
+        copyStatus
+      }}</span>
       <div class="flex-1" />
       <VButton size="sm" variant="bare" icon="download" @click="downloadCsv">Export</VButton>
     </div>
@@ -262,18 +293,34 @@ function quote(value: string): string {
           <td
             v-for="(cell, i) in row.cells"
             :key="i"
-            :class="{ 'nul text-fg-muted italic': cell === null }"
-            class="cursor-pointer focus:outline-2 focus:-outline-offset-2 focus:outline-primary"
+            :class="{
+              'nul text-fg-muted italic': cell.special && cell.kind !== 'Masked',
+              'pr-20': cell.expandable,
+            }"
+            class="relative cursor-text focus:outline-2 focus:-outline-offset-2 focus:outline-primary"
             :tabindex="row.ordinal === drawn[0]?.ordinal && i === 0 ? 0 : -1"
+            v-bind="cell.special ? { 'aria-label': cell.kind } : {}"
             :title="
-              'View ' +
-              (props.result.columns[i]?.name ?? 'cell') +
-              '. Use arrow keys to move and Enter to open.'
+              cell.copyable
+                ? 'Use arrow keys to move, Ctrl/Cmd+C to copy, or Enter to inspect.'
+                : cell.kind === 'Masked'
+                  ? 'Masked value. Inspection and copying are unavailable.'
+                  : 'NULL: no stored value. Use arrow keys to move.'
             "
-            @click="showCell(cell, i)"
+            @click="focusCell"
             @keydown="cellKey($event, cell, i)"
           >
-            {{ render(cell) }}
+            {{ cell.preview }}
+            <VButton
+              v-if="cell.expandable"
+              variant="bare"
+              size="sm"
+              class="absolute top-0 right-0"
+              :aria-label="'Expand ' + (props.result.columns[i]?.name ?? 'cell')"
+              @click.stop="showCell(cell, i)"
+            >
+              <span>Expand</span>
+            </VButton>
           </td>
         </tr>
         <tr v-if="windowed.after > 0" class="spacer" aria-hidden="true">
@@ -290,12 +337,15 @@ function quote(value: string): string {
       motion="fade"
       @close="cellDetail = null"
     >
+      <p v-if="cellDetail?.value.kind !== 'Value'" class="mt-0 text-xs text-fg-muted">
+        {{ cellDetail?.value.kind }}
+      </p>
       <pre class="m-0 overflow-auto font-mono text-sm break-words whitespace-pre-wrap">{{
-        cellDetail?.value
+        cellDetail?.value.detail
       }}</pre>
       <template #footer>
         <span class="text-xs text-fg-muted" role="status">{{ copyStatus }}</span
-        ><VButton @click="copyCell">Copy value</VButton>
+        ><VButton @click="cellDetail && copyValue(cellDetail.value)">Copy value</VButton>
       </template>
     </VDialog>
   </section>

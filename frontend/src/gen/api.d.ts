@@ -5176,6 +5176,8 @@ export interface operations {
                  *     request may do depends on it.
                  *      */
                 "X-Avior-Requested-By"?: components["parameters"]["RequestedBy"];
+                /** @description Opt in to decimal strings for bigint values outside JavaScript's safe integer range. Other callers retain JSON numbers. */
+                "X-Avior-Exact-Integers"?: boolean;
             };
             path?: never;
             cookie?: never;

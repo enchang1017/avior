@@ -109,7 +109,7 @@ const scenes: Scene[] = [
       await page
         .getByRole('region', { name: 'Table data' })
         .getByRole('cell', { name: 'alice', exact: true })
-        .click()
+        .press('Enter')
       await expect(page.getByRole('dialog', { name: 'username', exact: true })).toBeVisible()
     },
   },
