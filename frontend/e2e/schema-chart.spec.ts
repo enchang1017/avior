@@ -38,6 +38,7 @@ test('the chart and the tree select the same object', async ({ page }) => {
   await chart(page).locator('circle[data-key="public.bet"]').click()
   await expect(page.locator('button.node.current')).toContainText('bet')
   await expect(centre(page)).toHaveAttribute('data-key', 'public.bet')
+  await page.getByRole('button', { name: 'Insert', exact: true }).click()
   await expect(page.locator('.cm-content')).toContainText('SELECT')
 })
 
@@ -48,6 +49,7 @@ test('the tree works while the graph is still loading', async ({ page }) => {
   await expect(page.getByTestId('chart-panel').locator('.chart-placeholder')).toBeVisible()
   await pickTable(page, 'member')
   await expect(page.locator('button.node.current')).toContainText('member')
+  await page.getByRole('button', { name: 'Insert', exact: true }).click()
   await expect(page.locator('.cm-content')).toContainText(
     'SELECT id, username FROM public.member LIMIT 100',
   )

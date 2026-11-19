@@ -104,6 +104,7 @@ the governed database the tests read. They are not the same kind of thing — th
 store holds session tokens, the audit trail and the denial policy, and is never
 reachable through the query console.
 
+Local stack ports are published only on `127.0.0.1`.
 Every published port is deliberately unusual. 8080 and 5432 are routinely taken
 on a developer machine here, and a silent collision looks like the service being
 broken rather than shadowed.
@@ -112,6 +113,9 @@ broken rather than shadowed.
 code. Local development runs `AVIOR_AUTH_MODE=trusted-local`, and the
 configuration refuses to start in that mode outside development. Production
 authenticates against the directory (FEAT-007).
+
+For a single-container console beside an existing PostgreSQL, see
+[Local sidecar setup](docs/runbooks/local-sidecar.md).
 
 ## Commands
 
@@ -247,11 +251,12 @@ different tools there — `vite build` fails in places `vue-tsc` cannot see.
 
 ### Published images
 
-`.github/workflows/images.yml` builds the gateway, console and migration images
+`.github/workflows/images.yml` builds the gateway, console, migration and standalone images
 for `linux/amd64` and `linux/arm64`. On a pull request that touches them it
 builds without pushing; when a GitHub release is published it pushes them to
 GHCR as `ghcr.io/enchang1017/avior-{backend,frontend,migrate}`, tagged with the
-release's version and, unless it is a prerelease, `latest`. Running them from a
+release's version and, unless it is a prerelease, `latest`. The standalone
+image is `ghcr.io/enchang1017/avior`. Running them from a
 host with nothing but Docker: `docs/runbooks/deploy-from-published-images.md`.
 
 ## Layout

@@ -2819,6 +2819,14 @@ export interface components {
             orderBy?: string;
             /** @default false */
             descending?: boolean;
+            /** @description Enables deterministic data browsing, including offset zero. */
+            offset?: number;
+            filter?: {
+                column: string;
+                /** @enum {string} */
+                operator: "eq" | "ne" | "lt" | "lte" | "gt" | "gte" | "contains" | "isNull" | "isNotNull";
+                value?: string;
+            };
         };
         SelectTemplate: {
             statement: string;

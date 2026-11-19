@@ -112,6 +112,7 @@ test('the columns and Insert stay reachable under a long table list', async ({ p
   await page.goto('/')
   await pickTable(page, 'member')
   await expectColumnsReachable(page)
+  await page.getByRole('button', { name: 'Insert', exact: true }).click()
   await expect(page.locator('section.columns .order-by')).toBeVisible()
 
   await page.goto('/writes/new')
@@ -179,6 +180,7 @@ test('the plan says which partitions a statement scans, out of how many', async 
   )
   await page.goto('/')
   await pickTable(page, 'rounds')
+  await page.getByRole('button', { name: 'Insert', exact: true }).click()
   await page.getByRole('button', { name: 'Inspect' }).click()
 
   const scans = page.locator('.partition-scans')

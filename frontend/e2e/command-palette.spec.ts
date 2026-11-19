@@ -114,6 +114,11 @@ test('choosing a table points the console at it', async ({ page }) => {
     .click()
   await expect(page).toHaveURL(/database=aviorfixture/u)
   await expect(page.locator('button.node.current')).toContainText('member')
+  await expect(page.getByRole('tab', { name: 'Data', exact: true })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  )
+  await page.getByRole('button', { name: 'Insert', exact: true }).click()
   await expect(page.locator('.cm-content')).toContainText(
     'SELECT id, username FROM public.member LIMIT 100',
   )

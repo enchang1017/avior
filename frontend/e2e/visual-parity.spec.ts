@@ -88,11 +88,38 @@ async function pick(page: Page, control: string, label: string): Promise<void> {
 const scenes: Scene[] = [
   { name: 'login', path: '/login', signedIn: false },
   {
+    name: 'data-browser',
+    path: '/',
+    arrange: async (page) => {
+      await page.getByRole('button', { name: /aviorfixture/ }).click()
+      await page.getByRole('button', { name: /^member\s+public/u }).click()
+      await expect(
+        page
+          .getByRole('region', { name: 'Table data' })
+          .getByRole('cell', { name: 'alice', exact: true }),
+      ).toBeVisible()
+    },
+  },
+  {
+    name: 'cell-detail',
+    path: '/',
+    arrange: async (page) => {
+      await page.getByRole('button', { name: /aviorfixture/ }).click()
+      await page.getByRole('button', { name: /^member\s+public/u }).click()
+      await page
+        .getByRole('region', { name: 'Table data' })
+        .getByRole('cell', { name: 'alice', exact: true })
+        .click()
+      await expect(page.getByRole('dialog', { name: 'username', exact: true })).toBeVisible()
+    },
+  },
+  {
     name: 'query-console',
     path: '/',
     arrange: async (page) => {
       await page.getByRole('button', { name: /aviorfixture/ }).click()
       await page.getByRole('button', { name: /^member\s+public/u }).click()
+      await page.getByRole('button', { name: 'Insert', exact: true }).click()
       await expect(page.locator('.cm-content')).toContainText('LIMIT 100')
       await page.getByRole('button', { name: 'Execute' }).click()
       await expect(page.getByRole('cell', { name: 'alice', exact: true })).toBeVisible()
@@ -105,6 +132,7 @@ const scenes: Scene[] = [
     arrange: async (page) => {
       await page.getByRole('button', { name: /aviorfixture/ }).click()
       await page.getByRole('button', { name: /^member\s+public/u }).click()
+      await page.getByRole('button', { name: 'Insert', exact: true }).click()
       await expect(page.locator('.cm-content')).toContainText('LIMIT 100')
       await page.getByRole('button', { name: 'Execute' }).click()
       await expect(page.getByRole('cell', { name: 'alice', exact: true })).toBeVisible()
@@ -142,6 +170,7 @@ const scenes: Scene[] = [
     arrange: async (page) => {
       await page.getByRole('button', { name: /aviorfixture/ }).click()
       await page.getByRole('button', { name: /^member\s+public/u }).click()
+      await page.getByRole('button', { name: 'Insert', exact: true }).click()
       await expect(page.locator('.cm-content')).toContainText('LIMIT 100')
       await page.getByRole('button', { name: 'Inspect' }).click()
       await expect(page.getByText('This column is restricted.')).toBeVisible()
@@ -153,6 +182,7 @@ const scenes: Scene[] = [
     arrange: async (page) => {
       await page.getByRole('button', { name: /aviorfixture/ }).click()
       await page.getByRole('button', { name: /^member\s+public/u }).click()
+      await page.getByRole('button', { name: 'Insert', exact: true }).click()
       await page.locator('#order-column').click()
       await expect(page.getByRole('listbox')).toBeVisible()
     },

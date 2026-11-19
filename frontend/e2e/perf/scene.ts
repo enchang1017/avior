@@ -34,6 +34,7 @@ export async function serveWideResult(page: Page, rows = 500, columns = 12): Pro
 export async function openMember(page: Page): Promise<void> {
   await page.getByRole('button', { name: /aviorfixture/ }).click()
   await page.getByRole('button', { name: /^member\s+public/u }).click()
+  await page.getByRole('button', { name: 'Insert', exact: true }).click()
   await page.locator('.cm-content').filter({ hasText: 'LIMIT 100' }).waitFor()
 }
 

@@ -133,6 +133,7 @@ async function openTable(page: Page, name: string): Promise<void> {
   await openDatabase(page)
   await page.locator('.tables .node', { hasText: name }).first().click()
   await expect(page.locator('.column-list li').first()).toBeVisible()
+  await page.getByRole('button', { name: 'Insert', exact: true }).click()
 }
 
 test('an operator picks columns, inserts a statement, and reads rows', async ({ page }) => {
@@ -728,7 +729,7 @@ test('escape closes the completion list before it leaves insert mode', async ({ 
 test('the page keeps its shortcuts while vim holds the keyboard', async ({ page }) => {
   await signIn(page)
   await openDatabase(page)
-  await page.locator('.tables .node', { hasText: 'member' }).first().click()
+  await openTable(page, 'member')
   await expect(page.locator('.cm-content')).toContainText('FROM public.member')
 
   await page.locator('.modeline button').click()

@@ -693,7 +693,7 @@ test('a cluster or a chosen object flies the camera there and opens the focus', 
 
 test('a routine shows its footprint and opens its definition', async ({ page }) => {
   await openBet(page)
-  await star(page, nodes.settleBet.id).click({ force: true })
+  await star(page, nodes.settleBet.id).click()
   await expect.poll(() => addressed(page)).toEqual(['public', 'settle_bet', 'routine', null])
   const panel = page.getByTestId('routine-panel')
   await expect(panel).toContainText('public.settle_bet(bigint, numeric)')

@@ -261,7 +261,7 @@ test('the result grid keeps at most sixty rows in the dom', async ({ page }) => 
   expect(rows).toBeGreaterThan(0)
   expect(elements, 'P18 elements at rest').toBeLessThanOrEqual(budget.consoleElements)
 
-  await page.locator('.result .overflow-auto').evaluate((element) => {
+  await page.locator('.result > .overflow-auto').evaluate((element) => {
     element.scrollTop = element.scrollHeight
   })
   await expect(page.getByRole('cell', { name: 'column_1-499', exact: true })).toBeVisible()

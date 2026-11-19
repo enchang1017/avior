@@ -4774,6 +4774,27 @@ components:
           type: boolean
           default: false
 
+        offset:
+          type: integer
+          minimum: 0
+          maximum: 1000000
+          description: Enables deterministic data browsing, including offset zero.
+        filter:
+          type: object
+          required: [column, operator]
+          additionalProperties: false
+          properties:
+            column:
+              type: string
+              minLength: 1
+              maxLength: 63
+            operator:
+              type: string
+              enum: [eq, ne, lt, lte, gt, gte, contains, isNull, isNotNull]
+            value:
+              type: string
+              maxLength: 4096
+
     SelectTemplate:
       type: object
       required: [statement]

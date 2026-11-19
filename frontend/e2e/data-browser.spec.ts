@@ -1,0 +1,62 @@
+import { expect, test } from '@playwright/test'
+import type { Page } from '@playwright/test'
+
+async function choose(page: Page, id: string, option: string): Promise<void> {
+  await page.locator('#' + id).click()
+  await page.getByRole('option', { name: option, exact: true }).click()
+}
+
+test('data browsing keeps drafts and table state', async ({ page }) => {
+  await page.goto('/login')
+  await page.getByLabel('Username').fill('developer')
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  await expect(page.locator('.cm-content')).toBeVisible()
+  const draft = "SELECT member_id FROM public.member WHERE login_name = 'alice'"
+  await page.locator('.cm-content').fill(draft)
+  const database = page.locator('.node.database', { hasText: 'aviorfixture' })
+  await database.click()
+  await page
+    .locator('.tables .node')
+    .filter({ has: page.locator('.node-label:text-is("member")') })
+    .click()
+  const data = page.getByRole('region', { name: 'Table data' })
+  await expect(data.getByRole('cell', { name: 'alice', exact: true })).toBeVisible()
+  await choose(page, 'browse-column', 'login_name')
+  await data.getByLabel('Filter value').fill('alice')
+  await data.getByRole('button', { name: 'Apply', exact: true }).click()
+  await expect(data.getByRole('cell', { name: 'bob', exact: true })).toBeHidden()
+  await expect(data.getByRole('cell', { name: 'alice', exact: true })).toBeVisible()
+  await page
+    .locator('.tables .node')
+    .filter({ has: page.locator('.node-label:text-is("bet")') })
+    .click()
+  await expect(data.getByRole('columnheader', { name: /bet_id/ })).toBeVisible()
+  await page
+    .locator('.tables .node')
+    .filter({ has: page.locator('.node-label:text-is("member")') })
+    .click()
+  await expect(data.getByLabel('Filter value')).toHaveValue('alice')
+  await expect(data.getByRole('cell', { name: 'alice', exact: true })).toBeVisible()
+  await expect(data.getByRole('cell', { name: 'bob', exact: true })).toBeHidden()
+  await data.getByRole('cell', { name: '1', exact: true }).focus()
+  await page.keyboard.press('ArrowRight')
+  await expect(data.getByRole('cell', { name: 'alice', exact: true })).toBeFocused()
+  await page.keyboard.press('Enter')
+  await expect(page.getByRole('dialog')).toContainText('alice')
+  await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click()
+  await page.getByRole('tab', { name: 'SQL', exact: true }).click()
+  await expect(page.locator('.cm-content')).toHaveText(draft)
+  await page.getByRole('tab', { name: 'Data', exact: true }).click()
+  await data.getByRole('button', { name: 'Open in SQL', exact: true }).click()
+  await expect(page.locator('.cm-content')).toContainText("login_name = E'alice'")
+  await expect(page.locator('.cm-content')).toContainText('OFFSET 0')
+  await page.getByRole('tablist', { name: 'Open statements' }).getByRole('tab').first().click()
+  await expect(page.locator('.cm-content')).toHaveText(draft)
+  await page.getByRole('tab', { name: 'Data', exact: true }).click()
+  await page.locator('.node.database', { hasText: 'aviordeploy' }).click()
+  await page.getByRole('tab', { name: 'SQL', exact: true }).click()
+  await expect(page.locator('.risk .picker .crumb')).toHaveText('aviorfixture')
+  const query = page.waitForRequest((request) => request.url().endsWith('/query/execute'))
+  await page.getByRole('button', { name: 'Execute', exact: false }).click()
+  expect((await query).postDataJSON()).toMatchObject({ database: 'aviorfixture', statement: draft })
+})

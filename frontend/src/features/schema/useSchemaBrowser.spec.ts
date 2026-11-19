@@ -55,6 +55,52 @@ describe('useSchemaBrowser', () => {
     post.mockReset()
   })
 
+  it('discards a template answered after the operator changes tables', async () => {
+    const browser = await browseToColumns()
+    let finish: (value: ReturnType<typeof ok<{ statement: string }>>) => void = () => undefined
+    post.mockImplementation(
+      () =>
+        new Promise<ReturnType<typeof ok<{ statement: string }>>>((resolve) => {
+          finish = resolve
+        }),
+    )
+    const built = browser.buildStatement(100)
+    await browser.chooseTable(memberView)
+    finish(ok({ statement: 'SELECT old_table' }))
+    expect(await built).toBeNull()
+    expect(browser.table.value).toEqual(memberView)
+  })
+
+  it('does not paint a late metadata failure over a newer table', async () => {
+    const browser = await browseToColumns()
+    let finish: (value: unknown) => void = () => undefined
+    get.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve
+        }),
+    )
+    const old = browser.chooseTable(memberView)
+    await browser.chooseTable(memberTable)
+    finish({
+      data: undefined,
+      error: { code: 'unavailable', message: 'Late error' },
+      response: { status: 503 },
+    })
+    await old
+    expect(browser.failure.value).toBeNull()
+    expect(browser.columns.value).toEqual(columns)
+  })
+
+  it('loads databases and a routed table list concurrently without cancelling either', async () => {
+    routeGet({ '/schema/databases': ['aviorfixture'], '/schema/tables': tables })
+    const browser = useSchemaBrowser(instanceId)
+    await Promise.all([browser.chooseDatabase('aviorfixture'), browser.loadDatabases()])
+    expect(browser.databases.value).toEqual(['aviorfixture'])
+    expect(browser.tables.value).toEqual(tables)
+    expect(browser.busy.value).toBe(false)
+  })
+
   it('loads the database list', async () => {
     routeGet({ '/schema/databases': ['aviorfixture', 'AccountingDB'] })
     const browser = useSchemaBrowser(instanceId)

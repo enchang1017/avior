@@ -4,7 +4,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { rowWindow } from './rowWindow'
 import { playScan } from './scan'
 import type { QueryResult } from '@/shared/api'
-import { VBadge, VButton, VIcon, VInput, VTable } from '@/components'
+import { VBadge, VButton, VDialog, VIcon, VInput, VTable } from '@/components'
 
 /**
  * Bytebase's result surface: a search box over the rows, the row count, and an
@@ -15,9 +15,56 @@ import { VBadge, VButton, VIcon, VInput, VTable } from '@/components'
  * query: narrowing means running a different statement, and that has to go
  * through the guard.
  */
-const props = defineProps<{ result: QueryResult }>()
+const props = withDefaults(
+  defineProps<{ result: QueryResult; animate?: boolean; offset?: number }>(),
+  {
+    animate: true,
+    offset: 0,
+  },
+)
 
 const filter = ref('')
+const cellDetail = ref<{ title: string; value: string } | null>(null)
+const copyStatus = ref('')
+function showCell(cell: unknown, column: number): void {
+  const value =
+    typeof cell === 'object' && cell !== null ? JSON.stringify(cell, null, 2) : render(cell)
+  cellDetail.value = { title: props.result.columns[column]?.name ?? 'Cell value', value }
+  copyStatus.value = ''
+}
+function cellKey(event: KeyboardEvent, value: unknown, column: number): void {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    showCell(value, column)
+    return
+  }
+  const cell = event.currentTarget as HTMLTableCellElement
+  const row = cell.parentElement as HTMLTableRowElement
+  let next: Element | null | undefined
+  if (event.key === 'ArrowLeft') next = cell.previousElementSibling
+  else if (event.key === 'ArrowRight') next = cell.nextElementSibling
+  else if (event.key === 'ArrowUp') next = row.previousElementSibling?.children[cell.cellIndex]
+  else if (event.key === 'ArrowDown') next = row.nextElementSibling?.children[cell.cellIndex]
+  else return
+  event.preventDefault()
+  if (
+    next instanceof HTMLElement &&
+    next.tagName === 'TD' &&
+    next.closest('tr')?.hasAttribute('data-row')
+  ) {
+    next.focus()
+    next.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  }
+}
+
+async function copyCell(): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(cellDetail.value?.value ?? '')
+    copyStatus.value = 'Copied.'
+  } catch {
+    copyStatus.value = 'Clipboard unavailable. Select the value and copy it.'
+  }
+}
 
 /*
  * Virtualised: only the rows in view, and a few either side, are in the DOM
@@ -45,7 +92,7 @@ function onScroll(): void {
 
 const rows = computed(() =>
   props.result.rows.map((cells, index) => ({
-    ordinal: index + 1,
+    ordinal: index + 1 + props.offset,
     cells,
     text: cells.map(render).join(' ').toLowerCase(),
   })),
@@ -82,11 +129,19 @@ function rise(): void {
 // Once per result, after its rows are on screen: the next frame, not this one.
 watch(
   () => props.result,
-  () => requestAnimationFrame(() => playScan(scan.value)),
+  () => {
+    if (props.animate) requestAnimationFrame(() => playScan(scan.value))
+  },
   { immediate: true, flush: 'post' },
 )
 
-watch(() => props.result.auditId, rise, { immediate: true })
+watch(
+  () => props.result.auditId,
+  () => {
+    if (props.animate) rise()
+  },
+  { immediate: true },
+)
 
 /*
  * Measured in a task of its own, never the one that mounts the rows. Reading
@@ -208,6 +263,15 @@ function quote(value: string): string {
             v-for="(cell, i) in row.cells"
             :key="i"
             :class="{ 'nul text-fg-muted italic': cell === null }"
+            class="cursor-pointer focus:outline-2 focus:-outline-offset-2 focus:outline-primary"
+            :tabindex="row.ordinal === drawn[0]?.ordinal && i === 0 ? 0 : -1"
+            :title="
+              'View ' +
+              (props.result.columns[i]?.name ?? 'cell') +
+              '. Use arrow keys to move and Enter to open.'
+            "
+            @click="showCell(cell, i)"
+            @keydown="cellKey($event, cell, i)"
           >
             {{ render(cell) }}
           </td>
@@ -220,5 +284,19 @@ function quote(value: string): string {
         No row matches “{{ filter }}”.
       </p>
     </div>
+    <VDialog
+      :open="cellDetail !== null"
+      :title="cellDetail?.title ?? 'Cell value'"
+      motion="fade"
+      @close="cellDetail = null"
+    >
+      <pre class="m-0 overflow-auto font-mono text-sm break-words whitespace-pre-wrap">{{
+        cellDetail?.value
+      }}</pre>
+      <template #footer>
+        <span class="text-xs text-fg-muted" role="status">{{ copyStatus }}</span
+        ><VButton @click="copyCell">Copy value</VButton>
+      </template>
+    </VDialog>
   </section>
 </template>
