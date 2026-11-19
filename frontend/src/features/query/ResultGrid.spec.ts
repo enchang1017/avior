@@ -91,6 +91,27 @@ describe('ResultGrid', () => {
     expect(wrapper.findAll('tbody td')[1]?.text()).not.toContain('needle')
   })
 
+  it('finds an offscreen draft and updates the active filter when that draft changes', async () => {
+    const rows = Array.from({ length: 500 }, (_, index) => [index, `name-${index}`])
+    const wrapper = mount(ResultGrid, {
+      props: { result: result({ rows, rowCount: rows.length }) },
+    })
+    expect(wrapper.text()).not.toContain('name-399')
+    await wrapper.find('input[type="search"]').setValue('staged-needle')
+    expect(wrapper.findAll('tr[data-row]')).toHaveLength(0)
+
+    await wrapper.setProps({ drafts: { '399:login_name': 'staged-needle' } })
+    expect(wrapper.findAll('tr[data-row]')).toHaveLength(1)
+    expect(wrapper.find('tr[data-row]').text()).toContain('staged-needle')
+    await wrapper.setProps({ drafts: { '399:login_name': 'another-value' } })
+    expect(wrapper.findAll('tr[data-row]')).toHaveLength(0)
+
+    await wrapper.setProps({ drafts: {} })
+    await wrapper.find('input[type="search"]').setValue('name-399')
+    expect(wrapper.findAll('tr[data-row]')).toHaveLength(1)
+    expect(wrapper.find('tr[data-row]').text()).toContain('name-399')
+  })
+
   it('renders the columns with their types and every row', () => {
     const wrapper = mount(ResultGrid, { props: { result: result() } })
 
