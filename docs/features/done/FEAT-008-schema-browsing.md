@@ -281,3 +281,8 @@ native dialog focus behavior.
 - Long comparisons scroll within the dialog body. The header Close control and
   submission footer remain fully visible after field focus and resolution
   selection at 900×650, including mixed ready/conflicting rows.
+
+- Boolean, enum and resolution lists remain fully readable above dialog overflow,
+  fit available viewport space, and scroll to keyboard selection. Escape first
+  closes an open list; a second Escape can close its dialog. Closing a dialog
+  removes its floating options.

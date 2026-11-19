@@ -1,5 +1,5 @@
-import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { flushPromises, mount } from '@vue/test-utils'
+import { describe, expect, it, vi } from 'vitest'
 
 import VSelect from '../VSelect.vue'
 
@@ -36,15 +36,23 @@ describe('VSelect', () => {
   it('reopens when its already focused field is clicked after choosing', async () => {
     const select = render()
     await select.find('input').trigger('focus')
+    await vi.dynamicImportSettled()
+    await flushPromises()
     await select.findAll('.option')[1]?.trigger('mousedown')
+    await vi.dynamicImportSettled()
+    await flushPromises()
     expect(select.find('[role=listbox]').exists()).toBe(false)
     await select.find('input').trigger('click')
+    await vi.dynamicImportSettled()
+    await flushPromises()
     expect(select.find('[role=listbox]').exists()).toBe(true)
   })
 
   it('offers every option when opened', async () => {
     const select = render()
     await select.find('input').trigger('focus')
+    await vi.dynamicImportSettled()
+    await flushPromises()
 
     expect(labels(select)).toEqual(['Any', 'Allowed', 'Refused'])
   })
@@ -52,7 +60,11 @@ describe('VSelect', () => {
   it('reports the value, not the label', async () => {
     const select = render()
     await select.find('input').trigger('focus')
+    await vi.dynamicImportSettled()
+    await flushPromises()
     await select.findAll('.option')[1]?.trigger('mousedown')
+    await vi.dynamicImportSettled()
+    await flushPromises()
 
     expect(select.emitted('update:modelValue')?.at(-1)).toEqual(['allow'])
   })
@@ -65,7 +77,11 @@ describe('VSelect', () => {
     const select = render()
     const input = select.find('input')
     await input.trigger('focus')
+    await vi.dynamicImportSettled()
+    await flushPromises()
     await input.setValue('allowed')
+    await vi.dynamicImportSettled()
+    await flushPromises()
 
     expect(select.emitted('update:modelValue')).toBeUndefined()
   })
@@ -75,7 +91,11 @@ describe('VSelect', () => {
     const select = render()
     const input = select.find('input')
     await input.trigger('focus')
+    await vi.dynamicImportSettled()
+    await flushPromises()
     await input.setValue('ref')
+    await vi.dynamicImportSettled()
+    await flushPromises()
 
     expect(labels(select)).toEqual(['Refused'])
   })
@@ -84,7 +104,11 @@ describe('VSelect', () => {
     const select = render()
     const input = select.find('input')
     await input.trigger('focus')
+    await vi.dynamicImportSettled()
+    await flushPromises()
     await input.setValue('nothing like this')
+    await vi.dynamicImportSettled()
+    await flushPromises()
 
     expect(select.find('.option.none').exists()).toBe(true)
   })
@@ -95,8 +119,14 @@ describe('VSelect', () => {
     const select = render('allow')
     const input = select.find('input')
     await input.trigger('focus')
+    await vi.dynamicImportSettled()
+    await flushPromises()
     await input.setValue('ref')
+    await vi.dynamicImportSettled()
+    await flushPromises()
     await input.trigger('keydown', { key: 'Escape' })
+    await vi.dynamicImportSettled()
+    await flushPromises()
 
     expect(input.attributes('value')).toBe('Allowed')
   })
@@ -105,11 +135,21 @@ describe('VSelect', () => {
     const select = render()
     const input = select.find('input')
     await input.trigger('focus')
+    await vi.dynamicImportSettled()
+    await flushPromises()
 
     await input.trigger('keydown', { key: 'ArrowDown' })
+    await vi.dynamicImportSettled()
+    await flushPromises()
     await input.trigger('keydown', { key: 'ArrowDown' })
+    await vi.dynamicImportSettled()
+    await flushPromises()
     await input.trigger('keydown', { key: 'ArrowDown' })
+    await vi.dynamicImportSettled()
+    await flushPromises()
     await input.trigger('keydown', { key: 'Enter' })
+    await vi.dynamicImportSettled()
+    await flushPromises()
 
     expect(select.emitted('update:modelValue')?.at(-1)).toEqual(['deny'])
   })
@@ -129,9 +169,13 @@ describe('VSelect', () => {
     const select = render()
 
     await select.find('.caret').trigger('mousedown')
+    await vi.dynamicImportSettled()
+    await flushPromises()
     expect(select.find('.list').exists()).toBe(true)
 
     await select.find('.caret').trigger('mousedown')
+    await vi.dynamicImportSettled()
+    await flushPromises()
     expect(select.find('.list').exists()).toBe(false)
   })
 
@@ -140,9 +184,13 @@ describe('VSelect', () => {
   it('closes when it loses focus', async () => {
     const select = render()
     await select.find('input').trigger('focus')
+    await vi.dynamicImportSettled()
+    await flushPromises()
     expect(select.find('.list').exists()).toBe(true)
 
     await select.find('input').trigger('blur')
+    await vi.dynamicImportSettled()
+    await flushPromises()
     await new Promise((resolve) => setTimeout(resolve, 0))
     expect(select.find('.list').exists()).toBe(false)
   })
@@ -153,7 +201,11 @@ describe('VSelect', () => {
     const select = render()
     const input = select.find('input')
     await input.trigger('focus')
+    await vi.dynamicImportSettled()
+    await flushPromises()
     await input.trigger('keydown', { key: 'Enter' })
+    await vi.dynamicImportSettled()
+    await flushPromises()
 
     expect(select.emitted('update:modelValue')).toBeUndefined()
   })
@@ -162,10 +214,30 @@ describe('VSelect', () => {
     const select = render()
     const input = select.find('input')
     await input.trigger('focus')
+    await vi.dynamicImportSettled()
+    await flushPromises()
 
     await input.trigger('keydown', { key: 'ArrowUp' })
+    await vi.dynamicImportSettled()
+    await flushPromises()
     await input.trigger('keydown', { key: 'Enter' })
+    await vi.dynamicImportSettled()
+    await flushPromises()
 
     expect(select.emitted('update:modelValue')?.at(-1)).toEqual(['deny'])
   })
+})
+
+it('consumes Escape only while options are open', async () => {
+  const select = render()
+  const bubbled = vi.fn()
+  select.element.addEventListener('keydown', bubbled)
+  const input = select.find('input')
+  await input.trigger('focus')
+  await vi.dynamicImportSettled()
+  await flushPromises()
+  await input.trigger('keydown', { key: 'Escape' })
+  expect(bubbled).not.toHaveBeenCalled()
+  await input.trigger('keydown', { key: 'Escape' })
+  expect(bubbled).toHaveBeenCalledOnce()
 })

@@ -1,11 +1,25 @@
 import { expect, test } from '@playwright/test'
-import type { Page } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 import { openEditableTable, originalJSON, serveEditableTable } from './visual/editing'
 
 function firstRecord(records: (string | null)[][]): (string | null)[] {
   const record = records[0]
   if (!record) throw new Error('Missing fixture row')
   return record
+}
+
+async function optionsUnclipped(options: Locator): Promise<void> {
+  await expect(options.first()).toBeVisible()
+  for (const option of await options.all()) {
+    await expect(option).toBeInViewport()
+    expect(
+      await option.evaluate((element) => {
+        const box = element.getBoundingClientRect()
+        const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2)
+        return hit !== null && element.contains(hit)
+      }),
+    ).toBe(true)
+  }
 }
 
 async function mockClipboard(page: Page): Promise<void> {
@@ -303,6 +317,7 @@ test('conflicts compare three values and explicitly rebase before saving', async
     await review.locator('table').evaluate((element) => element.scrollWidth <= element.clientWidth),
   ).toBe(true)
   await review.getByRole('combobox', { name: 'Resolve username' }).click()
+  await optionsUnclipped(review.getByRole('option'))
   await review.getByRole('option', { name: 'Keep mine', exact: true }).click()
   await review.getByRole('button', { name: 'Apply choices' }).click()
   await expect(review).not.toContainText('Current database')
@@ -423,6 +438,11 @@ for (const field of [
     } else {
       const editor = page.getByRole('dialog', { name: 'Edit username', exact: true })
       if (field.type === 'boolean' || 'enumValues' in field) {
+        await editor.getByRole('combobox', { name: 'New value' }).click()
+        await optionsUnclipped(editor.getByRole('option'))
+        await editor.getByRole('combobox', { name: 'New value' }).press('Escape')
+        await expect(editor.getByRole('option')).toHaveCount(0)
+        await expect(editor).toBeVisible()
         await editor.getByRole('combobox', { name: 'New value' }).click()
         await editor
           .getByRole('option', {
@@ -568,4 +588,65 @@ test('long partial conflicts scroll only the dialog body and keep Close and Save
   await close.click()
   await expect(dialog).toBeHidden()
   await expect(page.getByRole('button', { name: /^Changes \(2\)/u })).toBeVisible()
+})
+
+test('long enum options fit a short viewport and keep keyboard selection visible', async ({
+  page,
+}) => {
+  const records = await serveEditableTable(page)
+  firstRecord(records)[1] = 'value-099'
+  const values = Array.from(
+    { length: 100 },
+    (_, index) => 'value-' + String(index).padStart(3, '0'),
+  )
+  await page.route('**/api/v1/schema/columns**', (route) =>
+    route.fulfill({
+      json: [
+        { name: 'id', type: 'bigint', primaryKeyPosition: 1, nullable: false, denied: false },
+        {
+          name: 'username',
+          type: 'public.state',
+          nullable: true,
+          denied: false,
+          enumValues: values,
+        },
+        { name: 'payload', type: 'jsonb', nullable: false, denied: false },
+        { name: 'note', type: 'text', nullable: true, denied: false },
+      ],
+    }),
+  )
+  await openEditableTable(page)
+  await page.locator('.result tr[data-row]').first().locator('td').nth(1).dblclick()
+  await page.setViewportSize({ width: 900, height: 400 })
+  const dialog = page.getByRole('dialog', { name: 'Edit username', exact: true })
+  const field = dialog.getByRole('combobox', { name: 'New value' })
+  await field.click()
+  const list = dialog.getByRole('listbox')
+  await expect(list).toBeVisible()
+  expect(
+    await list.evaluate((element) => {
+      const box = element.getBoundingClientRect()
+      return (
+        box.top >= 0 &&
+        box.bottom <= window.innerHeight &&
+        box.left >= 0 &&
+        box.right <= window.innerWidth
+      )
+    }),
+  ).toBe(true)
+  await optionsUnclipped(dialog.getByRole('option', { name: '"value-099"', exact: true }))
+  expect(await list.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
+  await field.press('ArrowUp')
+  await field.press('ArrowUp')
+  await optionsUnclipped(list.locator('.active'))
+  await field.press('Enter')
+  await expect(field).toHaveValue('"value-098"')
+  await field.click()
+  await expect(list).toBeVisible()
+  await field.press('Escape')
+  await expect(list).toHaveCount(0)
+  await expect(dialog).toBeVisible()
+  await field.press('Escape')
+  await expect(dialog).toBeHidden()
+  await expect(page.getByRole('listbox')).toHaveCount(0)
 })

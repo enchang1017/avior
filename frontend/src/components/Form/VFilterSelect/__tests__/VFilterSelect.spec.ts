@@ -1,5 +1,5 @@
-import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { flushPromises, mount } from '@vue/test-utils'
+import { describe, expect, it, vi } from 'vitest'
 
 import VFilterSelect from '../VFilterSelect.vue'
 
@@ -21,6 +21,8 @@ describe('VFilterSelect', () => {
   it('offers everything until something is typed', async () => {
     const select = open()
     await select.find('input').trigger('focus')
+    await vi.dynamicImportSettled()
+    await flushPromises()
 
     expect(optionsOf(select)).toEqual(tables)
   })
@@ -30,6 +32,8 @@ describe('VFilterSelect', () => {
   it('matches anywhere in the name, not only at the front', async () => {
     const select = open('bet')
     await select.find('input').trigger('focus')
+    await vi.dynamicImportSettled()
+    await flushPromises()
 
     expect(optionsOf(select)).toEqual(['public.bet', 'reporting.bet_daily'])
   })
@@ -37,6 +41,8 @@ describe('VFilterSelect', () => {
   it('ignores case, because the operator is typing and the catalogue is not', async () => {
     const select = open('MEMBER')
     await select.find('input').trigger('focus')
+    await vi.dynamicImportSettled()
+    await flushPromises()
 
     expect(optionsOf(select)).toEqual(['public.member'])
   })
@@ -47,6 +53,8 @@ describe('VFilterSelect', () => {
   it('keeps a name nothing matches, and says it will still be asked for', async () => {
     const select = open('no_such_table')
     await select.find('input').trigger('focus')
+    await vi.dynamicImportSettled()
+    await flushPromises()
 
     expect(optionsOf(select)).toEqual([])
     expect(select.find('.option.none').text()).toContain('still be asked for')
@@ -56,6 +64,8 @@ describe('VFilterSelect', () => {
     const select = open()
     const input = select.find('input')
     await input.setValue('public.mem')
+    await vi.dynamicImportSettled()
+    await flushPromises()
 
     expect(select.emitted('update:modelValue')?.at(-1)).toEqual(['public.mem'])
   })
@@ -63,7 +73,11 @@ describe('VFilterSelect', () => {
   it('reports what was chosen, and closes', async () => {
     const select = open()
     await select.find('input').trigger('focus')
+    await vi.dynamicImportSettled()
+    await flushPromises()
     await select.findAll('.option')[0]?.trigger('mousedown')
+    await vi.dynamicImportSettled()
+    await flushPromises()
 
     expect(select.emitted('update:modelValue')?.at(-1)).toEqual(['public.bet'])
     expect(select.find('.list').exists()).toBe(false)
@@ -74,13 +88,19 @@ describe('VFilterSelect', () => {
   it('offers a way back to everything once something is chosen', async () => {
     const chosen = open('public.bet')
     await chosen.find('input').trigger('focus')
+    await vi.dynamicImportSettled()
+    await flushPromises()
     expect(chosen.find('.option.clear').text()).toBe('every table')
 
     await chosen.find('.option.clear').trigger('mousedown')
+    await vi.dynamicImportSettled()
+    await flushPromises()
     expect(chosen.emitted('update:modelValue')?.at(-1)).toEqual([''])
 
     const empty = open()
     await empty.find('input').trigger('focus')
+    await vi.dynamicImportSettled()
+    await flushPromises()
     expect(empty.find('.option.clear').exists()).toBe(false)
   })
 
@@ -88,10 +108,18 @@ describe('VFilterSelect', () => {
     const select = open()
     const input = select.find('input')
     await input.trigger('focus')
+    await vi.dynamicImportSettled()
+    await flushPromises()
 
     await input.trigger('keydown', { key: 'ArrowDown' })
+    await vi.dynamicImportSettled()
+    await flushPromises()
     await input.trigger('keydown', { key: 'ArrowDown' })
+    await vi.dynamicImportSettled()
+    await flushPromises()
     await input.trigger('keydown', { key: 'Enter' })
+    await vi.dynamicImportSettled()
+    await flushPromises()
 
     expect(select.emitted('update:modelValue')?.at(-1)).toEqual(['public.member'])
   })
@@ -102,7 +130,11 @@ describe('VFilterSelect', () => {
     const select = open('bet')
     const input = select.find('input')
     await input.trigger('focus')
+    await vi.dynamicImportSettled()
+    await flushPromises()
     await input.trigger('keydown', { key: 'Enter' })
+    await vi.dynamicImportSettled()
+    await flushPromises()
 
     expect(select.emitted('update:modelValue')).toBeUndefined()
   })
@@ -110,11 +142,17 @@ describe('VFilterSelect', () => {
   it('says a choice was picked, from the list or with enter on what was typed', async () => {
     const listed = open()
     await listed.find('input').trigger('focus')
+    await vi.dynamicImportSettled()
+    await flushPromises()
     await listed.findAll('.option:not(.clear):not(.none)')[1]?.trigger('mousedown')
+    await vi.dynamicImportSettled()
+    await flushPromises()
     expect(listed.emitted('pick')).toEqual([['public.member']])
 
     const typed = open('bet.status')
     await typed.find('input').trigger('keydown', { key: 'Enter' })
+    await vi.dynamicImportSettled()
+    await flushPromises()
     expect(typed.emitted('pick')).toEqual([['bet.status']])
   })
 
@@ -130,6 +168,8 @@ describe('VFilterSelect', () => {
       attachTo: document.body,
     })
     await select.find('input').trigger('focus')
+    await vi.dynamicImportSettled()
+    await flushPromises()
     expect(optionsOf(select)).toEqual(tables)
   })
 
@@ -137,9 +177,13 @@ describe('VFilterSelect', () => {
     const select = open()
     const input = select.find('input')
     await input.trigger('focus')
+    await vi.dynamicImportSettled()
+    await flushPromises()
     expect(select.find('.list').exists()).toBe(true)
 
     await input.trigger('keydown', { key: 'Escape' })
+    await vi.dynamicImportSettled()
+    await flushPromises()
     expect(select.find('.list').exists()).toBe(false)
   })
 })
