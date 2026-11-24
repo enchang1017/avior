@@ -11,6 +11,57 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const bindUserOIDCIdentity = `-- name: BindUserOIDCIdentity :one
+UPDATE app_user
+SET oidc_issuer = $2, oidc_subject = $3
+WHERE id = $1
+  AND oidc_issuer = ''
+  AND oidc_subject = ''
+  AND kind = 'person'
+  AND NOT declared
+  AND NOT disabled
+  AND totp_secret = ''
+RETURNING id, username, password_hash, totp_secret, disabled, declared, kind, oidc_issuer, oidc_subject
+`
+
+type BindUserOIDCIdentityParams struct {
+	ID          pgtype.UUID
+	OidcIssuer  string
+	OidcSubject string
+}
+
+type BindUserOIDCIdentityRow struct {
+	ID           pgtype.UUID
+	Username     string
+	PasswordHash string
+	TotpSecret   string
+	Disabled     bool
+	Declared     bool
+	Kind         string
+	OidcIssuer   string
+	OidcSubject  string
+}
+
+// FEAT-077. Atomically binds an unbound, enabled, non-declared person account
+// with no enrolled TOTP secret to its verified OIDC issuer and subject on first
+// Google Workspace sign-in.
+func (q *Queries) BindUserOIDCIdentity(ctx context.Context, arg BindUserOIDCIdentityParams) (BindUserOIDCIdentityRow, error) {
+	row := q.db.QueryRow(ctx, bindUserOIDCIdentity, arg.ID, arg.OidcIssuer, arg.OidcSubject)
+	var i BindUserOIDCIdentityRow
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.PasswordHash,
+		&i.TotpSecret,
+		&i.Disabled,
+		&i.Declared,
+		&i.Kind,
+		&i.OidcIssuer,
+		&i.OidcSubject,
+	)
+	return i, err
+}
+
 const createSession = `-- name: CreateSession :one
 INSERT INTO user_session (id, user_id, token_hash, expires_at)
 VALUES ($1, $2, $3, $4)
@@ -168,8 +219,52 @@ func (q *Queries) GetSessionByTokenHash(ctx context.Context, tokenHash []byte) (
 	return i, err
 }
 
+const getUserByOIDC = `-- name: GetUserByOIDC :one
+SELECT u.id, u.username, u.password_hash, u.totp_secret, u.disabled, u.declared, u.kind,
+       u.oidc_issuer, u.oidc_subject
+FROM app_user u
+WHERE u.oidc_issuer = $1 AND u.oidc_subject = $2
+`
+
+type GetUserByOIDCParams struct {
+	OidcIssuer  string
+	OidcSubject string
+}
+
+type GetUserByOIDCRow struct {
+	ID           pgtype.UUID
+	Username     string
+	PasswordHash string
+	TotpSecret   string
+	Disabled     bool
+	Declared     bool
+	Kind         string
+	OidcIssuer   string
+	OidcSubject  string
+}
+
+// FEAT-077. Looks up an operator by their verified OpenID Connect issuer and
+// subject. Indexed by app_user_oidc_identity_key.
+func (q *Queries) GetUserByOIDC(ctx context.Context, arg GetUserByOIDCParams) (GetUserByOIDCRow, error) {
+	row := q.db.QueryRow(ctx, getUserByOIDC, arg.OidcIssuer, arg.OidcSubject)
+	var i GetUserByOIDCRow
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.PasswordHash,
+		&i.TotpSecret,
+		&i.Disabled,
+		&i.Declared,
+		&i.Kind,
+		&i.OidcIssuer,
+		&i.OidcSubject,
+	)
+	return i, err
+}
+
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT u.id, u.username, u.password_hash, u.totp_secret, u.disabled, u.declared, u.kind
+SELECT u.id, u.username, u.password_hash, u.totp_secret, u.disabled, u.declared, u.kind,
+       u.oidc_issuer, u.oidc_subject
 FROM app_user u
 WHERE lower(u.username) = lower($1)
 `
@@ -182,6 +277,8 @@ type GetUserByUsernameRow struct {
 	Disabled     bool
 	Declared     bool
 	Kind         string
+	OidcIssuer   string
+	OidcSubject  string
 }
 
 // FEAT-007 AC-6. Matched without regard to case, because the directory accepts
@@ -199,6 +296,8 @@ func (q *Queries) GetUserByUsername(ctx context.Context, lower string) (GetUserB
 		&i.Disabled,
 		&i.Declared,
 		&i.Kind,
+		&i.OidcIssuer,
+		&i.OidcSubject,
 	)
 	return i, err
 }
@@ -340,6 +439,66 @@ func (q *Queries) ListRolesForUser(ctx context.Context, userID pgtype.UUID) ([]s
 		return nil, err
 	}
 	return items, nil
+}
+
+const provisionOIDCOperator = `-- name: ProvisionOIDCOperator :one
+INSERT INTO app_user (id, username, password_hash, totp_secret, oidc_issuer, oidc_subject)
+SELECT $1, $2, '', '', $3, $4
+WHERE NOT EXISTS (
+    SELECT 1 FROM app_user WHERE declared AND lower(username) = lower($2)
+)
+  AND lower($2) NOT LIKE 'svc-%'
+ON CONFLICT (lower(username)) DO UPDATE SET username = app_user.username
+RETURNING id, username, password_hash, totp_secret, disabled, declared, kind, oidc_issuer, oidc_subject, (xmax = 0) AS inserted
+`
+
+type ProvisionOIDCOperatorParams struct {
+	ID          pgtype.UUID
+	Username    string
+	OidcIssuer  string
+	OidcSubject string
+}
+
+type ProvisionOIDCOperatorRow struct {
+	ID           pgtype.UUID
+	Username     string
+	PasswordHash string
+	TotpSecret   string
+	Disabled     bool
+	Declared     bool
+	Kind         string
+	OidcIssuer   string
+	OidcSubject  string
+	Inserted     bool
+}
+
+// FEAT-077. Provisions a new operator vouched for by Google Workspace with
+// their verified issuer and subject already bound in the same statement.
+//
+// ON CONFLICT on lower(username) leaves the existing row untouched and returns
+// it so the caller can verify whether its bound subject matches (race on the
+// same person) or differs (reassigned email, refused).
+func (q *Queries) ProvisionOIDCOperator(ctx context.Context, arg ProvisionOIDCOperatorParams) (ProvisionOIDCOperatorRow, error) {
+	row := q.db.QueryRow(ctx, provisionOIDCOperator,
+		arg.ID,
+		arg.Username,
+		arg.OidcIssuer,
+		arg.OidcSubject,
+	)
+	var i ProvisionOIDCOperatorRow
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.PasswordHash,
+		&i.TotpSecret,
+		&i.Disabled,
+		&i.Declared,
+		&i.Kind,
+		&i.OidcIssuer,
+		&i.OidcSubject,
+		&i.Inserted,
+	)
+	return i, err
 }
 
 const provisionOperator = `-- name: ProvisionOperator :one

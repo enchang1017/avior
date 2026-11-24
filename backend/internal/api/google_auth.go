@@ -72,10 +72,15 @@ func (s *Server) GoogleAuthCallback(
 		deref(request.Params.Code),
 	)
 	if err != nil {
-		// Every rejected Google sign-in answers with the same refusal code so
-		// callers cannot tell a disabled account apart from a disallowed domain
-		// or a declared local account.
-		//nolint:nilerr // a refused sign-in is a redirect response, not a 500
+		if !errors.Is(err, auth.ErrInvalidCredentials) {
+			// Log unexpected provider/store/session faults at the HTTP boundary
+			// without recording tokens, authorization codes, secrets, or claims.
+			s.logger().ErrorContext(ctx, "google workspace callback internal failure",
+				"error", err.Error(),
+			)
+		}
+		// Keep the browser-facing refusal generic so callers cannot distinguish
+		// disabled accounts, disallowed domains, or internal faults.
 		return googleCallbackFailureResponse{
 			location: loginErrorRedirect("google_failed"),
 			secure:   s.defaults.SecureCookies,

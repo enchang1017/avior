@@ -226,6 +226,7 @@ func buildHandler(
 	if err != nil {
 		return nil, nil, err
 	}
+	server.UseLogger(log)
 	server.UseObservatoryUsage(stored.usage)
 	server.UseObservatory(browsing.observatory)
 	server.UsePartitionScans(query.NewPostgresPartitionScanner(governedServer))

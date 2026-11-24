@@ -95,7 +95,7 @@ describe('session store', () => {
     expect(session.caller).toBeNull()
   })
 
-  it('loads auth methods and falls back on network failure', async () => {
+  it('loads auth methods and exposes recoverable error state on non-2xx and transport failures', async () => {
     get.mockResolvedValueOnce({
       data: { mode: 'google', password: true, google: true },
       response: { status: 200 },
@@ -103,10 +103,28 @@ describe('session store', () => {
     const session = useSessionStore()
 
     await session.loadAuthMethods()
+    expect(session.authMethodsStatus).toBe('ready')
     expect(session.authMethods).toEqual({ mode: 'google', password: true, google: true })
+    expect(session.authMethodsFailure).toBeNull()
+
+    get.mockResolvedValueOnce({
+      data: undefined,
+      error: { code: 'internal', message: 'Backend unavailable' },
+      response: { status: 503 },
+    })
+    await session.loadAuthMethods()
+    expect(session.authMethodsStatus).toBe('error')
+    expect(session.authMethods).toBeNull()
+    expect(session.authMethodsFailure).toEqual({
+      kind: 'error',
+      code: 'internal',
+      message: 'Backend unavailable',
+    })
 
     get.mockRejectedValueOnce(new Error('offline'))
     await session.loadAuthMethods()
-    expect(session.authMethods).toEqual({ mode: 'store', password: true, google: false })
+    expect(session.authMethodsStatus).toBe('error')
+    expect(session.authMethods).toBeNull()
+    expect(session.authMethodsFailure?.kind).toBe('error')
   })
 })

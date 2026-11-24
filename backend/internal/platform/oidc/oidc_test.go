@@ -158,7 +158,7 @@ func TestVerifyIDTokenRS256AndES256(t *testing.T) {
 		if err != nil {
 			t.Fatalf("VerifyIDToken: %v", err)
 		}
-		if ident.Email != "alice@example.com" || ident.HostedDomain != "example.com" || ident.Subject != "10987654321" {
+		if ident.Issuer != opts.Issuer || ident.Email != "alice@example.com" || ident.HostedDomain != "example.com" || ident.Subject != "10987654321" {
 			t.Errorf("unexpected identity: %+v", ident)
 		}
 	})
@@ -170,8 +170,12 @@ func TestVerifyIDTokenRS256AndES256(t *testing.T) {
 		claims["azp"] = opts.ClientID
 		claims["email_verified"] = "true"
 		tok := signES256(t, ecKey, "ec-1", claims)
-		if _, err := VerifyIDToken(tok, jwks, opts); err != nil {
+		ident, err := VerifyIDToken(tok, jwks, opts)
+		if err != nil {
 			t.Fatalf("VerifyIDToken ES256: %v", err)
+		}
+		if ident.Issuer != opts.Issuer {
+			t.Errorf("Issuer = %q, want canonical %q", ident.Issuer, opts.Issuer)
 		}
 	})
 

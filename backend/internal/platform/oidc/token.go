@@ -54,8 +54,10 @@ type VerifyOptions struct {
 }
 
 // VerifiedIdentity is the identity extracted from a verified Google Workspace
-// ID token.
+// ID token. Issuer is canonicalised to the configured provider issuer so
+// (Issuer, Subject) binds stably even when Google omits the https:// scheme.
 type VerifiedIdentity struct {
+	Issuer       string
 	Subject      string
 	Email        string
 	HostedDomain string
@@ -298,10 +300,10 @@ func validateClaims(claims idTokenClaims, opts VerifyOptions) (VerifiedIdentity,
 	if strings.TrimSpace(claims.Subject) == "" {
 		return VerifiedIdentity{}, fmt.Errorf("%w: missing subject", ErrInvalidToken)
 	}
-	return validateWorkspaceEmail(claims, opts.AllowedDomains)
+	return validateWorkspaceEmail(claims, opts.Issuer, opts.AllowedDomains)
 }
 
-func validateWorkspaceEmail(claims idTokenClaims, allowedDomains []string) (VerifiedIdentity, error) {
+func validateWorkspaceEmail(claims idTokenClaims, canonicalIssuer string, allowedDomains []string) (VerifiedIdentity, error) {
 	if !bool(claims.EmailVerified) {
 		return VerifiedIdentity{}, fmt.Errorf("%w: email is not verified", ErrInvalidToken)
 	}
@@ -320,6 +322,7 @@ func validateWorkspaceEmail(claims idTokenClaims, allowedDomains []string) (Veri
 		return VerifiedIdentity{}, fmt.Errorf("%w: hosted domain %q is not allowed", ErrInvalidToken, hostedDomain)
 	}
 	return VerifiedIdentity{
+		Issuer:       canonicalIssuer,
 		Subject:      claims.Subject,
 		Email:        email,
 		HostedDomain: hostedDomain,

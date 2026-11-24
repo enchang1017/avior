@@ -39,6 +39,8 @@ type AppUser struct {
 	Kind         string
 	Description  string
 	CreatedBy    pgtype.UUID
+	OidcIssuer   string
+	OidcSubject  string
 }
 
 type AppUserRole struct {

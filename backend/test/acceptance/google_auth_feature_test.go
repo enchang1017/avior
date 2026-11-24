@@ -29,6 +29,7 @@ import (
 	"github.com/enchang1017/avior/backend/internal/gen"
 	"github.com/enchang1017/avior/backend/internal/platform/oidc"
 	"github.com/enchang1017/avior/backend/internal/sqlguard"
+	"github.com/enchang1017/avior/backend/internal/store"
 )
 
 const (
@@ -359,6 +360,230 @@ func TestGoogleWorkspaceAuthFeature(t *testing.T) {
 			}
 		}
 	})
+
+	// AC-10: (oidc_issuer, oidc_subject) binding prevents email-reassignment
+	// takeover, binds pre-existing unbound non-TOTP accounts once, and keeps
+	// the same operator account if the user's Workspace email is later renamed.
+	t.Run("subject binding blocks reassigned emails and follows subject across email changes", func(t *testing.T) {
+		idp := newFakeGoogleIDP(t)
+		h := googleHarness(t, limits, idp, []string{"example.com"}, []string{"developer"})
+
+		// 1. Existing unbound non-TOTP account binds once on first Google sign-in.
+		migratedEmail := "migrated-" + uuid.New().String()[:8] + "@example.com"
+		migratedID := insertUnboundPerson(t, migratedEmail, "", "release_approver")
+
+		client, loc := completeGoogleSignIn(t, h, idp, "/", fakeGoogleAccount{
+			subject: "sub-migrated-1", email: migratedEmail, emailVerified: true, hostedDomain: "example.com",
+		})
+		if loc != "/" {
+			t.Fatalf("migrated sign-in redirect = %q, want /", loc)
+		}
+		status, payload := h.get(client, "/auth/me")
+		if status != http.StatusOK {
+			t.Fatalf("migrated /auth/me = %d %s", status, payload)
+		}
+		var caller gen.CurrentUser
+		h.decode(payload, &caller)
+		if caller.Id != migratedID {
+			t.Errorf("caller.Id = %s, want existing %s", caller.Id, migratedID)
+		}
+		if !strings.Contains(string(payload), "release_approver") {
+			t.Errorf("existing role not preserved on bind: %s", payload)
+		}
+
+		// 2. A reassigned Workspace email with a different sub is refused.
+		reassignedClient, reassignedLoc := completeGoogleSignIn(t, h, idp, "/", fakeGoogleAccount{
+			subject: "sub-new-hire-2", email: migratedEmail, emailVerified: true, hostedDomain: "example.com",
+		})
+		if reassignedLoc != "/login?error=google_failed" {
+			t.Errorf("reassigned email redirect = %q, want /login?error=google_failed", reassignedLoc)
+		}
+		if s, _ := h.get(reassignedClient, "/auth/me"); s != http.StatusUnauthorized {
+			t.Errorf("reassigned email /auth/me = %d, want 401", s)
+		}
+
+		// 3. Same subject signing in after an email rename resolves to the same account.
+		renamedEmail := "renamed-" + uuid.New().String()[:8] + "@example.com"
+		renamedClient, renamedLoc := completeGoogleSignIn(t, h, idp, "/", fakeGoogleAccount{
+			subject: "sub-migrated-1", email: renamedEmail, emailVerified: true, hostedDomain: "example.com",
+		})
+		if renamedLoc != "/" {
+			t.Fatalf("renamed email redirect = %q, want /", renamedLoc)
+		}
+		s, renamedPayload := h.get(renamedClient, "/auth/me")
+		if s != http.StatusOK {
+			t.Fatalf("renamed /auth/me = %d %s", s, renamedPayload)
+		}
+		var renamedCaller gen.CurrentUser
+		h.decode(renamedPayload, &renamedCaller)
+		if renamedCaller.Id != migratedID {
+			t.Errorf("renamed caller.Id = %s, want bound %s", renamedCaller.Id, migratedID)
+		}
+	})
+
+	// AC-11: fail-closed MFA migration policy. Accounts carrying a legacy Avior
+	// TOTP secret are refused on the Google path and remain unbound.
+	t.Run("account with legacy totp secret is refused and remains unbound", func(t *testing.T) {
+		idp := newFakeGoogleIDP(t)
+		h := googleHarness(t, limits, idp, []string{"example.com"}, []string{"developer"})
+
+		totpEmail := "legacy-totp-" + uuid.New().String()[:8] + "@example.com"
+		totpID := insertUnboundPerson(t, totpEmail, fixtureTOTPSecret, "developer")
+
+		client, loc := completeGoogleSignIn(t, h, idp, "/", fakeGoogleAccount{
+			subject: "sub-legacy-totp", email: totpEmail, emailVerified: true, hostedDomain: "example.com",
+		})
+		if loc != "/login?error=google_failed" {
+			t.Errorf("totp account redirect = %q, want /login?error=google_failed", loc)
+		}
+		if status, _ := h.get(client, "/auth/me"); status != http.StatusUnauthorized {
+			t.Errorf("totp account /auth/me = %d, want 401", status)
+		}
+
+		var boundIssuer, boundSubject string
+		if err := shared.pool.QueryRow(context.Background(),
+			`SELECT oidc_issuer, oidc_subject FROM app_user WHERE id = $1`, totpID,
+		).Scan(&boundIssuer, &boundSubject); err != nil {
+			t.Fatalf("query oidc columns: %v", err)
+		}
+		if boundIssuer != "" || boundSubject != "" {
+			t.Errorf("legacy totp account was bound to (%q, %q), want unbound", boundIssuer, boundSubject)
+		}
+	})
+
+	// AC-12: internal failures (provider outage) are logged at ERROR level at
+	// the HTTP boundary without leaking tokens, codes, state, or secrets, while
+	// expected credential refusals do not emit internal ERROR logs.
+	t.Run("internal callback failure is logged at boundary without leaking secrets", func(t *testing.T) {
+		idp := newFakeGoogleIDP(t)
+		h := googleHarness(t, limits, idp, []string{"example.com"}, []string{"developer"})
+		recorder := &logRecorder{}
+		h.api.UseLogger(slog.New(recorder))
+
+		// Expected credential refusal (disallowed domain) produces no ERROR log.
+		_, refusalLoc := completeGoogleSignIn(t, h, idp, "/", fakeGoogleAccount{
+			subject: "sub-refused", email: "user@outside.org", emailVerified: true, hostedDomain: "outside.org",
+		})
+		if refusalLoc != "/login?error=google_failed" {
+			t.Fatalf("refusal redirect = %q, want /login?error=google_failed", refusalLoc)
+		}
+		// Unknown/replayed authorization code (HTTP 400 invalid_grant) is also
+		// a client refusal and must not emit an internal ERROR log.
+		badCodeJar, _ := cookiejar.New(nil)
+		badCodeClient := &http.Client{
+			Jar: badCodeJar,
+			CheckRedirect: func(*http.Request, []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
+		}
+		badStart, err := badCodeClient.Get(h.server.URL + "/api/v1/auth/google/start")
+		if err != nil {
+			t.Fatalf("start for invalid_grant: %v", err)
+		}
+		_ = badStart.Body.Close()
+		badStartURL, _ := url.Parse(badStart.Header.Get("Location"))
+		badCB, err := badCodeClient.Get(
+			h.server.URL + "/api/v1/auth/google/callback?code=replayed-code&state=" + badStartURL.Query().Get("state"))
+		if err != nil {
+			t.Fatalf("callback for invalid_grant: %v", err)
+		}
+		_ = badCB.Body.Close()
+		if badCB.Header.Get("Location") != "/login?error=google_failed" {
+			t.Fatalf("invalid_grant redirect = %q, want /login?error=google_failed", badCB.Header.Get("Location"))
+		}
+		if recorder.errorCount() != 0 {
+			t.Fatalf("expected credential refusals logged %d errors, want 0", recorder.errorCount())
+		}
+
+		// Simulate an internal provider fault (token endpoint returns HTTP 500).
+		idp.failTokenEndpoint(true)
+		t.Cleanup(func() { idp.failTokenEndpoint(false) })
+
+		jar, _ := cookiejar.New(nil)
+		client := &http.Client{
+			Jar: jar,
+			CheckRedirect: func(*http.Request, []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
+		}
+		startResp, err := client.Get(h.server.URL + "/api/v1/auth/google/start")
+		if err != nil {
+			t.Fatalf("start: %v", err)
+		}
+		_ = startResp.Body.Close()
+		authURL, _ := url.Parse(startResp.Header.Get("Location"))
+		state := authURL.Query().Get("state")
+		secretCode := "secret-auth-code-do-not-log"
+
+		cbResp, err := client.Get(h.server.URL + "/api/v1/auth/google/callback?code=" + secretCode + "&state=" + state)
+		if err != nil {
+			t.Fatalf("callback: %v", err)
+		}
+		_ = cbResp.Body.Close()
+		if cbResp.Header.Get("Location") != "/login?error=google_failed" {
+			t.Fatalf("internal fault redirect = %q, want /login?error=google_failed", cbResp.Header.Get("Location"))
+		}
+		if recorder.errorCount() != 1 {
+			t.Fatalf("internal fault logged %d errors, want 1", recorder.errorCount())
+		}
+		logged := recorder.joinedErrors()
+		for _, forbidden := range []string{secretCode, state, googleTestClientSecret} {
+			if strings.Contains(logged, forbidden) {
+				t.Errorf("boundary error log leaked sensitive value %q: %s", forbidden, logged)
+			}
+		}
+
+		// Also verify a store/session fault during callback is logged at ERROR
+		// without leaking email or tokens.
+		idp.failTokenEndpoint(false)
+		ephemeralStore, err := store.Open(context.Background(), shared.dsns.Store, "")
+		if err != nil {
+			t.Fatalf("open ephemeral store: %v", err)
+		}
+		storeRecorder := &logRecorder{}
+		storeAuthProvider, err := auth.NewHTTPGoogleProvider(auth.GoogleConfig{
+			IssuerURL:      idp.server.URL,
+			ClientID:       googleTestClientID,
+			ClientSecret:   googleTestClientSecret,
+			RedirectURL:    h.server.URL + "/api/v1/auth/google/callback",
+			AllowedDomains: []string{"example.com"},
+			Logger:         slog.New(slog.DiscardHandler),
+		})
+		if err != nil {
+			t.Fatalf("wire provider: %v", err)
+		}
+		storeGoogle, err := auth.NewGoogleAuthenticator(
+			storeAuthProvider,
+			ephemeralStore,
+			[]byte("0123456789abcdef0123456789abcdef"),
+			[]string{"example.com"},
+			[]string{"developer"},
+			slog.New(slog.DiscardHandler),
+		)
+		if err != nil {
+			t.Fatalf("wire authenticator: %v", err)
+		}
+		h.sessions.UseGoogle(storeGoogle)
+		h.api.UseLogger(slog.New(storeRecorder))
+
+		ephemeralStore.Close()
+		secretEmail := "store-fault-" + uuid.New().String()[:8] + "@example.com"
+		_, storeFaultLoc := completeGoogleSignIn(t, h, idp, "/", fakeGoogleAccount{
+			subject: "sub-store-fault", email: secretEmail, emailVerified: true, hostedDomain: "example.com",
+		})
+		if storeFaultLoc != "/login?error=google_failed" {
+			t.Fatalf("store fault redirect = %q, want /login?error=google_failed", storeFaultLoc)
+		}
+		if storeRecorder.errorCount() != 1 {
+			t.Fatalf("store fault logged %d errors, want 1", storeRecorder.errorCount())
+		}
+		storeLogged := storeRecorder.joinedErrors()
+		for _, forbidden := range []string{secretEmail, "sub-store-fault", googleTestClientSecret} {
+			if strings.Contains(storeLogged, forbidden) {
+				t.Errorf("store fault log leaked sensitive value %q: %s", forbidden, storeLogged)
+			}
+		}
+	})
 }
 
 type fakeGoogleAccount struct {
@@ -378,10 +603,17 @@ type issuedCode struct {
 type fakeGoogleIDP struct {
 	server *httptest.Server
 
-	mu    sync.Mutex
-	kid   string
-	key   *rsa.PrivateKey
-	codes map[string]issuedCode
+	mu         sync.Mutex
+	kid        string
+	key        *rsa.PrivateKey
+	codes      map[string]issuedCode
+	failTokens bool
+}
+
+func (f *fakeGoogleIDP) failTokenEndpoint(fail bool) {
+	f.mu.Lock()
+	f.failTokens = fail
+	f.mu.Unlock()
 }
 
 func newFakeGoogleIDP(t *testing.T) *fakeGoogleIDP {
@@ -460,6 +692,13 @@ func (f *fakeGoogleIDP) handleJWKS(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (f *fakeGoogleIDP) handleToken(w http.ResponseWriter, r *http.Request) {
+	f.mu.Lock()
+	failTokens := f.failTokens
+	f.mu.Unlock()
+	if failTokens {
+		http.Error(w, `{"error":"server_error"}`, http.StatusInternalServerError)
+		return
+	}
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "bad form", http.StatusBadRequest)
 		return
@@ -637,4 +876,68 @@ func cleanupUnrecordedUser(t *testing.T, username string) {
 	if _, err := shared.pool.Exec(ctx, `DELETE FROM app_user WHERE lower(username) = lower($1)`, username); err != nil {
 		t.Errorf("cleanup %s: %v", username, err)
 	}
+}
+
+func insertUnboundPerson(t *testing.T, username, totpSecret string, roles ...string) uuid.UUID {
+	t.Helper()
+	id := uuid.New()
+	ctx := context.Background()
+	if _, err := shared.pool.Exec(ctx, `
+		INSERT INTO app_user (id, username, password_hash, totp_secret)
+		VALUES ($1, $2, '', $3)`, id, username, totpSecret); err != nil {
+		t.Fatalf("insert unbound person %s: %v", username, err)
+	}
+	for _, role := range roles {
+		if _, err := shared.pool.Exec(ctx, `
+			INSERT INTO app_user_role (user_id, role) VALUES ($1, $2)`, id, role); err != nil {
+			t.Fatalf("grant role %s to %s: %v", role, username, err)
+		}
+	}
+	t.Cleanup(func() {
+		if _, err := shared.pool.Exec(context.Background(), `DELETE FROM app_user WHERE id = $1`, id); err != nil {
+			t.Errorf("cleanup unbound person %s: %v", username, err)
+		}
+	})
+	return id
+}
+
+type logRecorder struct {
+	mu     sync.Mutex
+	errors []string
+}
+
+func (r *logRecorder) Enabled(_ context.Context, _ slog.Level) bool { return true }
+
+func (r *logRecorder) Handle(_ context.Context, rec slog.Record) error {
+	if rec.Level < slog.LevelError {
+		return nil
+	}
+	var b strings.Builder
+	b.WriteString(rec.Message)
+	rec.Attrs(func(a slog.Attr) bool {
+		b.WriteByte(' ')
+		b.WriteString(a.Key)
+		b.WriteByte('=')
+		b.WriteString(a.Value.String())
+		return true
+	})
+	r.mu.Lock()
+	r.errors = append(r.errors, b.String())
+	r.mu.Unlock()
+	return nil
+}
+
+func (r *logRecorder) WithAttrs(_ []slog.Attr) slog.Handler { return r }
+func (r *logRecorder) WithGroup(_ string) slog.Handler      { return r }
+
+func (r *logRecorder) errorCount() int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return len(r.errors)
+}
+
+func (r *logRecorder) joinedErrors() string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return strings.Join(r.errors, "\n")
 }

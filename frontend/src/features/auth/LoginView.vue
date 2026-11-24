@@ -25,7 +25,15 @@ const username = ref('')
 const password = ref('')
 const showLocalForm = ref(false)
 
-const googleEnabled = computed(() => session.authMethods.google)
+const methodsLoading = computed(
+  () => session.authMethodsStatus === 'idle' || session.authMethodsStatus === 'loading',
+)
+const methodsError = computed(() => session.authMethodsStatus === 'error')
+const methodsReady = computed(
+  () => session.authMethodsStatus === 'ready' && session.authMethods !== null,
+)
+const googleEnabled = computed(() => session.authMethods?.google === true)
+const passwordEnabled = computed(() => session.authMethods?.password === true)
 
 const googleStartHref = computed(() => {
   const redirect = route.query['redirect']
@@ -47,6 +55,11 @@ const errorMessage = computed<string | null>(() => {
   return callbackErrorMessage.value
 })
 
+const methodsErrorMessage = computed<string>(() => {
+  if (session.authMethodsFailure !== null) return describeFailure(session.authMethodsFailure)
+  return 'Could not determine which sign-in methods this deployment supports.'
+})
+
 async function submit(): Promise<void> {
   if (!(await session.signIn(username.value, password.value))) return
   const redirect = route.query['redirect']
@@ -55,6 +68,10 @@ async function submit(): Promise<void> {
 
 function startGoogleSignIn(): void {
   window.location.assign(googleStartHref.value)
+}
+
+function retryAuthMethods(): void {
+  void session.loadAuthMethods()
 }
 </script>
 
@@ -84,67 +101,95 @@ function startGoogleSignIn(): void {
         <small class="text-sm text-fg-soft">Governed SQL gateway</small>
       </div>
 
-      <template v-if="googleEnabled">
-        <p class="m-0 text-sm text-fg-soft">
-          Sign in with your Google Workspace account to continue.
-        </p>
+      <p v-if="methodsLoading" class="m-0 flex items-center gap-2 text-sm text-fg-soft">
+        <VIcon name="loader" spin />
+        Checking sign-in methods…
+      </p>
 
+      <template v-else-if="methodsError">
         <p
-          v-if="errorMessage && !showLocalForm"
-          class="mx-0 mt-3 mb-0 flex items-center gap-1.5 rounded-control border border-danger-line bg-danger-bg px-2 py-1.75 text-xs text-danger"
+          class="mx-0 mt-1 mb-0 flex items-center gap-1.5 rounded-control border border-danger-line bg-danger-bg px-2 py-1.75 text-xs text-danger"
         >
           <VIcon name="circle-x" />
-          {{ errorMessage }}
+          {{ methodsErrorMessage }}
         </p>
 
-        <VButton
-          variant="primary"
-          class="mt-5 w-full"
-          type="button"
-          :disabled="session.busy"
-          @click="startGoogleSignIn"
-        >
-          <VIcon name="shield-check" />
-          Sign in with Google Workspace
-        </VButton>
-
-        <VButton
-          v-if="session.authMethods.password"
-          variant="ghost"
-          class="mt-2 w-full"
-          type="button"
-          @click="showLocalForm = !showLocalForm"
-        >
-          <VIcon name="key" />
-          {{ showLocalForm ? 'Hide local administrator sign-in' : 'Local administrator sign-in' }}
+        <VButton variant="primary" class="mt-5 w-full" type="button" @click="retryAuthMethods">
+          <VIcon name="replay" />
+          Retry
         </VButton>
       </template>
 
-      <template v-if="!googleEnabled || showLocalForm">
-        <label for="username" class="eyebrow" :class="googleEnabled ? 'mt-4' : ''">Username</label>
-        <VInput id="username" v-model="username" type="text" autocomplete="username" required />
+      <template v-else-if="methodsReady">
+        <template v-if="googleEnabled">
+          <p class="m-0 text-sm text-fg-soft">
+            Sign in with your Google Workspace account to continue.
+          </p>
 
-        <!-- Only the username is always required. A local stack authenticates on
-             it alone; the directory adds a password; the interim store-backed mode
-             adds an authenticator code as well. Marking them required here would
-             block a sign-in the server would have accepted. -->
-        <label for="password" class="mt-3 eyebrow"
-          >Password <span class="font-normal text-fg-muted">if required</span></label
-        >
-        <VInput id="password" v-model="password" type="password" autocomplete="current-password" />
+          <p
+            v-if="errorMessage && !showLocalForm"
+            class="mx-0 mt-3 mb-0 flex items-center gap-1.5 rounded-control border border-danger-line bg-danger-bg px-2 py-1.75 text-xs text-danger"
+          >
+            <VIcon name="circle-x" />
+            {{ errorMessage }}
+          </p>
 
-        <p
-          v-if="errorMessage"
-          class="mx-0 mt-3 mb-0 flex items-center gap-1.5 rounded-control border border-danger-line bg-danger-bg px-2 py-1.75 text-xs text-danger"
-        >
-          <VIcon name="circle-x" />
-          {{ errorMessage }}
-        </p>
+          <VButton
+            variant="primary"
+            class="mt-5 w-full"
+            type="button"
+            :disabled="session.busy"
+            @click="startGoogleSignIn"
+          >
+            <VIcon name="shield-check" />
+            Sign in with Google Workspace
+          </VButton>
 
-        <VButton variant="primary" class="mt-5 w-full" type="submit" :disabled="session.busy">
-          <VIcon v-if="session.busy" name="loader" spin />
-          Sign in
-        </VButton>
+          <VButton
+            v-if="passwordEnabled"
+            variant="ghost"
+            class="mt-2 w-full"
+            type="button"
+            @click="showLocalForm = !showLocalForm"
+          >
+            <VIcon name="key" />
+            {{ showLocalForm ? 'Hide local administrator sign-in' : 'Local administrator sign-in' }}
+          </VButton>
+        </template>
+
+        <template v-if="!googleEnabled || showLocalForm">
+          <label for="username" class="eyebrow" :class="googleEnabled ? 'mt-4' : ''"
+            >Username</label
+          >
+          <VInput id="username" v-model="username" type="text" autocomplete="username" required />
+
+          <!-- Only the username is always required. A local stack authenticates on
+               it alone; the directory adds a password; the interim store-backed mode
+               adds an authenticator code as well. Marking them required here would
+               block a sign-in the server would have accepted. -->
+          <label for="password" class="mt-3 eyebrow"
+            >Password <span class="font-normal text-fg-muted">if required</span></label
+          >
+          <VInput
+            id="password"
+            v-model="password"
+            type="password"
+            autocomplete="current-password"
+          />
+
+          <p
+            v-if="errorMessage"
+            class="mx-0 mt-3 mb-0 flex items-center gap-1.5 rounded-control border border-danger-line bg-danger-bg px-2 py-1.75 text-xs text-danger"
+          >
+            <VIcon name="circle-x" />
+            {{ errorMessage }}
+          </p>
+
+          <VButton variant="primary" class="mt-5 w-full" type="submit" :disabled="session.busy">
+            <VIcon v-if="session.busy" name="loader" spin />
+            Sign in
+          </VButton>
+        </template>
       </template>
     </form>
   </main>

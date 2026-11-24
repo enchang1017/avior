@@ -6,6 +6,7 @@ package api
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -98,6 +99,20 @@ type Server struct {
 	partitionScans PartitionScanner
 	checkers       []HealthChecker
 	defaults       Defaults
+	log            *slog.Logger
+}
+
+// UseLogger attaches the structured logger used by HTTP boundary handlers that
+// must record internal failures without returning raw error details to callers.
+func (s *Server) UseLogger(log *slog.Logger) {
+	s.log = log
+}
+
+func (s *Server) logger() *slog.Logger {
+	if s.log == nil {
+		return slog.New(slog.DiscardHandler)
+	}
+	return s.log
 }
 
 // NewServer wires the HTTP layer.

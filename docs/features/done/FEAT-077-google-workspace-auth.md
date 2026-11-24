@@ -10,8 +10,30 @@ Size: M
 **Google Workspace says who you are. Avior says what you may do.** Just as in
 FEAT-007 and ADR 0006, no role, group, permission, or enabled flag is read from
 Google Workspace. Google's OpenID Connect ID token proves an operator's verified
-email and Google Workspace hosted domain (`hd`); Avior's `app_user` and
-`app_user_role` tables remain the sole authority on access.
+identity (`iss`, `sub`, `email`, `email_verified`, and Workspace hosted domain
+`hd`); Avior's `app_user` and `app_user_role` tables remain the sole authority
+on access.
+
+## Identity binding and MFA migration policy
+
+Recorded in ADR 0006 (2026-11-24 amendment):
+
+- **Verified `(oidc_issuer, oidc_subject)` binding**: New accounts provisioned
+  through Google Workspace store their canonical `oidc_issuer` and Google `sub`
+  in `app_user` (with a unique index on `(oidc_issuer, oidc_subject)`). Returning
+  sign-ins resolve by `(oidc_issuer, oidc_subject)` first. If a recycled
+  Workspace email matches an account bound to a different `sub`, sign-in is
+  refused so a reassigned email cannot inherit roles or history.
+- **Pre-existing unbound accounts**: An existing enabled, non-declared `person`
+  account matching the verified Workspace email with empty `oidc_issuer`,
+  `oidc_subject`, and `totp_secret` is atomically bound once on its first Google
+  sign-in.
+- **TOTP / MFA policy (fail-closed migration)**: Under `AVIOR_AUTH_MODE=google`,
+  MFA is enforced by Google Workspace rather than by an Avior TOTP prompt on the
+  callback. To prevent silently removing an enrolled second factor when migrating
+  from `store` mode, any existing account carrying a non-empty `totp_secret` is
+  refused on the Google sign-in path until an administrator verifies Workspace
+  2-Step Verification and clears the legacy TOTP secret.
 
 ## What an operator can do
 
@@ -35,7 +57,8 @@ provider outage.
   match `AVIOR_GOOGLE_ALLOWED_DOMAINS` is signed in, receives an `avior_session`
   cookie, is auto-provisioned on first sign-in with the comma-separated roles in
   `AVIOR_GOOGLE_DEFAULT_ROLE` (recorded once as `provision` in `account_change`),
-  and returns to their requested same-origin redirect path.
+  is bound to `(oidc_issuer, oidc_subject)`, and returns to their requested
+  same-origin redirect path.
 - **AC-3** — An empty `AVIOR_GOOGLE_DEFAULT_ROLE` provisions the account with no
   roles so an administrator can grant access manually.
 - **AC-4** — Personal Gmail accounts (absent `hd`), users from disallowed
@@ -55,6 +78,18 @@ provider outage.
 - **AC-9** — Configuration refuses to start when `AVIOR_AUTH_MODE=google` lacks
   required settings or names `administrator` or an unknown role in
   `AVIOR_GOOGLE_DEFAULT_ROLE`.
+- **AC-10** — Subject binding prevents account takeover on reassigned emails:
+  a different `sub` presenting a previously bound email is refused, an existing
+  unbound enabled account without TOTP binds once on first Google sign-in, and
+  a returning bound subject stays mapped to the same account even if its email
+  changes.
+- **AC-11** — An existing account carrying a non-empty `totp_secret` is refused
+  on the Google sign-in path (fail-closed MFA migration policy) and is not bound.
+- **AC-12** — Internal callback faults (such as a provider outage or store error)
+  are distinguished from expected credential refusals and logged at error level
+  at the HTTP boundary without logging authorization codes, state cookies,
+  tokens, client secrets, or identity claims, while still redirecting the
+  browser to `/login?error=google_failed`.
 
 ## Configuration
 
@@ -84,3 +119,6 @@ provider outage.
 | AC-7 | `jwks key rotation refreshes keys once and succeeds` |
 | AC-8 | `google endpoints return 404 when google mode is not active` |
 | AC-9 | `administrator or unknown default role is refused at wiring` |
+| AC-10 | `subject binding blocks reassigned emails and follows subject across email changes` |
+| AC-11 | `account with legacy totp secret is refused and remains unbound` |
+| AC-12 | `internal callback failure is logged at boundary without leaking secrets` |

@@ -147,6 +147,10 @@ func (g *GoogleAuthenticator) Start(ctx context.Context, redirect string, now ti
 // VerifyCallback validates the OAuth callback, exchanges the authorization code,
 // verifies the Google Workspace ID token, and resolves or provisions the Avior
 // account.
+//
+// Expected authentication refusals return ErrInvalidCredentials. Internal
+// faults (provider outages or store failures) return a wrapped error so the
+// HTTP boundary can log them without disclosing details to the browser.
 func (g *GoogleAuthenticator) VerifyCallback(
 	ctx context.Context, stateCookie, queryState, code string, now time.Time,
 ) (Account, string, error) {
@@ -155,7 +159,7 @@ func (g *GoogleAuthenticator) VerifyCallback(
 	}
 	flow, err := oidc.OpenState(g.stateSecret, stateCookie, now)
 	if err != nil {
-		g.logger.WarnContext(ctx, "google callback rejected: invalid state cookie", "error", err.Error())
+		g.logger.WarnContext(ctx, "google callback rejected: invalid state cookie")
 		return Account{}, "", ErrInvalidCredentials
 	}
 	if subtle.ConstantTimeCompare([]byte(queryState), []byte(flow.State)) != 1 {
@@ -165,34 +169,85 @@ func (g *GoogleAuthenticator) VerifyCallback(
 
 	ident, err := g.provider.ExchangeAndVerify(ctx, code, flow.CodeVerifier, flow.Nonce, now)
 	if err != nil {
-		g.logger.WarnContext(ctx, "google identity verification failed", "error", err.Error())
-		return Account{}, "", ErrInvalidCredentials
+		if errors.Is(err, ErrInvalidCredentials) || errors.Is(err, oidc.ErrInvalidToken) || errors.Is(err, oidc.ErrUnknownKeyID) {
+			g.logger.WarnContext(ctx, "google identity token refused")
+			return Account{}, "", ErrInvalidCredentials
+		}
+		return Account{}, "", fmt.Errorf("google oidc provider: %w", err)
 	}
 
-	account, err := g.resolveAccount(ctx, ident.Email)
+	account, err := g.resolveAccount(ctx, ident)
 	if err != nil {
 		return Account{}, "", err
 	}
 	return account, flow.Redirect, nil
 }
 
-func (g *GoogleAuthenticator) resolveAccount(ctx context.Context, email string) (Account, error) {
-	username := strings.ToLower(strings.TrimSpace(email))
-	if username == "" || identity.IsServiceAccountName(username) {
+func (g *GoogleAuthenticator) resolveAccount(ctx context.Context, ident oidc.VerifiedIdentity) (Account, error) {
+	username := strings.ToLower(strings.TrimSpace(ident.Email))
+	issuer := strings.TrimSpace(ident.Issuer)
+	subject := strings.TrimSpace(ident.Subject)
+	if username == "" || issuer == "" || subject == "" || identity.IsServiceAccountName(username) {
 		return Account{}, ErrInvalidCredentials
 	}
 
-	account, err := g.repo.FindAccount(ctx, username)
-	if errors.Is(err, ErrAccountNotFound) {
-		account, err = g.repo.ProvisionAccount(ctx, username, g.defaultRoles)
+	account, err := g.repo.FindAccountByOIDC(ctx, issuer, subject)
+	if err == nil {
+		return checkGoogleAccountEligible(account, issuer, subject)
 	}
-	if err != nil {
-		g.logger.WarnContext(ctx, "google account lookup or provisioning failed", "error", err.Error())
+	if !errors.Is(err, ErrAccountNotFound) {
+		return Account{}, fmt.Errorf("lookup google oidc account: %w", err)
+	}
+
+	return g.bindOrProvisionAccount(ctx, username, issuer, subject)
+}
+
+func (g *GoogleAuthenticator) bindOrProvisionAccount(
+	ctx context.Context, username, issuer, subject string,
+) (Account, error) {
+	existing, err := g.repo.FindAccount(ctx, username)
+	if err == nil {
+		// Refuse declared, disabled, service, legacy TOTP-enrolled accounts, or
+		// accounts already bound to a different Google subject (reassigned email).
+		if existing.Declared || existing.Disabled || existing.Service || existing.TOTPSecret != "" {
+			return Account{}, ErrInvalidCredentials
+		}
+		if existing.OIDCIssuer != "" || existing.OIDCSubject != "" {
+			return Account{}, ErrInvalidCredentials
+		}
+		bound, bindErr := g.repo.BindOIDCIdentity(ctx, existing.ID, issuer, subject)
+		if errors.Is(bindErr, ErrAccountNotFound) {
+			return Account{}, ErrInvalidCredentials
+		}
+		if bindErr != nil {
+			return Account{}, fmt.Errorf("bind google oidc account: %w", bindErr)
+		}
+		return checkGoogleAccountEligible(bound, issuer, subject)
+	}
+	if !errors.Is(err, ErrAccountNotFound) {
+		return Account{}, fmt.Errorf("lookup account by email: %w", err)
+	}
+
+	provisioned, err := g.repo.ProvisionOIDCAccount(ctx, username, issuer, subject, g.defaultRoles)
+	if errors.Is(err, ErrAccountNotFound) {
 		return Account{}, ErrInvalidCredentials
 	}
-	// FEAT-056: a declared account authenticates locally and cannot be claimed by
-	// an external identity provider. FEAT-063: service accounts never sign in.
-	if account.Declared || account.Disabled || account.Service {
+	if err != nil {
+		return Account{}, fmt.Errorf("provision google oidc account: %w", err)
+	}
+	return checkGoogleAccountEligible(provisioned, issuer, subject)
+}
+
+// checkGoogleAccountEligible enforces ADR 0006, FEAT-056, FEAT-063, and
+// FEAT-077 invariants on any account returned for a Google Workspace sign-in:
+// declared accounts authenticate locally, service accounts never sign in,
+// accounts with legacy Avior TOTP secrets fail closed until migrated, and the
+// persisted (issuer, subject) pair must match the verified ID token.
+func checkGoogleAccountEligible(account Account, issuer, subject string) (Account, error) {
+	if account.Declared || account.Disabled || account.Service || account.TOTPSecret != "" {
+		return Account{}, ErrInvalidCredentials
+	}
+	if account.OIDCIssuer != issuer || account.OIDCSubject != subject {
 		return Account{}, ErrInvalidCredentials
 	}
 	return account, nil
@@ -365,9 +420,30 @@ func (p *HTTPGoogleProvider) exchangeCode(ctx context.Context, tokenEndpoint, co
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	var out tokenResponse
-	if err := p.doJSON(req, &out); err != nil {
+	resp, err := p.client.Do(req)
+	if err != nil {
 		return "", fmt.Errorf("exchange authorization code: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	raw, err := io.ReadAll(io.LimitReader(resp.Body, maxOIDCBodyBytes))
+	if err != nil {
+		return "", fmt.Errorf("read token response: %w", err)
+	}
+	var out tokenResponse
+	if resp.StatusCode == http.StatusBadRequest {
+		// An invalid or replayed authorization code is a client refusal, not an
+		// internal gateway or provider fault.
+		if json.Unmarshal(raw, &out) == nil && out.Error == "invalid_grant" {
+			return "", ErrInvalidCredentials
+		}
+		return "", fmt.Errorf("exchange authorization code: unexpected status %d", resp.StatusCode)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("exchange authorization code: unexpected status %d", resp.StatusCode)
+	}
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return "", fmt.Errorf("decode token response: %w", err)
 	}
 	if out.Error != "" || strings.TrimSpace(out.IDToken) == "" {
 		return "", errors.New("token endpoint returned no id_token")

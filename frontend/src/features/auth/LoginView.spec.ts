@@ -14,7 +14,7 @@ vi.mock('@/shared/api', async (importOriginal) => {
 
 const { default: LoginView } = await import('./LoginView.vue')
 
-async function mountLogin(path: string) {
+async function mountLogin(path: string, flush = true) {
   const pinia = createPinia()
   setActivePinia(pinia)
   const router = createRouter({
@@ -29,7 +29,7 @@ async function mountLogin(path: string) {
   const wrapper = mount(LoginView, {
     global: { plugins: [pinia, router] },
   })
-  await flushPromises()
+  if (flush) await flushPromises()
   return wrapper
 }
 
@@ -37,6 +37,62 @@ describe('LoginView', () => {
   beforeEach(() => {
     get.mockReset()
     post.mockReset()
+  })
+
+  it('shows a loading indicator while auth methods are pending', async () => {
+    let resolveMethods!: (value: unknown) => void
+    get.mockReturnValue(
+      new Promise((resolve) => {
+        resolveMethods = resolve
+      }),
+    )
+
+    const wrapper = await mountLogin('/login', false)
+
+    expect(wrapper.text()).toContain('Checking sign-in methods')
+    expect(wrapper.find('#username').exists()).toBe(false)
+
+    resolveMethods({
+      data: { mode: 'google', password: true, google: true },
+      response: { status: 200 },
+    })
+    await flushPromises()
+    expect(wrapper.text()).toContain('Sign in with Google Workspace')
+  })
+
+  it('shows a retryable error on transport failure instead of falling back to password mode', async () => {
+    get.mockRejectedValueOnce(new Error('network down'))
+
+    const wrapper = await mountLogin('/login')
+
+    expect(wrapper.text()).toContain('Could not reach the Avior service')
+    expect(wrapper.find('#username').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Sign in with Google Workspace')
+
+    get.mockResolvedValueOnce({
+      data: { mode: 'google', password: true, google: true },
+      response: { status: 200 },
+    })
+    const retry = wrapper.findAll('button').find((b) => b.text().includes('Retry'))
+    expect(retry).toBeDefined()
+    await retry?.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Sign in with Google Workspace')
+  })
+
+  it('shows a retryable error on non-2xx auth methods responses', async () => {
+    get.mockResolvedValueOnce({
+      data: undefined,
+      error: { code: 'internal', message: 'Gateway unavailable' },
+      response: { status: 503 },
+    })
+
+    const wrapper = await mountLogin('/login')
+
+    expect(wrapper.text()).toContain('Gateway unavailable')
+    expect(wrapper.find('#username').exists()).toBe(false)
+    expect(wrapper.findAll('button').some((b) => b.text().includes('Retry'))).toBe(true)
   })
 
   it('shows only the password form when Google Workspace auth is off', async () => {

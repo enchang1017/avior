@@ -43,14 +43,27 @@ type Account struct {
 	// AC-2: it has no password, the directory is never asked about it, and
 	// every verifier refuses it the way it refuses a wrong password.
 	Service bool
+	// OIDCIssuer and OIDCSubject permanently bind an operator account to a
+	// verified OpenID Connect subject (FEAT-077). Empty for store, LDAP,
+	// declared, and service accounts.
+	OIDCIssuer  string
+	OIDCSubject string
 }
 
 // Repository is the storage this slice needs.
 type Repository interface {
 	FindAccount(ctx context.Context, username string) (Account, error)
+	// FindAccountByOIDC looks up an operator bound to a verified (issuer, sub).
+	FindAccountByOIDC(ctx context.Context, issuer, subject string) (Account, error)
+	// BindOIDCIdentity permanently binds an unbound, enabled, non-declared
+	// person account without TOTP to (issuer, subject).
+	BindOIDCIdentity(ctx context.Context, userID uuid.UUID, issuer, subject string) (Account, error)
 	// ProvisionAccount makes an account for somebody the directory vouched
 	// for, holding role, and records that it did.
 	ProvisionAccount(ctx context.Context, username string, roles []string) (Account, error)
+	// ProvisionOIDCAccount makes an account for a verified Google Workspace
+	// operator with (issuer, subject) bound atomically in the same transaction.
+	ProvisionOIDCAccount(ctx context.Context, username, issuer, subject string, roles []string) (Account, error)
 	RolesFor(ctx context.Context, userID uuid.UUID) ([]string, error)
 	CreateSession(ctx context.Context, id, userID uuid.UUID, tokenHash []byte, expiresAt time.Time) error
 	FindSession(ctx context.Context, tokenHash []byte) (uuid.UUID, uuid.UUID, string, error)
