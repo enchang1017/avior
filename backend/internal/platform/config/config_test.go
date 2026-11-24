@@ -671,3 +671,132 @@ func TestTheObservatoryRefusesAnIntervalUnderFiveMinutesAndNoIdleDays(t *testing
 		})
 	}
 }
+
+func TestGoogleAuthConfiguration(t *testing.T) {
+	valid := map[string]string{
+		"AVIOR_ENV":                    "production",
+		"AVIOR_STORE_DSN":              "postgres://x",
+		"AVIOR_SESSION_SECRET":         validSecret,
+		"AVIOR_AUTH_MODE":              AuthModeGoogle,
+		"AVIOR_GOOGLE_CLIENT_ID":       "client-id.apps.googleusercontent.com",
+		"AVIOR_GOOGLE_CLIENT_SECRET":   "client-secret",
+		"AVIOR_GOOGLE_REDIRECT_URL":    "https://avior.example.com/api/v1/auth/google/callback",
+		"AVIOR_GOOGLE_ALLOWED_DOMAINS": " Example.com , sub.example.com ",
+	}
+
+	t.Run("loads valid production google configuration", func(t *testing.T) {
+		setEnv(t, valid)
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("Load() error = %v", err)
+		}
+		if cfg.AuthMode != AuthModeGoogle {
+			t.Errorf("AuthMode = %q, want %q", cfg.AuthMode, AuthModeGoogle)
+		}
+		if cfg.GoogleIssuerURL != DefaultGoogleIssuerURL {
+			t.Errorf("GoogleIssuerURL = %q, want %q", cfg.GoogleIssuerURL, DefaultGoogleIssuerURL)
+		}
+		if strings.Join(cfg.GoogleAllowedDomains, ",") != "example.com,sub.example.com" {
+			t.Errorf("GoogleAllowedDomains = %v", cfg.GoogleAllowedDomains)
+		}
+		if strings.Join(cfg.GoogleDefaultRoles, ",") != "developer" {
+			t.Errorf("GoogleDefaultRoles = %v, want [developer]", cfg.GoogleDefaultRoles)
+		}
+	})
+
+	t.Run("reads client secret from file and allows empty default role", func(t *testing.T) {
+		secretFile := filepath.Join(t.TempDir(), "google-secret")
+		if err := os.WriteFile(secretFile, []byte("from-file\n"), 0o600); err != nil {
+			t.Fatalf("write secret file: %v", err)
+		}
+		env := make(map[string]string, len(valid)+2)
+		for k, v := range valid {
+			env[k] = v
+		}
+		env["AVIOR_GOOGLE_CLIENT_SECRET"] = ""
+		env["AVIOR_GOOGLE_CLIENT_SECRET_FILE"] = secretFile
+		env["AVIOR_GOOGLE_DEFAULT_ROLE"] = ""
+		setEnv(t, env)
+
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("Load() error = %v", err)
+		}
+		if cfg.GoogleClientSecret != "from-file" {
+			t.Errorf("GoogleClientSecret = %q, want from-file", cfg.GoogleClientSecret)
+		}
+		if len(cfg.GoogleDefaultRoles) != 0 {
+			t.Errorf("GoogleDefaultRoles = %v, want empty", cfg.GoogleDefaultRoles)
+		}
+	})
+
+	t.Run("allows loopback http redirect in development", func(t *testing.T) {
+		env := make(map[string]string, len(valid))
+		for k, v := range valid {
+			env[k] = v
+		}
+		env["AVIOR_ENV"] = "development"
+		env["AVIOR_GOOGLE_REDIRECT_URL"] = "http://localhost:5173/api/v1/auth/google/callback"
+		setEnv(t, env)
+		if _, err := Load(); err != nil {
+			t.Fatalf("Load() error = %v", err)
+		}
+	})
+
+	refused := map[string]struct {
+		overrides map[string]string
+		want      string
+	}{
+		"missing client id": {
+			overrides: map[string]string{"AVIOR_GOOGLE_CLIENT_ID": ""},
+			want:      "AVIOR_GOOGLE_CLIENT_ID",
+		},
+		"missing client secret": {
+			overrides: map[string]string{"AVIOR_GOOGLE_CLIENT_SECRET": ""},
+			want:      "AVIOR_GOOGLE_CLIENT_SECRET",
+		},
+		"missing redirect url": {
+			overrides: map[string]string{"AVIOR_GOOGLE_REDIRECT_URL": ""},
+			want:      "AVIOR_GOOGLE_REDIRECT_URL",
+		},
+		"http redirect in production": {
+			overrides: map[string]string{"AVIOR_GOOGLE_REDIRECT_URL": "http://localhost:5173/api/v1/auth/google/callback"},
+			want:      "AVIOR_GOOGLE_REDIRECT_URL",
+		},
+		"non-loopback http redirect in development": {
+			overrides: map[string]string{
+				"AVIOR_ENV":                 "development",
+				"AVIOR_GOOGLE_REDIRECT_URL": "http://avior.example.com/api/v1/auth/google/callback",
+			},
+			want: "AVIOR_GOOGLE_REDIRECT_URL",
+		},
+		"missing allowed domains": {
+			overrides: map[string]string{"AVIOR_GOOGLE_ALLOWED_DOMAINS": ""},
+			want:      "AVIOR_GOOGLE_ALLOWED_DOMAINS",
+		},
+		"http issuer in production": {
+			overrides: map[string]string{"AVIOR_GOOGLE_ISSUER_URL": "http://accounts.google.com"},
+			want:      "AVIOR_GOOGLE_ISSUER_URL",
+		},
+		"non-positive timeout": {
+			overrides: map[string]string{"AVIOR_GOOGLE_TIMEOUT": "-1s"},
+			want:      "AVIOR_GOOGLE_TIMEOUT",
+		},
+	}
+
+	for name, tc := range refused {
+		t.Run(name, func(t *testing.T) {
+			env := make(map[string]string, len(valid))
+			for k, v := range valid {
+				env[k] = v
+			}
+			for k, v := range tc.overrides {
+				env[k] = v
+			}
+			setEnv(t, env)
+			if _, err := Load(); err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Errorf("Load() error = %v, want complaint naming %s", err, tc.want)
+			}
+		})
+	}
+}

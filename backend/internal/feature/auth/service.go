@@ -43,14 +43,27 @@ type Account struct {
 	// AC-2: it has no password, the directory is never asked about it, and
 	// every verifier refuses it the way it refuses a wrong password.
 	Service bool
+	// OIDCIssuer and OIDCSubject permanently bind an operator account to a
+	// verified OpenID Connect subject (FEAT-077). Empty for store, LDAP,
+	// declared, and service accounts.
+	OIDCIssuer  string
+	OIDCSubject string
 }
 
 // Repository is the storage this slice needs.
 type Repository interface {
 	FindAccount(ctx context.Context, username string) (Account, error)
+	// FindAccountByOIDC looks up an operator bound to a verified (issuer, sub).
+	FindAccountByOIDC(ctx context.Context, issuer, subject string) (Account, error)
+	// BindOIDCIdentity permanently binds an unbound, enabled, non-declared
+	// person account without TOTP to (issuer, subject).
+	BindOIDCIdentity(ctx context.Context, userID uuid.UUID, issuer, subject string) (Account, error)
 	// ProvisionAccount makes an account for somebody the directory vouched
 	// for, holding role, and records that it did.
 	ProvisionAccount(ctx context.Context, username string, roles []string) (Account, error)
+	// ProvisionOIDCAccount makes an account for a verified Google Workspace
+	// operator with (issuer, subject) bound atomically in the same transaction.
+	ProvisionOIDCAccount(ctx context.Context, username, issuer, subject string, roles []string) (Account, error)
 	RolesFor(ctx context.Context, userID uuid.UUID) ([]string, error)
 	CreateSession(ctx context.Context, id, userID uuid.UUID, tokenHash []byte, expiresAt time.Time) error
 	FindSession(ctx context.Context, tokenHash []byte) (uuid.UUID, uuid.UUID, string, error)
@@ -62,6 +75,7 @@ type Repository interface {
 type Service struct {
 	repo     Repository
 	verifier CredentialVerifier
+	google   *GoogleAuthenticator
 	ttl      time.Duration
 	now      func() time.Time
 }
@@ -83,6 +97,44 @@ func NewService(repo Repository, verifier CredentialVerifier, ttl time.Duration)
 
 // Mode reports which verifier is in use, for logs and the health response.
 func (s *Service) Mode() string { return s.verifier.Mode() }
+
+// UseGoogle attaches Google Workspace OIDC sign-in to the auth service.
+func (s *Service) UseGoogle(authenticator *GoogleAuthenticator) {
+	s.google = authenticator
+}
+
+// GoogleConfigured reports whether Google Workspace sign-in is wired.
+func (s *Service) GoogleConfigured() bool {
+	return s.google != nil
+}
+
+// StartGoogleAuth begins a Google Workspace OIDC sign-in round-trip and returns
+// the Google authorization URL plus the sealed state cookie value.
+func (s *Service) StartGoogleAuth(ctx context.Context, redirect string) (string, string, error) {
+	if s.google == nil {
+		return "", "", ErrGoogleNotConfigured
+	}
+	return s.google.Start(ctx, redirect, s.now())
+}
+
+// CompleteGoogleAuth finishes the Google Workspace callback, provisions or
+// loads the operator's Avior account, and opens an Avior session.
+func (s *Service) CompleteGoogleAuth(
+	ctx context.Context, stateCookie, queryState, code string,
+) (*identity.Session, string, error) {
+	if s.google == nil {
+		return nil, "", ErrGoogleNotConfigured
+	}
+	account, redirect, err := s.google.VerifyCallback(ctx, stateCookie, queryState, code, s.now())
+	if err != nil {
+		return nil, "", err
+	}
+	session, err := s.open(ctx, account)
+	if err != nil {
+		return nil, "", err
+	}
+	return session, redirect, nil
+}
 
 // Authenticate verifies the credentials and opens a session.
 func (s *Service) Authenticate(ctx context.Context, username, password, code string) (*identity.Session, error) {

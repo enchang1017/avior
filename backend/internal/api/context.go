@@ -38,8 +38,11 @@ type SessionResolver interface {
 // requires one. The list is closed rather than open: a new endpoint is private
 // until someone deliberately adds it here.
 var PublicPaths = map[string]bool{
-	"/api/v1/health":     true,
-	"/api/v1/auth/login": true,
+	"/api/v1/health":               true,
+	"/api/v1/auth/methods":         true,
+	"/api/v1/auth/login":           true,
+	"/api/v1/auth/google/start":    true,
+	"/api/v1/auth/google/callback": true,
 }
 
 // Authenticate resolves the session cookie and attaches the caller to the

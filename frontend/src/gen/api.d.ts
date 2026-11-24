@@ -21,6 +21,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/methods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Authentication methods enabled on this deployment */
+        get: operations["getAuthMethods"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/google/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Begin a Google Workspace OpenID Connect sign-in */
+        get: operations["startGoogleAuth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/google/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Complete a Google Workspace OpenID Connect sign-in */
+        get: operations["googleAuthCallback"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/login": {
         parameters: {
             query?: never;
@@ -2587,6 +2638,16 @@ export interface components {
                 detail?: string;
             }[];
         };
+        /** @description Which interactive sign-in flows this deployment accepts.
+         *      */
+        AuthMethods: {
+            /** @enum {string} */
+            mode: "store" | "ldap" | "google" | "trusted-local";
+            /** @description Whether POST /auth/login accepts credentials. */
+            password: boolean;
+            /** @description Whether GET /auth/google/start is configured. */
+            google: boolean;
+        };
         /** @description Only the username is always required. Which of the other fields matter
          *     depends on how the deployment authenticates: the directory wants a
          *     password and no TOTP code, a local development stack wants neither, and
@@ -3901,6 +3962,75 @@ export interface operations {
                     "application/json": components["schemas"]["Health"];
                 };
             };
+        };
+    };
+    getAuthMethods: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Active sign-in methods */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthMethods"];
+                };
+            };
+        };
+    };
+    startGoogleAuth: {
+        parameters: {
+            query?: {
+                /** @description Same-origin path to return to after sign-in completes. */
+                redirect?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redirect to Google's authorization endpoint */
+            302: {
+                headers: {
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    googleAuthCallback: {
+        parameters: {
+            query?: {
+                code?: string;
+                state?: string;
+                error?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                avior_oauth_state?: string;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redirect back into the console or to /login on refusal */
+            302: {
+                headers: {
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["NotFound"];
         };
     };
     login: {

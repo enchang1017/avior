@@ -166,7 +166,165 @@ func (s *Store) FindAccount(ctx context.Context, username string) (auth.Account,
 		Disabled:     row.Disabled,
 		Declared:     row.Declared,
 		Service:      row.Kind == kindService,
+		OIDCIssuer:   row.OidcIssuer,
+		OIDCSubject:  row.OidcSubject,
 	}, nil
+}
+
+// FindAccountByOIDC looks up an operator bound to a verified (issuer, subject).
+func (s *Store) FindAccountByOIDC(ctx context.Context, issuer, subject string) (auth.Account, error) {
+	row, err := s.q.GetUserByOIDC(ctx, storegen.GetUserByOIDCParams{
+		OidcIssuer:  issuer,
+		OidcSubject: subject,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return auth.Account{}, auth.ErrAccountNotFound
+	}
+	if err != nil {
+		return auth.Account{}, fmt.Errorf("find account by oidc: %w", err)
+	}
+	id, err := toUUID(row.ID)
+	if err != nil {
+		return auth.Account{}, err
+	}
+	return auth.Account{
+		ID:           id,
+		Username:     row.Username,
+		PasswordHash: row.PasswordHash,
+		TOTPSecret:   row.TotpSecret,
+		Disabled:     row.Disabled,
+		Declared:     row.Declared,
+		Service:      row.Kind == kindService,
+		OIDCIssuer:   row.OidcIssuer,
+		OIDCSubject:  row.OidcSubject,
+	}, nil
+}
+
+// BindOIDCIdentity permanently binds an existing unbound, enabled, non-declared
+// person account without TOTP to (issuer, subject) and records one bind_oidc
+// event in the append-only account_change ledger in the same transaction.
+func (s *Store) BindOIDCIdentity(
+	ctx context.Context, userID uuid.UUID, issuer, subject string,
+) (auth.Account, error) {
+	var account auth.Account
+	err := s.tx(ctx, func(q *storegen.Queries) error {
+		row, err := q.BindUserOIDCIdentity(ctx, storegen.BindUserOIDCIdentityParams{
+			ID:          fromUUID(userID),
+			OidcIssuer:  issuer,
+			OidcSubject: subject,
+		})
+		if errors.Is(err, pgx.ErrNoRows) {
+			return auth.ErrAccountNotFound
+		}
+		if err != nil {
+			return fmt.Errorf("bind oidc identity: %w", err)
+		}
+		id, err := toUUID(row.ID)
+		if err != nil {
+			return err
+		}
+		if err := q.RecordOIDCBindingChange(ctx, storegen.RecordOIDCBindingChangeParams{
+			ID:          fromUUID(uuid.New()),
+			ActorID:     row.ID,
+			SubjectID:   row.ID,
+			OidcIssuer:  row.OidcIssuer,
+			OidcSubject: row.OidcSubject,
+		}); err != nil {
+			return fmt.Errorf("record oidc binding: %w", err)
+		}
+		account = auth.Account{
+			ID:           id,
+			Username:     row.Username,
+			PasswordHash: row.PasswordHash,
+			TOTPSecret:   row.TotpSecret,
+			Disabled:     row.Disabled,
+			Declared:     row.Declared,
+			Service:      row.Kind == kindService,
+			OIDCIssuer:   row.OidcIssuer,
+			OIDCSubject:  row.OidcSubject,
+		}
+		return nil
+	})
+	if err != nil {
+		return auth.Account{}, err
+	}
+	return account, nil
+}
+
+// ProvisionOIDCAccount provisions an operator vouched for by Google Workspace
+// with (issuer, subject) bound atomically alongside default roles and the
+// account_change provision record.
+func (s *Store) ProvisionOIDCAccount(
+	ctx context.Context, username, issuer, subject string, roles []string,
+) (auth.Account, error) {
+	var account auth.Account
+	err := s.tx(ctx, func(q *storegen.Queries) error {
+		row, err := q.ProvisionOIDCOperator(ctx, storegen.ProvisionOIDCOperatorParams{
+			ID:          fromUUID(uuid.New()),
+			Username:    username,
+			OidcIssuer:  issuer,
+			OidcSubject: subject,
+		})
+		if errors.Is(err, pgx.ErrNoRows) {
+			return auth.ErrAccountNotFound
+		}
+		if err != nil {
+			return fmt.Errorf("create oidc account: %w", err)
+		}
+		id, err := toUUID(row.ID)
+		if err != nil {
+			return err
+		}
+		if row.Inserted {
+			if err := grantProvisionedRoles(ctx, q, row.ID, roles); err != nil {
+				return err
+			}
+		}
+		account = auth.Account{
+			ID:           id,
+			Username:     row.Username,
+			PasswordHash: row.PasswordHash,
+			TOTPSecret:   row.TotpSecret,
+			Disabled:     row.Disabled,
+			Declared:     row.Declared,
+			Service:      row.Kind == kindService,
+			OIDCIssuer:   row.OidcIssuer,
+			OIDCSubject:  row.OidcSubject,
+		}
+		return nil
+	})
+	if err != nil {
+		return auth.Account{}, err
+	}
+	return account, nil
+}
+
+func grantProvisionedRoles(
+	ctx context.Context, q *storegen.Queries, userID pgtype.UUID, roles []string,
+) error {
+	for _, role := range roles {
+		if _, err := q.GrantRole(ctx, storegen.GrantRoleParams{
+			UserID: userID, Role: role,
+		}); err != nil {
+			return fmt.Errorf("grant %s: %w", role, err)
+		}
+	}
+	recorded := roles
+	if len(recorded) == 0 {
+		recorded = []string{""}
+	}
+	for _, role := range recorded {
+		if err := q.RecordAccountChange(ctx, storegen.RecordAccountChangeParams{
+			ID:        fromUUID(uuid.New()),
+			ActorID:   userID,
+			SubjectID: userID,
+			Action:    "provision",
+			Role:      role,
+		}); err != nil {
+			return fmt.Errorf("record the provision of %s: %w", role, err)
+		}
+	}
+	return nil
 }
 
 // ProvisionAccount makes an account for somebody the directory vouched for.

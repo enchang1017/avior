@@ -1,12 +1,44 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
-import { api, classify, unreachable, type CurrentUser, type Failure } from '@/shared/api'
+import {
+  api,
+  classify,
+  unreachable,
+  type AuthMethods,
+  type CurrentUser,
+  type Failure,
+} from '@/shared/api'
+
+export type AuthMethodsStatus = 'idle' | 'loading' | 'ready' | 'error'
 
 export const useSessionStore = defineStore('session', () => {
   const caller = ref<CurrentUser | null>(null)
   const failure = ref<Failure | null>(null)
   const busy = ref(false)
+  const authMethods = ref<AuthMethods | null>(null)
+  const authMethodsStatus = ref<AuthMethodsStatus>('idle')
+  const authMethodsFailure = ref<Failure | null>(null)
+
+  async function loadAuthMethods(): Promise<void> {
+    authMethodsStatus.value = 'loading'
+    authMethodsFailure.value = null
+    try {
+      const { data, error, response } = await api.GET('/auth/methods')
+      if (data === undefined) {
+        authMethods.value = null
+        authMethodsFailure.value = classify(response.status, error)
+        authMethodsStatus.value = 'error'
+        return
+      }
+      authMethods.value = data
+      authMethodsStatus.value = 'ready'
+    } catch (thrown) {
+      authMethods.value = null
+      authMethodsFailure.value = unreachable(thrown)
+      authMethodsStatus.value = 'error'
+    }
+  }
 
   async function refresh(): Promise<void> {
     busy.value = true
@@ -75,5 +107,16 @@ export const useSessionStore = defineStore('session', () => {
     caller.value = null
   }
 
-  return { caller, failure, busy, refresh, signIn, signOut }
+  return {
+    caller,
+    failure,
+    busy,
+    authMethods,
+    authMethodsStatus,
+    authMethodsFailure,
+    loadAuthMethods,
+    refresh,
+    signIn,
+    signOut,
+  }
 })

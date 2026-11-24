@@ -594,6 +594,7 @@ type Answer = { status?: number; body: unknown }
 export function get(path: string): Answer | undefined {
   const fixed: Record<string, unknown> = {
     '/auth/me': administrator,
+    '/auth/methods': { mode: 'store', password: true, google: false },
     '/schema/databases': databases,
     '/schema/tables': tables,
     '/schema/columns': columns,

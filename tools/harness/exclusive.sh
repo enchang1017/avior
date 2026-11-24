@@ -24,7 +24,15 @@ timeout="${AVIOR_LOCK_TIMEOUT:-1800}"
 # means its creator died between the two steps.
 unowned_grace=10
 
-release() { rm -rf "$lock"; }
+# AVIOR_LOCK_TRACE=1 narrates every step on stderr, so a failure on a machine
+# that cannot be reached shows which path each holder took.
+trace() {
+  if [[ -n "${AVIOR_LOCK_TRACE:-}" ]]; then
+    echo "trace pid=$$ stack=$stack t=$(date +%s.%N 2>/dev/null || date +%s): $*" >&2
+  fi
+}
+
+release() { trace "release $(ls -di "$lock" 2>&1)"; rm -rf "$lock"; }
 
 owner_of() { cat "$1/owner" 2>/dev/null || true; }
 
@@ -42,8 +50,12 @@ take_over_stale() {
 waited=0
 unowned=0
 announced=""
-while ! mkdir "$lock" 2>/dev/null; do
+attempts=0
+trace "start lock=$lock uname=$(uname -sr) bash=$BASH_VERSION mkdir=[$(type -a mkdir 2>&1 | tr '\n' ';')] BASH_ENV=${BASH_ENV-unset} funcs=[$(declare -F | tr '\n' ';')] lockdir_vars=$(env | grep -c '^AVIOR_LOCK_DIR=') dir=[$(ls -dia "$dir" 2>&1)] entries=[$(ls -ai "$dir" 2>&1 | tr '\n' ';')]"
+while ! made="$(mkdir "$lock" 2>&1)"; do
+  attempts=$((attempts + 1))
   holder="$(owner_of "$lock")"
+  trace "mkdir failed attempt=$attempts err=[$made] holder=[$holder]"
   pid="${holder%% *}"
   if [[ -z "$holder" ]]; then
     unowned=$((unowned + 1))
@@ -52,8 +64,8 @@ while ! mkdir "$lock" 2>/dev/null; do
       take_over_stale ""
       unowned=0
     fi
-  elif ! kill -0 "$pid" 2>/dev/null; then
-    echo "exclusive: $lock was left by pid $pid, which is gone; taking it over" >&2
+  elif ! reason="$(kill -0 "$pid" 2>&1)"; then
+    echo "exclusive: $lock was left by pid $pid (owner '$holder'), which is gone: ${reason:-kill gave no reason}; taking it over" >&2
     take_over_stale "$holder"
     continue
   else
@@ -71,10 +83,12 @@ while ! mkdir "$lock" 2>/dev/null; do
   waited=$((waited + 1))
 done
 
+trace "acquired after $attempts failures mkdir_out=[$made] lock=[$(ls -di "$lock" 2>&1)] entries=[$(ls -ai "$dir" 2>&1 | tr '\n' ';')]"
 trap release EXIT
 trap 'release; exit 130' INT
 trap 'release; exit 143' TERM
 echo "$$ $stack" > "$lock/owner"
+trace "owner written [$(cat "$lock/owner" 2>&1)] lock=[$(ls -di "$lock" 2>&1)]"
 
 status=0
 "$@" || status=$?

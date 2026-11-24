@@ -4,6 +4,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -166,6 +167,15 @@ type Config struct {
 	// began with an administrator granting the second by hand, every time.
 	LDAPDefaultRoles []string
 
+	// Google Workspace OIDC settings, read only when AuthMode is AuthModeGoogle.
+	GoogleClientID       string
+	GoogleClientSecret   string
+	GoogleRedirectURL    string
+	GoogleAllowedDomains []string
+	GoogleDefaultRoles   []string
+	GoogleIssuerURL      string
+	GoogleTimeout        time.Duration
+
 	// LocalAccountsFile declares accounts that always work, whatever the
 	// directory says. FEAT-056. Empty declares none.
 	LocalAccountsFile string
@@ -233,7 +243,11 @@ const (
 	AuthModeStore        = "store"
 	AuthModeTrustedLocal = "trusted-local"
 	AuthModeLDAP         = "ldap"
+	AuthModeGoogle       = "google"
 )
+
+// DefaultGoogleIssuerURL is Google's canonical OpenID Connect issuer.
+const DefaultGoogleIssuerURL = "https://accounts.google.com"
 
 // Load reads the configuration from the process environment.
 func Load() (*Config, error) {
@@ -259,17 +273,23 @@ func Load() (*Config, error) {
 		ObservatorySnapshotInterval: durationOr("AVIOR_OBSERVATORY_SNAPSHOT_INTERVAL", 15*time.Minute),
 		ObservatoryStandbys:         nameList(stringSet("AVIOR_OBSERVATORY_STANDBYS", "")),
 
-		LDAPURL:            stringOr("AVIOR_LDAP_URL", ""),
-		LDAPBindFormat:     stringOr("AVIOR_LDAP_BIND_FORMAT", ""),
-		LDAPDefaultRoles:   roleList(stringSet("AVIOR_LDAP_DEFAULT_ROLE", "developer")),
-		LocalAccountsFile:  stringOr("AVIOR_LOCAL_ACCOUNTS_FILE", ""),
-		WriteDSN:           stringOr("AVIOR_WRITE_DSN", ""),
-		TargetDSN:          stringOr("AVIOR_TARGET_DSN", ""),
-		DeployDSN:          stringOr("AVIOR_DEPLOY_DSN", ""),
-		ProvisionDSN:       stringOr("AVIOR_PROVISION_DSN", ""),
-		LDAPAllowPlaintext: boolOr("AVIOR_LDAP_ALLOW_PLAINTEXT", false),
-		SecureCookies:      boolOr("AVIOR_SECURE_COOKIES", true),
-		LDAPTimeout:        durationOr("AVIOR_LDAP_TIMEOUT", 5*time.Second),
+		LDAPURL:              stringOr("AVIOR_LDAP_URL", ""),
+		LDAPBindFormat:       stringOr("AVIOR_LDAP_BIND_FORMAT", ""),
+		LDAPDefaultRoles:     roleList(stringSet("AVIOR_LDAP_DEFAULT_ROLE", "developer")),
+		GoogleClientID:       stringOr("AVIOR_GOOGLE_CLIENT_ID", ""),
+		GoogleRedirectURL:    stringOr("AVIOR_GOOGLE_REDIRECT_URL", ""),
+		GoogleAllowedDomains: domainList(stringSet("AVIOR_GOOGLE_ALLOWED_DOMAINS", "")),
+		GoogleDefaultRoles:   roleList(stringSet("AVIOR_GOOGLE_DEFAULT_ROLE", "developer")),
+		GoogleIssuerURL:      strings.TrimRight(stringOr("AVIOR_GOOGLE_ISSUER_URL", DefaultGoogleIssuerURL), "/"),
+		GoogleTimeout:        durationOr("AVIOR_GOOGLE_TIMEOUT", 5*time.Second),
+		LocalAccountsFile:    stringOr("AVIOR_LOCAL_ACCOUNTS_FILE", ""),
+		WriteDSN:             stringOr("AVIOR_WRITE_DSN", ""),
+		TargetDSN:            stringOr("AVIOR_TARGET_DSN", ""),
+		DeployDSN:            stringOr("AVIOR_DEPLOY_DSN", ""),
+		ProvisionDSN:         stringOr("AVIOR_PROVISION_DSN", ""),
+		LDAPAllowPlaintext:   boolOr("AVIOR_LDAP_ALLOW_PLAINTEXT", false),
+		SecureCookies:        boolOr("AVIOR_SECURE_COOKIES", true),
+		LDAPTimeout:          durationOr("AVIOR_LDAP_TIMEOUT", 5*time.Second),
 	}
 	cfg.WriteApproval = writeApproval(cfg.Env)
 
@@ -283,13 +303,14 @@ func Load() (*Config, error) {
 	// mount is a deployment that is wrong, and finding out on the first
 	// operator's first query would report it as that query failing.
 	secrets, err := readSecrets(map[string]*string{
-		"AVIOR_SESSION_SECRET":     &cfg.SessionSecret,
-		"AVIOR_ADMIN_PASSWORD":     &cfg.AdminPassword,
-		"AVIOR_STORE_PASSWORD":     &cfg.StorePassword,
-		"AVIOR_TARGET_PASSWORD":    &cfg.TargetPassword,
-		"AVIOR_WRITE_PASSWORD":     &cfg.WritePassword,
-		"AVIOR_DEPLOY_PASSWORD":    &cfg.DeployPassword,
-		"AVIOR_PROVISION_PASSWORD": &cfg.ProvisionPassword,
+		"AVIOR_SESSION_SECRET":       &cfg.SessionSecret,
+		"AVIOR_ADMIN_PASSWORD":       &cfg.AdminPassword,
+		"AVIOR_STORE_PASSWORD":       &cfg.StorePassword,
+		"AVIOR_TARGET_PASSWORD":      &cfg.TargetPassword,
+		"AVIOR_WRITE_PASSWORD":       &cfg.WritePassword,
+		"AVIOR_DEPLOY_PASSWORD":      &cfg.DeployPassword,
+		"AVIOR_PROVISION_PASSWORD":   &cfg.ProvisionPassword,
+		"AVIOR_GOOGLE_CLIENT_SECRET": &cfg.GoogleClientSecret,
 	})
 	if err != nil {
 		return nil, err
@@ -335,29 +356,89 @@ func (c *Config) validate() error {
 		return fmt.Errorf(
 			"the development session secret must not be used when AVIOR_ENV=%s", c.Env)
 	}
+	if err := c.validateAuth(); err != nil {
+		return err
+	}
+	if len(c.SessionSecret) < 32 {
+		return fmt.Errorf("AVIOR_SESSION_SECRET must be at least 32 bytes, got %d", len(c.SessionSecret))
+	}
+	return c.validateLimits()
+}
+
+func (c *Config) validateAuth() error {
 	switch c.AuthMode {
 	case AuthModeStore:
+		return nil
 	case AuthModeLDAP:
 		// FEAT-007 AC-11. A gateway that starts with an authenticator nobody
 		// configured refuses every operator, which reads as an outage
 		// somewhere else. It does not start instead.
-		if err := c.validateLDAP(); err != nil {
-			return err
-		}
+		return c.validateLDAP()
+	case AuthModeGoogle:
+		return c.validateGoogle()
 	case AuthModeTrustedLocal:
 		if !c.IsDevelopment() {
 			return fmt.Errorf(
 				"AVIOR_AUTH_MODE=%s accepts any account without a password and is only permitted when AVIOR_ENV=development, not %q",
 				AuthModeTrustedLocal, c.Env)
 		}
+		return nil
 	default:
-		return fmt.Errorf("AVIOR_AUTH_MODE must be %s, %s or %s, got %q",
-			AuthModeStore, AuthModeLDAP, AuthModeTrustedLocal, c.AuthMode)
+		return fmt.Errorf("AVIOR_AUTH_MODE must be %s, %s, %s or %s, got %q",
+			AuthModeStore, AuthModeLDAP, AuthModeGoogle, AuthModeTrustedLocal, c.AuthMode)
 	}
-	if len(c.SessionSecret) < 32 {
-		return fmt.Errorf("AVIOR_SESSION_SECRET must be at least 32 bytes, got %d", len(c.SessionSecret))
+}
+
+func (c *Config) validateGoogle() error {
+	if strings.TrimSpace(c.GoogleClientID) == "" {
+		return fmt.Errorf("AVIOR_GOOGLE_CLIENT_ID is required when AVIOR_AUTH_MODE=%s", AuthModeGoogle)
 	}
-	return c.validateLimits()
+	if strings.TrimSpace(c.GoogleClientSecret) == "" {
+		return fmt.Errorf("AVIOR_GOOGLE_CLIENT_SECRET is required when AVIOR_AUTH_MODE=%s", AuthModeGoogle)
+	}
+	if err := c.validateGoogleURL("AVIOR_GOOGLE_REDIRECT_URL", c.GoogleRedirectURL, true); err != nil {
+		return err
+	}
+	if err := c.validateGoogleURL("AVIOR_GOOGLE_ISSUER_URL", c.GoogleIssuerURL, false); err != nil {
+		return err
+	}
+	if len(c.GoogleAllowedDomains) == 0 {
+		return fmt.Errorf("AVIOR_GOOGLE_ALLOWED_DOMAINS is required when AVIOR_AUTH_MODE=%s", AuthModeGoogle)
+	}
+	if c.GoogleTimeout <= 0 {
+		return errors.New("AVIOR_GOOGLE_TIMEOUT must be positive")
+	}
+	return nil
+}
+
+func (c *Config) validateGoogleURL(name, raw string, loopbackOnlyHTTP bool) error {
+	if strings.TrimSpace(raw) == "" {
+		return fmt.Errorf("%s is required when AVIOR_AUTH_MODE=%s", name, AuthModeGoogle)
+	}
+	parsed, err := url.Parse(raw)
+	if err != nil || parsed.Host == "" {
+		return fmt.Errorf("%s must be a valid URL, got %q", name, raw)
+	}
+	if parsed.Scheme == "https" {
+		return nil
+	}
+	if parsed.Scheme == "http" && !c.GovernsRealData() {
+		host := parsed.Hostname()
+		if !loopbackOnlyHTTP || host == "localhost" || host == "127.0.0.1" {
+			return nil
+		}
+	}
+	return fmt.Errorf("%s must use https://, got %q", name, raw)
+}
+
+func domainList(value string) []string {
+	var out []string
+	for _, part := range strings.Split(value, ",") {
+		if domain := strings.ToLower(strings.TrimSpace(part)); domain != "" {
+			out = append(out, domain)
+		}
+	}
+	return out
 }
 
 // validateLimits refuses a limit that would let everything through or nothing.

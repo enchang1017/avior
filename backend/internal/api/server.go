@@ -6,6 +6,7 @@ package api
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -28,7 +29,11 @@ type QueryService interface {
 
 // AuthService is the part of the auth slice this layer needs.
 type AuthService interface {
+	Mode() string
+	GoogleConfigured() bool
 	Authenticate(ctx context.Context, username, password, totp string) (*identity.Session, error)
+	StartGoogleAuth(ctx context.Context, redirect string) (string, string, error)
+	CompleteGoogleAuth(ctx context.Context, stateCookie, queryState, code string) (*identity.Session, string, error)
 	Revoke(ctx context.Context, token string) error
 }
 
@@ -94,6 +99,20 @@ type Server struct {
 	partitionScans PartitionScanner
 	checkers       []HealthChecker
 	defaults       Defaults
+	log            *slog.Logger
+}
+
+// UseLogger attaches the structured logger used by HTTP boundary handlers that
+// must record internal failures without returning raw error details to callers.
+func (s *Server) UseLogger(log *slog.Logger) {
+	s.log = log
+}
+
+func (s *Server) logger() *slog.Logger {
+	if s.log == nil {
+		return slog.New(slog.DiscardHandler)
+	}
+	return s.log
 }
 
 // NewServer wires the HTTP layer.

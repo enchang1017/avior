@@ -3,9 +3,49 @@
 -- the name that way and an operator who types it differently is the same
 -- operator. lower(username) carries the unique index, so this is a lookup on it
 -- rather than a scan.
-SELECT u.id, u.username, u.password_hash, u.totp_secret, u.disabled, u.declared, u.kind
+SELECT u.id, u.username, u.password_hash, u.totp_secret, u.disabled, u.declared, u.kind,
+       u.oidc_issuer, u.oidc_subject
 FROM app_user u
 WHERE lower(u.username) = lower($1);
+
+-- name: GetUserByOIDC :one
+-- FEAT-077. Looks up an operator by their verified OpenID Connect issuer and
+-- subject. Indexed by app_user_oidc_identity_key.
+SELECT u.id, u.username, u.password_hash, u.totp_secret, u.disabled, u.declared, u.kind,
+       u.oidc_issuer, u.oidc_subject
+FROM app_user u
+WHERE u.oidc_issuer = $1 AND u.oidc_subject = $2;
+
+-- name: BindUserOIDCIdentity :one
+-- FEAT-077. Atomically binds an unbound, enabled, non-declared person account
+-- with no enrolled TOTP secret to its verified OIDC issuer and subject on first
+-- Google Workspace sign-in.
+UPDATE app_user
+SET oidc_issuer = $2, oidc_subject = $3
+WHERE id = $1
+  AND oidc_issuer = ''
+  AND oidc_subject = ''
+  AND kind = 'person'
+  AND NOT declared
+  AND NOT disabled
+  AND totp_secret = ''
+RETURNING id, username, password_hash, totp_secret, disabled, declared, kind, oidc_issuer, oidc_subject;
+
+-- name: ProvisionOIDCOperator :one
+-- FEAT-077. Provisions a new operator vouched for by Google Workspace with
+-- their verified issuer and subject already bound in the same statement.
+--
+-- ON CONFLICT on lower(username) leaves the existing row untouched and returns
+-- it so the caller can verify whether its bound subject matches (race on the
+-- same person) or differs (reassigned email, refused).
+INSERT INTO app_user (id, username, password_hash, totp_secret, oidc_issuer, oidc_subject)
+SELECT $1, $2, '', '', $3, $4
+WHERE NOT EXISTS (
+    SELECT 1 FROM app_user WHERE declared AND lower(username) = lower($2)
+)
+  AND lower($2) NOT LIKE 'svc-%'
+ON CONFLICT (lower(username)) DO UPDATE SET username = app_user.username
+RETURNING id, username, password_hash, totp_secret, disabled, declared, kind, oidc_issuer, oidc_subject, (xmax = 0) AS inserted;
 
 -- name: ListRolesForUser :many
 SELECT role FROM app_user_role WHERE user_id = $1 ORDER BY role;
@@ -67,6 +107,12 @@ UPDATE app_user SET disabled = $2 WHERE id = $1 AND disabled <> $2;
 -- name: RecordAccountChange :exec
 INSERT INTO account_change (id, actor_id, subject_id, action, role)
 VALUES ($1, $2, $3, $4, $5);
+
+-- name: RecordOIDCBindingChange :exec
+-- FEAT-077. Records the one-time binding of an existing account to its verified
+-- OpenID Connect issuer and subject in the append-only account_change ledger.
+INSERT INTO account_change (id, actor_id, subject_id, action, role, oidc_issuer, oidc_subject)
+VALUES ($1, $2, $3, 'bind_oidc', '', $4, $5);
 
 -- name: ProvisionOperator :one
 -- FEAT-007. The account the directory vouched for, made on first sign-in.

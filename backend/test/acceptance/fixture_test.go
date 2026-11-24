@@ -160,6 +160,9 @@ type harness struct {
 	// api is the server itself, so FEAT-071 can attach an observatory built
 	// with its own clock and threshold.
 	api *api.Server
+	// sessions is the auth service, so FEAT-077 can attach a Google Workspace
+	// OIDC authenticator backed by a test OIDC server.
+	sessions *auth.Service
 }
 
 func newHarness(t *testing.T, limits sqlguard.Limits) *harness {
@@ -394,7 +397,7 @@ func assembleHarness(
 
 	return &harness{
 		t: t, server: ts, client: &http.Client{Timeout: 60 * time.Second},
-		lineage: lineageSnapshots, api: server,
+		lineage: lineageSnapshots, api: server, sessions: sessions,
 	}
 }
 

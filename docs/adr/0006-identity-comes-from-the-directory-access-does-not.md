@@ -8,6 +8,10 @@ source for the administrator role. See "Where administrators come from" below.
 Amended 2026-09-24 by FEAT-063: service accounts are the one identity Avior
 creates without the directory, and so can never sign in. See "Service accounts
 are the one identity made without the directory" below.
+Amended 2026-11-24 by FEAT-077: Google Workspace OIDC binds each person account
+to its verified `(oidc_issuer, oidc_subject)` and refuses accounts that still
+carry a legacy Avior TOTP secret. See "Google Workspace OIDC binds subject
+identity and refuses legacy TOTP accounts" below.
 
 ## Context
 
@@ -184,6 +188,55 @@ a token. Ownership is the administration's rather than a person's: nobody's
 departure stops it, and `created_by` records who made it without making them
 responsible for it. Its creation, grants and switch-offs are in
 `account_change` like anybody's, naming the administrator.
+
+### Google Workspace OIDC binds subject identity and refuses legacy TOTP accounts
+
+Amended 2026-11-24 by FEAT-077.
+
+Google Workspace can act as the directory under `AVIOR_AUTH_MODE=google` while
+keeping the same boundary: Google vouches for who somebody is, and Avior owns
+`app_user`, `app_user_role`, enablement, and the audit trail. The following
+rules and operational limits govern that boundary:
+
+- **Subject binding (`oidc_issuer`, `oidc_subject`).** Email addresses in a
+  Workspace domain can be reassigned after an employee departs. Keying sign-in
+  on email alone would let a new holder of a recycled address inherit an
+  existing account, its roles, and its audit identity. Avior therefore persists
+  the canonical OIDC issuer and verified Google `sub` on `app_user` (unique on
+  `(oidc_issuer, oidc_subject)`). Subsequent sign-ins match `(oidc_issuer,
+  oidc_subject)` first; if an email matches an account already bound to a
+  different subject, sign-in is refused.
+- **One-time linking of eligible pre-existing accounts and its audit trail.**
+  An existing enabled, non-declared `person` account — whether originally
+  created through LDAP or local store authentication — whose `username` matches
+  the verified Workspace email, that has no `oidc_issuer`/`oidc_subject` yet,
+  and that carries no enrolled Avior `totp_secret`, is atomically bound to
+  `(oidc_issuer, oidc_subject)` on its first Google sign-in. That first binding
+  is recorded atomically as a `bind_oidc` event in the append-only
+  `account_change` ledger carrying the affected account, verified
+  `(oidc_issuer, oidc_subject)`, and timestamp (never authorization codes,
+  tokens, client secrets, or raw ID tokens). Short LDAP usernames such as
+  `alice` are **not** automatically mapped to `alice@company.com`.
+- **Operational prerequisite for first-time email linking.** Issuer/subject
+  binding protects every sign-in *after* an account is bound, not the initial
+  email-based claim of a pre-existing unbound row. Before enabling
+  `AVIOR_AUTH_MODE=google`, administrators must review and disable stale
+  eligible accounts; in ongoing operation, departing users must be disabled in
+  Avior before their Workspace email address is reassigned.
+- **MFA and legacy TOTP policy.** Google Workspace MFA / 2-Step Verification
+  must be enforced in Google Workspace by the deployment administrator where
+  required; enabling `AVIOR_AUTH_MODE=google` does not by itself guarantee MFA.
+  Because the OIDC callback does not prompt for an Avior TOTP code, any
+  existing account carrying a non-empty `totp_secret` is refused on the Google
+  path and left unbound rather than silently dropping an enrolled second
+  factor. Avior does **not** provide an administrative TOTP-migration API or
+  operation.
+- **Separation from declared local accounts and service accounts.** Declared
+  local accounts (FEAT-056) and service accounts (FEAT-063) are never bound to
+  an OIDC subject and remain refused on the Google path. Converting an
+  OIDC-bound account into a declared local account is unsupported; declared /
+  break-glass accounts should use separate non-email names (for example
+  `avior_admin`).
 
 ## Not decided
 

@@ -14,6 +14,10 @@ type Querier interface {
 	// FEAT-073. One interval's timing per routine whose calls rose.
 	AddObservatoryRoutineTiming(ctx context.Context, arg AddObservatoryRoutineTimingParams) error
 	AddObservatoryUsageDaily(ctx context.Context, arg AddObservatoryUsageDailyParams) error
+	// FEAT-077. Atomically binds an unbound, enabled, non-declared person account
+	// with no enrolled TOTP secret to its verified OIDC issuer and subject on first
+	// Google Workspace sign-in.
+	BindUserOIDCIdentity(ctx context.Context, arg BindUserOIDCIdentityParams) (BindUserOIDCIdentityRow, error)
 	ColumnIsRestricted(ctx context.Context, arg ColumnIsRestrictedParams) (bool, error)
 	CompleteAuditEntry(ctx context.Context, arg CompleteAuditEntryParams) error
 	CountAuditEntriesByHour(ctx context.Context, arg CountAuditEntriesByHourParams) ([]CountAuditEntriesByHourRow, error)
@@ -52,6 +56,9 @@ type Querier interface {
 	GetObservatoryDatabaseState(ctx context.Context, arg GetObservatoryDatabaseStateParams) (ObservatoryDatabaseState, error)
 	GetRelease(ctx context.Context, id pgtype.UUID) (GetReleaseRow, error)
 	GetSessionByTokenHash(ctx context.Context, tokenHash []byte) (GetSessionByTokenHashRow, error)
+	// FEAT-077. Looks up an operator by their verified OpenID Connect issuer and
+	// subject. Indexed by app_user_oidc_identity_key.
+	GetUserByOIDC(ctx context.Context, arg GetUserByOIDCParams) (GetUserByOIDCRow, error)
 	// FEAT-007 AC-6. Matched without regard to case, because the directory accepts
 	// the name that way and an operator who types it differently is the same
 	// operator. lower(username) carries the unique index, so this is a lookup on it
@@ -173,6 +180,13 @@ type Querier interface {
 	// both inserting.
 	LockServiceAccount(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error)
 	MarkObservatoryUsageGone(ctx context.Context, arg MarkObservatoryUsageGoneParams) error
+	// FEAT-077. Provisions a new operator vouched for by Google Workspace with
+	// their verified issuer and subject already bound in the same statement.
+	//
+	// ON CONFLICT on lower(username) leaves the existing row untouched and returns
+	// it so the caller can verify whether its bound subject matches (race on the
+	// same person) or differs (reassigned email, refused).
+	ProvisionOIDCOperator(ctx context.Context, arg ProvisionOIDCOperatorParams) (ProvisionOIDCOperatorRow, error)
 	// FEAT-007. The account the directory vouched for, made on first sign-in.
 	//
 	// ON CONFLICT DO UPDATE rather than DO NOTHING: two first sign-ins can race,
@@ -216,6 +230,9 @@ type Querier interface {
 	RecordColumnChange(ctx context.Context, arg RecordColumnChangeParams) error
 	RecordDatabaseGrantChange(ctx context.Context, arg RecordDatabaseGrantChangeParams) error
 	RecordDefinitionRead(ctx context.Context, arg RecordDefinitionReadParams) error
+	// FEAT-077. Records the one-time binding of an existing account to its verified
+	// OpenID Connect issuer and subject in the append-only account_change ledger.
+	RecordOIDCBindingChange(ctx context.Context, arg RecordOIDCBindingChangeParams) error
 	RecordObservatoryReset(ctx context.Context, arg RecordObservatoryResetParams) error
 	RecordObservatoryRun(ctx context.Context, arg RecordObservatoryRunParams) error
 	// One hour's costliest statements, each with how much it cost since the last
