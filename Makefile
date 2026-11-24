@@ -142,6 +142,7 @@ help:
 	@echo "  make test-e2e       Playwright against the running stack"
 	@echo "  make test-perf      ADR 0009 P8 to P18, one worktree at a time across the machine"
 	@echo "  make verify-budget  ADR 0009 P1 to P7 on a fresh production build (no Docker)"
+	@echo "  make verify-standalone  build and verify the all-in-one standalone image (requires TMPDIR)"
 
 # ---------------------------------------------------------------------------
 # local stack

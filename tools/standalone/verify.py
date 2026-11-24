@@ -145,10 +145,15 @@ def main():
             assert psql("SELECT count(*) FROM identity.users", "cdp") == "25"
             bad = Path(directory) / "99999_bad.sql"
             bad.write_text("-- +goose Up\nSELECT 1/0;\n")
+            bad.chmod(0o644)
             failed = docker("run", "--rm", "--network", network,
                             "-v", str(bad) + ":/migrations/99999_bad.sql:ro",
                             *run_environment(env), image, check=False)
             assert failed.returncode != 0 and "division by zero" in failed.stderr
+            # Refuses to serve while bootstrap administrator credentials remain set.
+            failed = docker("run", "--rm", "--network", network,
+                            *run_environment(initialize), image, check=False)
+            assert failed.returncode != 0 and "AVIOR_BOOTSTRAP_DSN" in failed.stderr
             psql("CREATE DATABASE aviordb OWNER avior_local_store")
             outside_dev = {**env, "AVIOR_ENV": "production",
                            "AVIOR_STORE_DSN": "postgres://avior_local_store@postgres/aviordb"}

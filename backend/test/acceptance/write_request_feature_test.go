@@ -768,6 +768,95 @@ func TestWriteCaptures(t *testing.T) {
 			t.Errorf("removing a capture twice returned %d, want 409", status)
 		}
 	})
+
+	// AC-31. An UPDATE on a table whose primary key includes a stored generated
+	// column cannot be reversed reliably because updating another column can
+	// move the key value indirectly.
+	t.Run("an update on a table with a generated primary key is refused", func(t *testing.T) {
+		ctx := context.Background()
+		owner := openFixtureOwner(t)
+		table := "genpk_" + strings.ReplaceAll(uuid.NewString(), "-", "")[:12]
+		if _, err := owner.ExecContext(ctx, "CREATE TABLE public."+table+` (
+			amount integer NOT NULL,
+			derived_key integer GENERATED ALWAYS AS (amount * 2) STORED PRIMARY KEY,
+			note text
+		);
+		GRANT SELECT ON public.`+table+` TO avior_governed;
+		GRANT SELECT, UPDATE, INSERT, DELETE ON public.`+table+` TO avior_writer;
+		INSERT INTO public.`+table+` (amount, note) VALUES (10, 'before')`); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() {
+			if _, dropErr := owner.ExecContext(ctx, "DROP TABLE public."+table); dropErr != nil {
+				t.Error(dropErr)
+			}
+			_ = owner.Close()
+		})
+
+		developer := createOperator(t, "developer")
+		client := h.signIn(developer.username, fixturePassword)
+		statement := "UPDATE public." + table + " SET note = 'after' WHERE derived_key = 20"
+
+		status, payload := h.post(client, "/writes", map[string]any{
+			"database": fixtureDatabase, "statement": statement, "reason": "generated key refusal",
+		})
+		if status != http.StatusUnprocessableEntity {
+			t.Fatalf("submit returned %d, want 422: %s", status, payload)
+		}
+		var refusal gen.WriteRefusal
+		h.decode(payload, &refusal)
+		if !refusedUnder(refusal, string(sqlguard.RuleIrreversibleWrite)) {
+			t.Errorf("refusal did not name %s: %+v", sqlguard.RuleIrreversibleWrite, refusal)
+		}
+		if len(refusal.Reasons) == 0 || deref(refusal.Reasons[0].Subject) != "public."+table {
+			t.Errorf("refusal subject = %+v, want public.%s", refusal.Reasons, table)
+		}
+	})
+
+	// AC-32. Assigning to a GENERATED ALWAYS AS IDENTITY column is refused on
+	// the general SQL write path because an UPDATE undo cannot restore it.
+	t.Run("an update assigning to an always identity column is refused", func(t *testing.T) {
+		ctx := context.Background()
+		owner := openFixtureOwner(t)
+		table := "idalways_" + strings.ReplaceAll(uuid.NewString(), "-", "")[:12]
+		if _, err := owner.ExecContext(ctx, "CREATE TABLE public."+table+` (
+			id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+			note text
+		);
+		GRANT SELECT ON public.`+table+` TO avior_governed;
+		GRANT SELECT, UPDATE, INSERT, DELETE ON public.`+table+` TO avior_writer;
+		INSERT INTO public.`+table+` (note) VALUES ('before')`); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() {
+			if _, dropErr := owner.ExecContext(ctx, "DROP TABLE public."+table); dropErr != nil {
+				t.Error(dropErr)
+			}
+			_ = owner.Close()
+		})
+
+		developer := createOperator(t, "developer")
+		client := h.signIn(developer.username, fixturePassword)
+		// PostgreSQL accepts `SET id = DEFAULT` on a GENERATED ALWAYS AS
+		// IDENTITY column during EXPLAIN, which would assign a new identity
+		// value that UPDATE undo cannot restore.
+		statement := "UPDATE public." + table + " SET id = DEFAULT, note = 'after' WHERE id = 1"
+
+		status, payload := h.post(client, "/writes", map[string]any{
+			"database": fixtureDatabase, "statement": statement, "reason": "always identity refusal",
+		})
+		if status != http.StatusUnprocessableEntity {
+			t.Fatalf("submit returned %d, want 422: %s", status, payload)
+		}
+		var refusal gen.WriteRefusal
+		h.decode(payload, &refusal)
+		if !refusedUnder(refusal, string(sqlguard.RuleIrreversibleWrite)) {
+			t.Errorf("refusal did not name %s: %+v", sqlguard.RuleIrreversibleWrite, refusal)
+		}
+		if len(refusal.Reasons) == 0 || deref(refusal.Reasons[0].Subject) != "public."+table+".id" {
+			t.Errorf("refusal subject = %+v, want public.%s.id", refusal.Reasons, table)
+		}
+	})
 }
 
 /*
