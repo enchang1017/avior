@@ -64,11 +64,13 @@ func TestTwoHoldersOfTheLockNeverOverlap(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			outs[i], errs[i] = exclusive(t, dir, stack, "bash", "-c", body).CombinedOutput()
+			cmd := exclusive(t, dir, stack, "bash", "-c", body)
+			cmd.Env = append(cmd.Env, "AVIOR_LOCK_TRACE=1")
+			outs[i], errs[i] = cmd.CombinedOutput()
 		}()
 	}
 	wg.Wait()
-	said := fmt.Sprintf("holder one said %q, holder two said %q", outs[0], outs[1])
+	said := fmt.Sprintf("holder one said:\n%s\nholder two said:\n%s", outs[0], outs[1])
 	for i, err := range errs {
 		if err != nil {
 			t.Fatalf("holder %d: %v; %s", i, err, said)
