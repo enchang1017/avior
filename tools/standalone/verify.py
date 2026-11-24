@@ -16,9 +16,15 @@ import uuid
 
 
 def docker(*args, check=True):
-    return subprocess.run(
-        ["docker", *args], check=check, capture_output=True, text=True
+    result = subprocess.run(
+        ["docker", *args], check=False, capture_output=True, text=True
     )
+    if check and result.returncode != 0:
+        raise RuntimeError(
+            f"docker {args[0] if args else ''} failed (exit {result.returncode}): "
+            f"{(result.stderr or result.stdout).strip()}"
+        )
+    return result
 
 
 def main():
@@ -51,7 +57,14 @@ def main():
                "--network-alias", "postgres", "-e", "POSTGRES_PASSWORD=test-admin-only",
                "-e", "POSTGRES_DB=cdp", "postgres:18-alpine")
         for _ in range(100):
-            if docker("exec", postgres, "pg_isready", "-U", "postgres", check=False).returncode == 0:
+            # Probe TCP and the created target database so we do not race with
+            # postgres's temporary Unix-socket initdb server before it restarts
+            # onto port 5432.
+            if docker(
+                "exec", "-e", "PGPASSWORD=test-admin-only", postgres,
+                "psql", "-h", "127.0.0.1", "-U", "postgres", "-d", "cdp",
+                "-XAtc", "SELECT 1", check=False,
+            ).returncode == 0:
                 break
             time.sleep(0.3)
         else:
