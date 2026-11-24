@@ -1,6 +1,6 @@
 name: images
 
-# The three production images, published to GHCR when a release is published
+# The split and standalone images, published to GHCR when a release is published
 # and built without pushing on every pull request that could change them.
 #
 # Two jobs rather than one with a conditional push: permissions cannot depend on
@@ -12,10 +12,12 @@ on:
     types: [published]
   pull_request:
     paths:
+      - ".dockerignore"
       - "backend/**"
       - "frontend/**"
       - "db/migrations/**"
       - "deploy/migrate/**"
+      - "deploy/standalone/**"
       - "deploy/compose/**"
       - ".github/workflows/images.yml"
   workflow_dispatch:
@@ -44,6 +46,8 @@ jobs:
             dockerfile: frontend/Dockerfile
           - image: avior-migrate
             dockerfile: deploy/migrate/Dockerfile
+          - image: avior
+            dockerfile: deploy/standalone/Dockerfile
     steps:
       - uses: actions/checkout@v4
         with:
@@ -87,6 +91,8 @@ jobs:
             dockerfile: frontend/Dockerfile
           - image: avior-migrate
             dockerfile: deploy/migrate/Dockerfile
+          - image: avior
+            dockerfile: deploy/standalone/Dockerfile
     steps:
       - uses: actions/checkout@v4
         with:

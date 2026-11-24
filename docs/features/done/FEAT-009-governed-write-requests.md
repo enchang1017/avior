@@ -465,6 +465,18 @@ the manual version would be offering the operator a way to forget it.
   direction, into which table, and the statement that would put them back. "The
   rows are kept automatically" is a claim, and somebody about to ask for an
   approval should be able to read it as facts.
+- **AC-31** — An `UPDATE` against a table whose identifying key includes a
+  **stored generated column** is refused by the write guard with
+  `irreversible_write` (naming the table). Because changing another column can
+  indirectly move the generated key value, an `UPDATE` undo cannot reliably
+  relocate the modified row from its captured before-image key. This applies to
+  every SQL write submission, not only staged grid edits.
+- **AC-32** — An `UPDATE` assigning to a **`GENERATED ALWAYS AS IDENTITY`**
+  column (for example `SET id = DEFAULT`, which PostgreSQL otherwise compiles)
+  is refused by the write guard with `irreversible_write` (naming
+  `schema.table.column`). An `UPDATE` undo cannot restore an `ALWAYS` identity
+  column to its captured value, so those columns are read-only for reversible
+  updates on every SQL write submission, not only staged grid edits.
 
 ## What is refused
 
@@ -473,6 +485,8 @@ the manual version would be offering the operator a way to forget it.
 | A statement that is not a single UPDATE or DELETE | `422`, naming the rule (AC-3) |
 | An `UPDATE` or `DELETE` with no `WHERE` clause | `422`, naming that rule (AC-4) |
 | An `INSERT` or `UPDATE` against a table with no key | `422`, naming the table (AC-15) |
+| An `UPDATE` against a table whose key includes a stored generated column | `422`, `irreversible_write`, naming the table (AC-31) |
+| An `UPDATE` assigning to a `GENERATED ALWAYS AS IDENTITY` column | `422`, `irreversible_write`, naming the column (AC-32) |
 | More than one table | `422` |
 | Any restricted column on the target table the requester may not read | `422`, naming the column (AC-21) |
 | A database the requester's roles do not reach | `403` (FEAT-058) |
@@ -540,6 +554,8 @@ that answer people care about most.
 | AC-28 | `checking says what the backup would hold` |
 | AC-29 | `permissions decide who may submit and who may decide` |
 | AC-30 | `a rollback puts the rows back and is a write of its own` |
+| AC-31 | `an update on a table with a generated primary key is refused` |
+| AC-32 | `an update assigning to an always identity column is refused` |
 
 `frontend/e2e/query-console.spec.ts` carries two end-to-end cases. `a write
 request is asked for, approved, and leaves a backup behind` walks the composer,
@@ -596,3 +612,18 @@ cannot even connect to. The role itself is made once per cluster by
 
 - **No batches.** One statement per request, so a change needing three
   statements is three requests and three approvals.
+
+### Expected row count for staged grid edits
+
+A write submission may require exactly one affected row. The requirement is
+stored with the request and checked inside the capture transaction, both for
+immediate execution and later approval. Zero or multiple rows roll back the write
+and its capture, record a failed request, and return a conflict message. Ordinary
+SQL submissions without this option keep their existing multi-row semantics.
+
+Captures retain complete rows including generated and identity fields. UPDATE
+undo restores assignable stored columns and lets generated expressions recompute;
+always-generated identity values remain unchanged. DELETE undo restores stored
+columns with explicit identity values using OVERRIDING SYSTEM VALUE and lets
+computed columns regenerate. The original primary key and captured before-image
+still identify the row.

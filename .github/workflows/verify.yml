@@ -78,6 +78,17 @@ jobs:
       - if: failure()
         run: docker compose logs --tail=200 || true
 
+  standalone:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify standalone image contract
+        env:
+          TMPDIR: ${{ runner.temp }}
+        run: make verify-standalone
+
   parser-fuzz:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest

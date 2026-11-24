@@ -92,7 +92,7 @@ export default defineConfig({
         manualChunks(id) {
           // Fetched on demand, so kept out of the chunk every editor page loads.
           if (
-            /node_modules\/(\.pnpm\/)?(@codemirror(\+|\/)(search|lang-sql)|@lezer(\+|\/)lr)/u.test(
+            /node_modules\/(\.pnpm\/)?(@codemirror(\+|\/)(search|lang-sql|lang-json)|@lezer(\+|\/)(lr|json))/u.test(
               id,
             )
           ) {

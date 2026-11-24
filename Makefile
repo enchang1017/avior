@@ -142,6 +142,7 @@ help:
 	@echo "  make test-e2e       Playwright against the running stack"
 	@echo "  make test-perf      ADR 0009 P8 to P18, one worktree at a time across the machine"
 	@echo "  make verify-budget  ADR 0009 P1 to P7 on a fresh production build (no Docker)"
+	@echo "  make verify-standalone  build and verify the all-in-one standalone image (requires TMPDIR)"
 
 # ---------------------------------------------------------------------------
 # local stack
@@ -541,3 +542,11 @@ migrate:
 migrate-status:
 	cd $(BACKEND) && go run $(GOOSE) -dir ../db/migrations postgres \
 		"$${AVIOR_STORE_DSN:-$(AVIOR_LOCAL_STORE_DSN)}" status
+
+# The all-in-one image has an additional real-container startup contract.
+# TMPDIR must be the caller's approved external scratch workspace.
+.PHONY: verify-standalone
+verify-standalone:
+	@test -n "$$TMPDIR" || { echo "Set TMPDIR to an approved task scratch workspace"; exit 1; }
+	docker build -f deploy/standalone/Dockerfile -t avior-standalone:$(AVIOR_STACK) .
+	AVIOR_TEST_IMAGE=avior-standalone:$(AVIOR_STACK) python3 tools/standalone/verify.py

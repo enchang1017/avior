@@ -1,10 +1,20 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
+import { lazy } from '@/shared/lazy'
+
+const VJsonView = lazy(
+  () => import('@/components/Data/VJsonView/VJsonView.vue'),
+  'Loading JSON viewer',
+)
+
+import VInlineCellInput from '@/components/Data/VInlineCellInput/VInlineCellInput.vue'
+import { nextTick } from 'vue'
+import { arrayColumn, cellValue } from './cellValue'
 import { rowWindow } from './rowWindow'
 import { playScan } from './scan'
 import type { QueryResult } from '@/shared/api'
-import { VBadge, VButton, VIcon, VInput, VTable } from '@/components'
+import { VBadge, VButton, VDialog, VIcon, VInput, VTable } from '@/components'
 
 /**
  * Bytebase's result surface: a search box over the rows, the row count, and an
@@ -15,9 +25,194 @@ import { VBadge, VButton, VIcon, VInput, VTable } from '@/components'
  * query: narrowing means running a different statement, and that has to go
  * through the guard.
  */
-const props = defineProps<{ result: QueryResult }>()
+const props = withDefaults(
+  defineProps<{
+    result: QueryResult
+    animate?: boolean
+    offset?: number
+    editableColumns?: string[]
+    drafts?: Record<string, string | null>
+    inlineEditor?: {
+      row: number
+      column: string
+      value: string | null
+      error: string
+      nullable: boolean
+    } | null
+    blockedRows?: Record<number, string>
+    readOnlyReasons?: Record<string, string>
+  }>(),
+  {
+    animate: true,
+    offset: 0,
+    editableColumns: () => [],
+    drafts: () => ({}),
+    inlineEditor: null,
+    blockedRows: () => ({}),
+    readOnlyReasons: () => ({}),
+  },
+)
 
+const emit = defineEmits<{
+  edit: [row: number, column: number]
+  'inline-value': [value: string | null]
+  'inline-save': []
+  'inline-cancel': []
+}>()
+function inline(row: number, column: number): boolean {
+  return (
+    props.inlineEditor?.row === row &&
+    props.inlineEditor.column === props.result.columns[column]?.name
+  )
+}
+async function finishInline(
+  row: number,
+  column: number,
+  direction: number,
+  cancel = false,
+): Promise<void> {
+  const previous = shown.value.map((item) => item.ordinal)
+  const originalPosition = previous.indexOf(row + 1 + props.offset)
+  if (cancel) emit('inline-cancel')
+  else emit('inline-save')
+  await nextTick()
+  if (props.inlineEditor) return
+  let targetRow = row,
+    targetColumn = column
+  let position = originalPosition
+  const visibleOrdinals = new Set(shown.value.map((item) => item.ordinal))
+  if (direction) {
+    do {
+      targetColumn += direction
+      if (targetColumn >= props.result.columns.length) {
+        position++
+        targetColumn = 0
+      } else if (targetColumn < 0) {
+        position--
+        targetColumn = props.result.columns.length - 1
+      }
+      const ordinal = previous[position]
+      const candidate = ordinal === undefined ? undefined : { ordinal }
+      if (!candidate) {
+        targetRow = row
+        targetColumn = column
+        break
+      }
+      targetRow = candidate.ordinal - 1 - props.offset
+    } while (
+      !visibleOrdinals.has(targetRow + 1 + props.offset) ||
+      !editable(targetColumn, targetRow)
+    )
+  }
+  if (!visibleOrdinals.has(targetRow + 1 + props.offset)) {
+    const nearest = shown.value[Math.min(Math.max(originalPosition, 0), shown.value.length - 1)]
+    copyStatus.value =
+      'The edited row no longer matches Search results. Focus moved to the nearest matching row.'
+    if (!nearest) {
+      scroller.value?.closest('section')?.querySelector<HTMLInputElement>('input')?.focus()
+      return
+    }
+    targetRow = nearest.ordinal - 1 - props.offset
+    position = shown.value.indexOf(nearest)
+  } else position = shown.value.findIndex((item) => item.ordinal === targetRow + 1 + props.offset)
+  const visible = drawn.value.some((item) => item.ordinal === targetRow + 1 + props.offset)
+  if (!visible && scroller.value) {
+    scroller.value.scrollTop = Math.max(0, position) * rowHeight.value
+    scrollTop.value = scroller.value.scrollTop
+    await nextTick()
+  }
+
+  const ordinal = targetRow + 1 + props.offset
+  const drawnRow = Array.from(
+    scroller.value?.querySelectorAll<HTMLTableRowElement>('tr[data-row]') ?? [],
+  ).find((element) => element.querySelector('th')?.textContent?.trim() === String(ordinal))
+  const target = drawnRow?.children[targetColumn + 1]
+  if (target instanceof HTMLElement) {
+    target.focus()
+    target.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  }
+}
 const filter = ref('')
+const cellDetail = ref<{
+  title: string
+  value: ReturnType<typeof cellValue>
+  json: boolean
+  array: boolean
+} | null>(null)
+const copyStatus = ref('')
+function showCell(value: ReturnType<typeof cellValue>, column: number): void {
+  if (!value.copyable) return
+  cellDetail.value = {
+    title: props.result.columns[column]?.name ?? 'Cell value',
+    array: arrayColumn(props.result.columns[column]?.type ?? ''),
+    value,
+    json:
+      value.kind === 'JSON / array' || /^jsonb?$/iu.test(props.result.columns[column]?.type ?? ''),
+  }
+  copyStatus.value = ''
+}
+function focusCell(event: MouseEvent): void {
+  if (event.target instanceof Element && event.target.closest('button')) return
+  ;(event.currentTarget as HTMLElement).focus({ preventScroll: true })
+}
+function cellKey(
+  event: KeyboardEvent,
+  value: ReturnType<typeof cellValue>,
+  column: number,
+  row: number,
+): void {
+  if (event.target !== event.currentTarget) return
+  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'c') {
+    // Native text selections keep their normal copy behavior.
+    if (window.getSelection()?.toString()) return
+    event.preventDefault()
+    void copyValue(value)
+    return
+  }
+  if (event.key === 'F2' && editable(column, row)) {
+    event.preventDefault()
+    emit('edit', row, column)
+    return
+  }
+  if (event.key === 'Enter') {
+    event.preventDefault()
+    showCell(value, column)
+    return
+  }
+  const cell = event.currentTarget as HTMLTableCellElement
+  const elementRow = cell.parentElement as HTMLTableRowElement
+  let next: Element | null | undefined
+  if (event.key === 'ArrowLeft') next = cell.previousElementSibling
+  else if (event.key === 'ArrowRight') next = cell.nextElementSibling
+  else if (event.key === 'ArrowUp')
+    next = elementRow.previousElementSibling?.children[cell.cellIndex]
+  else if (event.key === 'ArrowDown') next = elementRow.nextElementSibling?.children[cell.cellIndex]
+  else return
+  event.preventDefault()
+  if (
+    next instanceof HTMLElement &&
+    next.tagName === 'TD' &&
+    next.closest('tr')?.hasAttribute('data-row')
+  ) {
+    next.focus()
+    next.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  }
+}
+
+async function copyValue(value: ReturnType<typeof cellValue>): Promise<void> {
+  copyStatus.value = ''
+  if (!value.copyable) {
+    copyStatus.value =
+      value.kind === 'Masked' ? 'Masked values cannot be copied.' : 'NULL has no value to copy.'
+    return
+  }
+  try {
+    await navigator.clipboard.writeText(value.raw)
+    copyStatus.value = value.kind === 'Empty string' ? 'Empty string copied.' : 'Copied.'
+  } catch {
+    copyStatus.value = 'Clipboard unavailable. Select the value and copy it.'
+  }
+}
 
 /*
  * Virtualised: only the rows in view, and a few either side, are in the DOM
@@ -43,12 +238,46 @@ function onScroll(): void {
   scrollTop.value = scroller.value?.scrollTop ?? 0
 }
 
+function editable(column: number, row?: number): boolean {
+  if (row !== undefined && props.blockedRows[row]) return false
+  const metadata = props.result.columns[column]
+  return metadata !== undefined && !metadata.masked && props.editableColumns.includes(metadata.name)
+}
+function draftKey(row: number, column: number): string {
+  return row + ':' + (props.result.columns[column]?.name ?? '')
+}
+function dirty(row: number, column: number): boolean {
+  return Object.prototype.hasOwnProperty.call(props.drafts, draftKey(row, column))
+}
+function edit(row: number, column: number): void {
+  if (editable(column, row)) emit('edit', row, column)
+}
+
 const rows = computed(() =>
-  props.result.rows.map((cells, index) => ({
-    ordinal: index + 1,
-    cells,
-    text: cells.map(render).join(' ').toLowerCase(),
-  })),
+  props.result.rows.map((values, index) => {
+    // Virtual rows should defer value presentation too: formatting every hidden
+    // cell makes a large result block the main thread before its first paint.
+    const cells = computed(() =>
+      values.map((cell, column) =>
+        cellValue(
+          dirty(index, column) ? props.drafts[draftKey(index, column)] : cell,
+          props.result.columns[column],
+        ),
+      ),
+    )
+    return {
+      ordinal: index + 1 + props.offset,
+      get cells() {
+        return cells.value
+      },
+      get text() {
+        return cells.value
+          .map((cell) => (cell.kind === 'NULL' ? 'NULL' : cell.raw))
+          .join(' ')
+          .toLowerCase()
+      },
+    }
+  }),
 )
 
 const shown = computed(() => {
@@ -82,11 +311,21 @@ function rise(): void {
 // Once per result, after its rows are on screen: the next frame, not this one.
 watch(
   () => props.result,
-  () => requestAnimationFrame(() => playScan(scan.value)),
+  () => {
+    cellDetail.value = null
+    copyStatus.value = ''
+    if (props.animate) requestAnimationFrame(() => playScan(scan.value))
+  },
   { immediate: true, flush: 'post' },
 )
 
-watch(() => props.result.auditId, rise, { immediate: true })
+watch(
+  () => props.result.auditId,
+  () => {
+    if (props.animate) rise()
+  },
+  { immediate: true },
+)
 
 /*
  * Measured in a task of its own, never the one that mounts the rows. Reading
@@ -105,14 +344,6 @@ onMounted(() => {
 })
 onBeforeUnmount(() => observer?.disconnect())
 
-function render(cell: unknown): string {
-  if (cell === null || cell === undefined) return 'NULL'
-  if (typeof cell === 'object') return JSON.stringify(cell)
-  if (typeof cell === 'string') return cell
-  if (typeof cell === 'number' || typeof cell === 'boolean') return cell.toString()
-  return JSON.stringify(cell) ?? ''
-}
-
 /**
  * The browser writes out what it already holds. Asking the server to format it
  * would be a second read of production for data the operator is looking at;
@@ -121,7 +352,17 @@ function render(cell: unknown): string {
 function downloadCsv(): void {
   const newline = String.fromCharCode(13, 10)
   const header = props.result.columns.map((column) => quote(column.name)).join(',')
-  const body = props.result.rows.map((cells) => cells.map((cell) => quote(render(cell))).join(','))
+  const body = props.result.rows.map((cells) =>
+    cells
+      .map((cell, index) =>
+        quote(
+          cellValue(cell, props.result.columns[index]).kind === 'NULL'
+            ? 'NULL'
+            : cellValue(cell, props.result.columns[index]).raw,
+        ),
+      )
+      .join(','),
+  )
   const blob = new Blob([[header, ...body].join(newline)], { type: 'text/csv;charset=utf-8' })
 
   const link = document.createElement('a')
@@ -158,8 +399,13 @@ function quote(value: string): string {
         rows
       </span>
       <VBadge v-if="props.result.truncated" tone="danger" size="sm">truncated</VBadge>
+      <span :class="copyStatus ? 'text-xs text-fg-muted' : 'sr-only'" role="status">{{
+        copyStatus
+      }}</span>
       <div class="flex-1" />
-      <VButton size="sm" variant="bare" icon="download" @click="downloadCsv">Export</VButton>
+      <VButton size="sm" variant="bare" icon="download" @click="downloadCsv">
+        <span>{{ Object.keys(props.drafts).length ? 'Export saved rows' : 'Export' }}</span>
+      </VButton>
     </div>
 
     <div
@@ -207,9 +453,68 @@ function quote(value: string): string {
           <td
             v-for="(cell, i) in row.cells"
             :key="i"
-            :class="{ 'nul text-fg-muted italic': cell === null }"
+            :class="{
+              'nul text-fg-muted italic': cell.special && cell.kind !== 'Masked',
+              'pr-10': cell.expandable && !editable(i, row.ordinal - 1 - props.offset),
+              'pr-20': editable(i, row.ordinal - 1 - props.offset),
+              'py-0 pr-0': inline(row.ordinal - 1 - props.offset, i),
+              'bg-warn-bg': dirty(row.ordinal - 1 - props.offset, i),
+            }"
+            class="group relative cursor-text focus:outline-2 focus:-outline-offset-2 focus:outline-primary"
+            :tabindex="row.ordinal === drawn[0]?.ordinal && i === 0 ? 0 : -1"
+            v-bind="cell.special ? { 'aria-label': cell.kind } : {}"
+            :title="
+              props.blockedRows[row.ordinal - 1 - props.offset] ||
+              props.readOnlyReasons[props.result.columns[i]?.name ?? ''] ||
+              (cell.copyable
+                ? 'Use arrow keys to move, Ctrl/Cmd+C to copy, or Enter to inspect.'
+                : cell.kind === 'Masked'
+                  ? 'Masked value. Inspection and copying are unavailable.'
+                  : 'NULL: no stored value. Use arrow keys to move.')
+            "
+            @click="focusCell"
+            @keydown="cellKey($event, cell, i, row.ordinal - 1 - props.offset)"
+            @dblclick="edit(row.ordinal - 1 - props.offset, i)"
           >
-            {{ render(cell) }}
+            <VInlineCellInput
+              v-if="inline(row.ordinal - 1 - props.offset, i) && props.inlineEditor"
+              :value="props.inlineEditor.value"
+              :nullable="props.inlineEditor.nullable"
+              :error="props.inlineEditor.error"
+              :label="props.inlineEditor.column"
+              @value="emit('inline-value', $event)"
+              @save="finishInline(row.ordinal - 1 - props.offset, i, $event)"
+              @cancel="finishInline(row.ordinal - 1 - props.offset, i, 0, true)"
+            />
+            <span v-else>{{ cell.preview }}</span>
+            <VButton
+              v-if="cell.expandable && !inline(row.ordinal - 1 - props.offset, i)"
+              variant="bare"
+              size="sm"
+              class="absolute top-0 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-100"
+              :class="editable(i, row.ordinal - 1 - props.offset) ? 'right-10' : 'right-0'"
+              icon="eye"
+              title="Inspect value (Enter)"
+              :aria-label="'Inspect ' + (props.result.columns[i]?.name ?? 'cell')"
+              @click.stop="showCell(cell, i)"
+            >
+              <span class="sr-only">Inspect value</span>
+            </VButton>
+            <VButton
+              v-if="
+                editable(i, row.ordinal - 1 - props.offset) &&
+                !inline(row.ordinal - 1 - props.offset, i)
+              "
+              variant="bare"
+              size="sm"
+              icon="file-pen"
+              class="absolute top-0 right-0 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-100"
+              :aria-label="'Edit ' + props.result.columns[i]?.name"
+              title="Edit value (F2 or double-click)"
+              @click.stop="edit(row.ordinal - 1 - props.offset, i)"
+            >
+              <span class="sr-only">Edit value</span>
+            </VButton>
           </td>
         </tr>
         <tr v-if="windowed.after > 0" class="spacer" aria-hidden="true">
@@ -220,5 +525,25 @@ function quote(value: string): string {
         No row matches “{{ filter }}”.
       </p>
     </div>
+    <VDialog
+      :open="cellDetail !== null"
+      :title="cellDetail?.title ?? 'Cell value'"
+      motion="fade"
+      @close="cellDetail = null"
+    >
+      <p v-if="cellDetail?.value.kind !== 'Value'" class="mt-0 text-xs text-fg-muted">
+        {{ cellDetail?.value.kind }}
+      </p>
+      <VJsonView v-if="cellDetail?.json" :value="cellDetail.value.raw" :array="cellDetail.array" />
+      <pre v-else class="m-0 overflow-auto font-mono text-sm break-words whitespace-pre-wrap">{{
+        cellDetail?.value.detail
+      }}</pre>
+      <template #footer>
+        <span class="text-xs text-fg-muted" role="status">{{ copyStatus }}</span
+        ><VButton @click="cellDetail && copyValue(cellDetail.value)">
+          <span>{{ cellDetail?.json ? 'Copy original' : 'Copy value' }}</span>
+        </VButton>
+      </template>
+    </VDialog>
   </section>
 </template>

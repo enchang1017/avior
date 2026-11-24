@@ -30,7 +30,7 @@ func readRepoFile(t *testing.T, name string) string {
 	return string(raw)
 }
 
-func TestComposeNamesNoProjectAndPublishesOnlyStackPorts(t *testing.T) {
+func TestComposeNamesNoProjectAndPublishesOnlyLoopbackStackPorts(t *testing.T) {
 	compose := readRepoFile(t, "docker-compose.yml")
 
 	if regexp.MustCompile(`(?m)^name:`).MatchString(compose) {
@@ -44,8 +44,9 @@ func TestComposeNamesNoProjectAndPublishesOnlyStackPorts(t *testing.T) {
 		t.Fatal("found no published ports in docker-compose.yml; this gate reads `- \"host:container\"`")
 	}
 	for _, m := range matches {
-		if !variable.MatchString(m[1]) {
-			t.Errorf("docker-compose.yml publishes host port %q; use ${AVIOR_<NAME>_PORT:-<default>}", m[1])
+		port, loopback := strings.CutPrefix(m[1], "127.0.0.1:")
+		if !loopback || !variable.MatchString(port) {
+			t.Errorf("docker-compose.yml publishes %q; use 127.0.0.1:${AVIOR_<NAME>_PORT:-<default>}", m[1])
 		}
 	}
 }

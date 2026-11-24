@@ -7,89 +7,140 @@
 # A performance budget measured while another worktree's browser runs is a
 # measure of both, so the budgets take this lock and wait their turn.
 #
-# macOS ships no flock, so the lock is a directory: mkdir is atomic everywhere.
-# It holds the owner's PID and stack. A lock whose PID is gone was left by a
-# run that died, and is taken over rather than waited on forever.
+# The exclusion is a kernel advisory lock, flock(2), on avior-<name>.flock,
+# taken through python3 because macOS ships no flock command. The lock belongs
+# to this shell's descriptor 9, so the kernel drops it when this shell dies,
+# however it dies. That file is never removed: a run that unlinked it would let
+# the next one lock a fresh inode while a waiter still holds the old one.
+#
+# avior-<name>.lock beside it is only a label holding the owner's PID and stack,
+# so a waiting run can name who it waits for. A label found by a run that
+# already holds the flock was left by a run that died, and is taken over, or
+# belongs to a checkout still on the mkdir-only lock, and is waited for.
 set -euo pipefail
 
-name="${1:?usage: exclusive.sh <lock-name> <command> [args...]}"
+usage="usage: exclusive.sh <lock-name> <command> [args...]"
+name="${1:?$usage}"
 shift
-[[ "$#" -gt 0 ]] || { echo "usage: exclusive.sh <lock-name> <command> [args...]" >&2; exit 64; }
+[[ "$#" -gt 0 ]] || { echo "$usage" >&2; exit 64; }
 
 dir="${AVIOR_LOCK_DIR:-/tmp}"
 lock="$dir/avior-$name.lock"
+flockfile="$dir/avior-$name.flock"
 stack="${AVIOR_STACK:-unknown}"
 timeout="${AVIOR_LOCK_TIMEOUT:-1800}"
-# An owner file still missing this many seconds after the directory appeared
-# means its creator died between the two steps.
+mine="$$ $stack"
+# A label still missing its owner this many seconds after it appeared means
+# its creator died between the two steps.
 unowned_grace=10
+busy=75
 
-# AVIOR_LOCK_TRACE=1 narrates every step on stderr, so a failure on a machine
-# that cannot be reached shows which path each holder took.
 trace() {
   if [[ -n "${AVIOR_LOCK_TRACE:-}" ]]; then
-    echo "trace pid=$$ stack=$stack t=$(date +%s.%N 2>/dev/null || date +%s): $*" >&2
+    echo "trace pid=$$ stack=$stack waited=${waited:-0}s: $*" >&2
   fi
 }
-
-release() { trace "release $(ls -di "$lock" 2>&1)"; rm -rf "$lock"; }
 
 owner_of() { cat "$1/owner" 2>/dev/null || true; }
 
-take_over_stale() {
-  local seen="$1" moved="$lock.stale.$$"
-  mv "$lock" "$moved" 2>/dev/null || return 0
-  if [[ "$(owner_of "$moved")" == "$seen" ]]; then
-    rm -rf "$moved"
-    return 0
+labelled=""
+release() {
+  if [[ -n "$labelled" ]]; then
+    trace "release $lock"
+    rm -rf "$lock"
   fi
-  # Somebody took the lock between our read and our move. Put theirs back.
-  mv "$moved" "$lock" 2>/dev/null || rm -rf "$moved"
+}
+trap release EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+try_flock() {
+  python3 -I -c '
+import errno, fcntl, sys
+try:
+    fcntl.flock(9, fcntl.LOCK_EX | fcntl.LOCK_NB)
+except OSError as err:
+    if err.errno in (errno.EWOULDBLOCK, errno.EAGAIN):
+        sys.exit(int(sys.argv[1]))
+    print("exclusive: flock on %s failed: %s" % (sys.argv[2], err), file=sys.stderr)
+    sys.exit(1)
+' "$busy" "$flockfile"
 }
 
 waited=0
-unowned=0
 announced=""
-attempts=0
-trace "start lock=$lock uname=$(uname -sr) bash=$BASH_VERSION mkdir=[$(type -a mkdir 2>&1 | tr '\n' ';')] BASH_ENV=${BASH_ENV-unset} funcs=[$(declare -F | tr '\n' ';')] lockdir_vars=$(env | grep -c '^AVIOR_LOCK_DIR=') dir=[$(ls -dia "$dir" 2>&1)] entries=[$(ls -ai "$dir" 2>&1 | tr '\n' ';')]"
-while ! made="$(mkdir "$lock" 2>&1)"; do
-  attempts=$((attempts + 1))
+announce() {
+  local holder="$1"
+  if [[ -n "$holder" && "$announced" != "$holder" ]]; then
+    echo "exclusive: waiting for ${holder#* } (pid ${holder%% *}) to release $name"
+    announced="$holder"
+  fi
+}
+
+tick() {
+  if (( waited >= timeout )); then
+    echo "FAIL  exclusive: waited ${timeout}s for $lock, held by '${1:-nobody}'" >&2
+    exit 1
+  fi
+  sleep 1
+  waited=$((waited + 1))
+}
+
+command -v python3 >/dev/null 2>&1 || {
+  echo "FAIL  exclusive: python3 is needed to take the advisory lock on $flockfile" >&2
+  exit 69
+}
+exec 9>>"$flockfile" || {
+  echo "FAIL  exclusive: cannot open $flockfile" >&2
+  exit 69
+}
+trace "start lock=$lock flock=$flockfile uname=$(uname -sr) bash=$BASH_VERSION"
+
+while :; do
+  status=0
+  try_flock || status=$?
+  (( status == 0 )) && break
+  if (( status != busy )); then
+    echo "FAIL  exclusive: cannot take the advisory lock on $flockfile" >&2
+    exit 69
+  fi
   holder="$(owner_of "$lock")"
-  trace "mkdir failed attempt=$attempts err=[$made] holder=[$holder]"
+  announce "$holder"
+  tick "$holder"
+done
+trace "flock held on $flockfile"
+
+unowned=0
+while ! mkdir "$lock" 2>/dev/null; do
+  if [[ ! -d "$lock" ]]; then
+    echo "FAIL  exclusive: cannot create $lock" >&2
+    exit 69
+  fi
+  holder="$(owner_of "$lock")"
   pid="${holder%% *}"
   if [[ -z "$holder" ]]; then
     unowned=$((unowned + 1))
     if (( unowned > unowned_grace )); then
       echo "exclusive: $lock has had no owner for ${unowned_grace}s; taking it over" >&2
-      take_over_stale ""
+      rm -rf "$lock"
       unowned=0
+      continue
     fi
   elif ! reason="$(kill -0 "$pid" 2>&1)"; then
     echo "exclusive: $lock was left by pid $pid (owner '$holder'), which is gone: ${reason:-kill gave no reason}; taking it over" >&2
-    take_over_stale "$holder"
+    rm -rf "$lock"
     continue
   else
     unowned=0
-    if [[ "$announced" != "$holder" ]]; then
-      echo "exclusive: waiting for ${holder#* } (pid $pid) to release $name"
-      announced="$holder"
-    fi
+    announce "$holder"
   fi
-  if (( waited >= timeout )); then
-    echo "FAIL  exclusive: waited ${timeout}s for $lock, held by '${holder:-nobody}'" >&2
-    exit 1
-  fi
-  sleep 1
-  waited=$((waited + 1))
+  tick "$holder"
 done
-
-trace "acquired after $attempts failures mkdir_out=[$made] lock=[$(ls -di "$lock" 2>&1)] entries=[$(ls -ai "$dir" 2>&1 | tr '\n' ';')]"
-trap release EXIT
-trap 'release; exit 130' INT
-trap 'release; exit 143' TERM
-echo "$$ $stack" > "$lock/owner"
-trace "owner written [$(cat "$lock/owner" 2>&1)] lock=[$(ls -di "$lock" 2>&1)]"
+labelled=1
+printf '%s\n' "$mine" > "$lock/owner.$$"
+mv "$lock/owner.$$" "$lock/owner"
+trace "acquired, owner [$(owner_of "$lock")]"
 
 status=0
-"$@" || status=$?
+"$@" 9>&- || status=$?
 exit "$status"

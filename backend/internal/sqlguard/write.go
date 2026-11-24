@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -69,12 +70,14 @@ type WritePlan struct {
 
 // TableShape is what the target says about the table itself.
 type TableShape struct {
+	Generated      []string
+	IdentityAlways []string
 	// Key identifies a row on its own: the primary key, or a unique constraint
 	// over columns that cannot be null. Empty when the table has neither, which
 	// is what makes a write to it irreversible.
 	Key []string
 	// Columns is every column of the table, in ordinal order. The reverse of an
-	// UPDATE assigns all of them back, because the capture holds the whole row.
+	// UPDATE restores stored, assignable columns from the captured whole row.
 	Columns []string
 }
 
@@ -218,6 +221,7 @@ func (g *WriteGuard) checkWrite(
 		if err != nil {
 			return nil, fmt.Errorf("read table shape: %w", err)
 		}
+		reasons = append(reasons, generatedUpdateReasons(parsed, shape, plan.Table)...)
 		if !shape.Identifiable() {
 			reasons = append(reasons, Reason{
 				Rule: RuleIrreversibleWrite,
@@ -280,4 +284,23 @@ func renderVersion(num int) string {
 		return "of an unknown version"
 	}
 	return fmt.Sprintf("%d.%d", num/10000, num%10000)
+}
+
+// A generated key can move indirectly; an always-generated identity cannot be
+// assigned its old value by an UPDATE undo. Refuse either irreversible change.
+func generatedUpdateReasons(parsed *WriteStatement, shape TableShape, table string) []Reason {
+	if parsed.Kind != WriteUpdate {
+		return nil
+	}
+	for _, column := range shape.Key {
+		if slices.Contains(shape.Generated, column) {
+			return []Reason{{Rule: RuleIrreversibleWrite, Message: "updates of expression-generated primary keys cannot be reversed", Subject: table}}
+		}
+	}
+	for _, column := range parsed.Columns {
+		if slices.Contains(shape.IdentityAlways, column) {
+			return []Reason{{Rule: RuleIrreversibleWrite, Message: "always-generated identity columns are read-only for reversible updates", Subject: table + "." + column}}
+		}
+	}
+	return nil
 }

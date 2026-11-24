@@ -21,6 +21,13 @@ export function useListbox(count: () => number, choose: (index: number) => void)
     active.value = -1
   }
 
+  function escape(event: KeyboardEvent) {
+    if (!open.value) return
+    event.preventDefault()
+    event.stopPropagation()
+    close()
+  }
+
   function toggle() {
     if (open.value) close()
     else show()
@@ -64,5 +71,5 @@ export function useListbox(count: () => number, choose: (index: number) => void)
     void nextTick(close)
   }
 
-  return { open, active, show, close, toggle, move, confirm, blur }
+  return { open, active, show, close, toggle, move, confirm, blur, escape }
 }

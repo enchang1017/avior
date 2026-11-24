@@ -38,6 +38,7 @@ const props = defineProps<{
    * that took the work.
    */
   mode?: 'read' | 'write'
+  browsing?: boolean
   /** What the button says in write mode: UPDATE, DELETE or INSERT. */
   insertLabel?: string
   /**
@@ -260,7 +261,7 @@ const matchingTables = computed(() => {
         at the top of the list rather than being hunted for among forty columns.
       -->
       <div
-        v-if="treeMode === 'read'"
+        v-if="treeMode === 'read' && !props.browsing"
         class="order-by flex items-stretch gap-1.5 border-b border-line px-2.5 py-1.5 [&_input]:h-full [&_input]:font-mono"
       >
         <label for="order-column" class="flex items-center hud whitespace-nowrap text-fg-muted"

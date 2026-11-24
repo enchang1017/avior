@@ -32,6 +32,7 @@ const (
 )
 
 var productionImages = map[string]string{
+	"avior":          "deploy/standalone/Dockerfile",
 	"avior-backend":  "backend/Dockerfile",
 	"avior-frontend": "frontend/Dockerfile",
 	"avior-migrate":  "deploy/migrate/Dockerfile",
@@ -364,8 +365,10 @@ func TestReleaseComposeOnlyPullsPublishedImages(t *testing.T) {
 			used[m[1]] = productionImages[m[1]]
 		}
 	}
-	if !maps.Equal(used, productionImages) {
-		t.Errorf("%s pulls %v at the release's version, want every published image %v", releaseCompose, used, productionImages)
+	splitImages := maps.Clone(productionImages)
+	delete(splitImages, "avior") // The standalone image replaces this compose stack.
+	if !maps.Equal(used, splitImages) {
+		t.Errorf("%s pulls %v at the release's version, want the split deployment images %v", releaseCompose, used, splitImages)
 	}
 
 	edge, ok := c.Services["edge"]

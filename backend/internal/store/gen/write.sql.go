@@ -14,7 +14,7 @@ import (
 const getWriteRequest = `-- name: GetWriteRequest :one
 SELECT r.id, r.database, r.statement, r.kind, r.target_table, r.reason,
        r.requested_by, requester.username AS requester_name, r.requested_at,
-       r.estimated_rows, r.state,
+       r.estimated_rows, r.state, r.expected_affected_rows,
        r.decided_by, decider.username AS decider_name, r.decided_at, r.decision_note,
        r.ran_at, r.affected_rows, r.duration_ms, r.error,
        r.capture_rows, r.reverse_statement,
@@ -30,32 +30,33 @@ WHERE r.id = $1
 `
 
 type GetWriteRequestRow struct {
-	ID               pgtype.UUID
-	Database         string
-	Statement        string
-	Kind             string
-	TargetTable      string
-	Reason           string
-	RequestedBy      pgtype.UUID
-	RequesterName    string
-	RequestedAt      pgtype.Timestamptz
-	EstimatedRows    int64
-	State            string
-	DecidedBy        pgtype.UUID
-	DeciderName      *string
-	DecidedAt        pgtype.Timestamptz
-	DecisionNote     string
-	RanAt            pgtype.Timestamptz
-	AffectedRows     *int64
-	DurationMs       *int32
-	Error            string
-	CaptureRows      *int64
-	ReverseStatement string
-	CaptureRemovedAt pgtype.Timestamptz
-	CaptureRemovedBy pgtype.UUID
-	RemoverName      *string
-	RollbackOf       pgtype.UUID
-	RolledBackBy     pgtype.UUID
+	ID                   pgtype.UUID
+	Database             string
+	Statement            string
+	Kind                 string
+	TargetTable          string
+	Reason               string
+	RequestedBy          pgtype.UUID
+	RequesterName        string
+	RequestedAt          pgtype.Timestamptz
+	EstimatedRows        int64
+	State                string
+	ExpectedAffectedRows *int64
+	DecidedBy            pgtype.UUID
+	DeciderName          *string
+	DecidedAt            pgtype.Timestamptz
+	DecisionNote         string
+	RanAt                pgtype.Timestamptz
+	AffectedRows         *int64
+	DurationMs           *int32
+	Error                string
+	CaptureRows          *int64
+	ReverseStatement     string
+	CaptureRemovedAt     pgtype.Timestamptz
+	CaptureRemovedBy     pgtype.UUID
+	RemoverName          *string
+	RollbackOf           pgtype.UUID
+	RolledBackBy         pgtype.UUID
 }
 
 func (q *Queries) GetWriteRequest(ctx context.Context, id pgtype.UUID) (GetWriteRequestRow, error) {
@@ -73,6 +74,7 @@ func (q *Queries) GetWriteRequest(ctx context.Context, id pgtype.UUID) (GetWrite
 		&i.RequestedAt,
 		&i.EstimatedRows,
 		&i.State,
+		&i.ExpectedAffectedRows,
 		&i.DecidedBy,
 		&i.DeciderName,
 		&i.DecidedAt,
@@ -96,21 +98,22 @@ const insertWriteRequest = `-- name: InsertWriteRequest :one
 
 INSERT INTO write_request (
     id, database, statement, kind, target_table, reason,
-    requested_by, estimated_rows, state, rollback_of
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9)
+    requested_by, estimated_rows, state, rollback_of, expected_affected_rows
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9, $10)
 RETURNING id, requested_at
 `
 
 type InsertWriteRequestParams struct {
-	ID            pgtype.UUID
-	Database      string
-	Statement     string
-	Kind          string
-	TargetTable   string
-	Reason        string
-	RequestedBy   pgtype.UUID
-	EstimatedRows int64
-	RollbackOf    pgtype.UUID
+	ID                   pgtype.UUID
+	Database             string
+	Statement            string
+	Kind                 string
+	TargetTable          string
+	Reason               string
+	RequestedBy          pgtype.UUID
+	EstimatedRows        int64
+	RollbackOf           pgtype.UUID
+	ExpectedAffectedRows *int64
 }
 
 type InsertWriteRequestRow struct {
@@ -130,6 +133,7 @@ func (q *Queries) InsertWriteRequest(ctx context.Context, arg InsertWriteRequest
 		arg.RequestedBy,
 		arg.EstimatedRows,
 		arg.RollbackOf,
+		arg.ExpectedAffectedRows,
 	)
 	var i InsertWriteRequestRow
 	err := row.Scan(&i.ID, &i.RequestedAt)
@@ -163,7 +167,7 @@ func (q *Queries) InsertWriteRequestChange(ctx context.Context, arg InsertWriteR
 const listWriteCaptures = `-- name: ListWriteCaptures :many
 SELECT r.id, r.database, r.statement, r.kind, r.target_table, r.reason,
        r.requested_by, requester.username AS requester_name, r.requested_at,
-       r.estimated_rows, r.state,
+       r.estimated_rows, r.state, r.expected_affected_rows,
        r.decided_by, decider.username AS decider_name, r.decided_at, r.decision_note,
        r.ran_at, r.affected_rows, r.duration_ms, r.error,
        r.capture_rows, r.reverse_statement,
@@ -181,32 +185,33 @@ LIMIT $1::bigint
 `
 
 type ListWriteCapturesRow struct {
-	ID               pgtype.UUID
-	Database         string
-	Statement        string
-	Kind             string
-	TargetTable      string
-	Reason           string
-	RequestedBy      pgtype.UUID
-	RequesterName    string
-	RequestedAt      pgtype.Timestamptz
-	EstimatedRows    int64
-	State            string
-	DecidedBy        pgtype.UUID
-	DeciderName      *string
-	DecidedAt        pgtype.Timestamptz
-	DecisionNote     string
-	RanAt            pgtype.Timestamptz
-	AffectedRows     *int64
-	DurationMs       *int32
-	Error            string
-	CaptureRows      *int64
-	ReverseStatement string
-	CaptureRemovedAt pgtype.Timestamptz
-	CaptureRemovedBy pgtype.UUID
-	RemoverName      *string
-	RollbackOf       pgtype.UUID
-	RolledBackBy     pgtype.UUID
+	ID                   pgtype.UUID
+	Database             string
+	Statement            string
+	Kind                 string
+	TargetTable          string
+	Reason               string
+	RequestedBy          pgtype.UUID
+	RequesterName        string
+	RequestedAt          pgtype.Timestamptz
+	EstimatedRows        int64
+	State                string
+	ExpectedAffectedRows *int64
+	DecidedBy            pgtype.UUID
+	DeciderName          *string
+	DecidedAt            pgtype.Timestamptz
+	DecisionNote         string
+	RanAt                pgtype.Timestamptz
+	AffectedRows         *int64
+	DurationMs           *int32
+	Error                string
+	CaptureRows          *int64
+	ReverseStatement     string
+	CaptureRemovedAt     pgtype.Timestamptz
+	CaptureRemovedBy     pgtype.UUID
+	RemoverName          *string
+	RollbackOf           pgtype.UUID
+	RolledBackBy         pgtype.UUID
 }
 
 // Newest first.
@@ -237,6 +242,7 @@ func (q *Queries) ListWriteCaptures(ctx context.Context, rowLimit int64) ([]List
 			&i.RequestedAt,
 			&i.EstimatedRows,
 			&i.State,
+			&i.ExpectedAffectedRows,
 			&i.DecidedBy,
 			&i.DeciderName,
 			&i.DecidedAt,
@@ -312,7 +318,7 @@ func (q *Queries) ListWriteRequestChanges(ctx context.Context, arg ListWriteRequ
 const listWriteRequests = `-- name: ListWriteRequests :many
 SELECT r.id, r.database, r.statement, r.kind, r.target_table, r.reason,
        r.requested_by, requester.username AS requester_name, r.requested_at,
-       r.estimated_rows, r.state,
+       r.estimated_rows, r.state, r.expected_affected_rows,
        r.decided_by, decider.username AS decider_name, r.decided_at, r.decision_note,
        r.ran_at, r.affected_rows, r.duration_ms, r.error,
        r.capture_rows, r.reverse_statement,
@@ -337,32 +343,33 @@ type ListWriteRequestsParams struct {
 }
 
 type ListWriteRequestsRow struct {
-	ID               pgtype.UUID
-	Database         string
-	Statement        string
-	Kind             string
-	TargetTable      string
-	Reason           string
-	RequestedBy      pgtype.UUID
-	RequesterName    string
-	RequestedAt      pgtype.Timestamptz
-	EstimatedRows    int64
-	State            string
-	DecidedBy        pgtype.UUID
-	DeciderName      *string
-	DecidedAt        pgtype.Timestamptz
-	DecisionNote     string
-	RanAt            pgtype.Timestamptz
-	AffectedRows     *int64
-	DurationMs       *int32
-	Error            string
-	CaptureRows      *int64
-	ReverseStatement string
-	CaptureRemovedAt pgtype.Timestamptz
-	CaptureRemovedBy pgtype.UUID
-	RemoverName      *string
-	RollbackOf       pgtype.UUID
-	RolledBackBy     pgtype.UUID
+	ID                   pgtype.UUID
+	Database             string
+	Statement            string
+	Kind                 string
+	TargetTable          string
+	Reason               string
+	RequestedBy          pgtype.UUID
+	RequesterName        string
+	RequestedAt          pgtype.Timestamptz
+	EstimatedRows        int64
+	State                string
+	ExpectedAffectedRows *int64
+	DecidedBy            pgtype.UUID
+	DeciderName          *string
+	DecidedAt            pgtype.Timestamptz
+	DecisionNote         string
+	RanAt                pgtype.Timestamptz
+	AffectedRows         *int64
+	DurationMs           *int32
+	Error                string
+	CaptureRows          *int64
+	ReverseStatement     string
+	CaptureRemovedAt     pgtype.Timestamptz
+	CaptureRemovedBy     pgtype.UUID
+	RemoverName          *string
+	RollbackOf           pgtype.UUID
+	RolledBackBy         pgtype.UUID
 }
 
 // An empty state and a zero requester both mean "every one", so one query
@@ -389,6 +396,7 @@ func (q *Queries) ListWriteRequests(ctx context.Context, arg ListWriteRequestsPa
 			&i.RequestedAt,
 			&i.EstimatedRows,
 			&i.State,
+			&i.ExpectedAffectedRows,
 			&i.DecidedBy,
 			&i.DeciderName,
 			&i.DecidedAt,

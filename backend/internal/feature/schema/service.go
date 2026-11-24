@@ -41,9 +41,13 @@ type Table struct {
 
 // Column is one column of a table or view.
 type Column struct {
-	Name     string
-	Type     string
-	Nullable bool
+	EnumValues         []string
+	Name               string
+	Type               string
+	Nullable           bool
+	PrimaryKeyPosition int
+	Generated          bool
+	Identity           bool
 	// Denied reports that the caller may not read this column. It is reported
 	// rather than the column being hidden: an operator has to be able to see
 	// that a column exists and is refused, or a wide table looks narrow and a

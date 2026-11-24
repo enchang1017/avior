@@ -676,6 +676,7 @@ func TestGoogleAuthConfiguration(t *testing.T) {
 	valid := map[string]string{
 		"AVIOR_ENV":                    "production",
 		"AVIOR_STORE_DSN":              "postgres://x",
+		"AVIOR_TARGET_DSN":             "postgres://target",
 		"AVIOR_SESSION_SECRET":         validSecret,
 		"AVIOR_AUTH_MODE":              AuthModeGoogle,
 		"AVIOR_GOOGLE_CLIENT_ID":       "client-id.apps.googleusercontent.com",
@@ -798,5 +799,23 @@ func TestGoogleAuthConfiguration(t *testing.T) {
 				t.Errorf("Load() error = %v, want complaint naming %s", err, tc.want)
 			}
 		})
+	}
+}
+
+func TestTargetLabelDoesNotChangeTheConnection(t *testing.T) {
+	for _, label := range []string{"", "  CDP local  "} {
+		setEnv(t, map[string]string{
+			"AVIOR_STORE_DSN":      "postgres://store@localhost/avior",
+			"AVIOR_TARGET_DSN":     "postgres://reader@localhost/cdp",
+			"AVIOR_SESSION_SECRET": validSecret,
+			"AVIOR_TARGET_LABEL":   label,
+		})
+		cfg, err := Load()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cfg.TargetLabel != strings.TrimSpace(label) || cfg.TargetDSN != "postgres://reader@localhost/cdp" {
+			t.Fatalf("label changed the connection: %+v", cfg.TargetLabel)
+		}
 	}
 }

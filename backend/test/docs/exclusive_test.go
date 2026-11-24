@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -162,5 +163,217 @@ func TestTheLockPassesTheCommandsExitStatusOn(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dir, "avior-performance.lock")); !os.IsNotExist(err) {
 		t.Errorf("a failing command left the lock behind: %v", err)
+	}
+}
+
+func waitForOwner(t *testing.T, dir, stack string) {
+	t.Helper()
+	owner := filepath.Join(dir, "avior-performance.lock", "owner")
+	for i := 0; i < 100; i++ {
+		if raw, err := os.ReadFile(owner); err == nil && strings.Contains(string(raw), stack) {
+			return
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	t.Fatalf("%s never took the lock", stack)
+}
+
+func startGroup(t *testing.T, cmd *exec.Cmd) {
+	t.Helper()
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("start a holder: %v", err)
+	}
+	t.Cleanup(func() { _ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) })
+}
+
+func tryFlock(t *testing.T, path string) (*os.File, error) {
+	t.Helper()
+	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o644)
+	if err != nil {
+		t.Fatalf("open %s: %v", path, err)
+	}
+	if err := syscall.Flock(int(file.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		_ = file.Close()
+		return nil, err
+	}
+	return file, nil
+}
+
+func inode(t *testing.T, path string) uint64 {
+	t.Helper()
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("the advisory lock file is gone: %v", err)
+	}
+	return info.Sys().(*syscall.Stat_t).Ino
+}
+
+func TestTheHolderHoldsAKernelLockOnAFileThatOutlivesIt(t *testing.T) {
+	dir := t.TempDir()
+	flock := filepath.Join(dir, "avior-performance.flock")
+	holder := exclusive(t, dir, "first", "sleep", "2")
+	startGroup(t, holder)
+	waitForOwner(t, dir, "first")
+
+	if file, err := tryFlock(t, flock); err != syscall.EWOULDBLOCK {
+		if file != nil {
+			_ = file.Close()
+		}
+		t.Fatalf("flock while the holder runs = %v, want EWOULDBLOCK", err)
+	}
+	if err := holder.Wait(); err != nil {
+		t.Fatalf("the holder failed: %v", err)
+	}
+	file, err := tryFlock(t, flock)
+	if err != nil {
+		t.Fatalf("the holder exited and still holds the kernel lock: %v", err)
+	}
+	_ = file.Close()
+
+	before := inode(t, flock)
+	if out, err := exclusive(t, dir, "second", "true").CombinedOutput(); err != nil {
+		t.Fatalf("the second holder failed: %v\n%s", err, out)
+	}
+	if after := inode(t, flock); after != before {
+		t.Errorf("the advisory lock file was replaced: inode %d, then %d", before, after)
+	}
+}
+
+func TestAKernelLockHeldElsewhereIsWaitedForUntilTheTimeout(t *testing.T) {
+	dir := t.TempDir()
+	file, err := tryFlock(t, filepath.Join(dir, "avior-performance.flock"))
+	if err != nil {
+		t.Fatalf("take the kernel lock first: %v", err)
+	}
+	defer file.Close()
+
+	ran := filepath.Join(dir, "ran")
+	cmd := exclusive(t, dir, "late", "touch", ran)
+	cmd.Env = append(cmd.Env, "AVIOR_LOCK_TIMEOUT=2")
+	out, err := cmd.CombinedOutput()
+	exit, ok := err.(*exec.ExitError)
+	if !ok || exit.ExitCode() != 1 {
+		t.Fatalf("exit = %v, want 1 after the timeout\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "FAIL  exclusive: waited 2s") {
+		t.Errorf("the timeout did not say how long it waited: %s", out)
+	}
+	if _, err := os.Stat(ran); !os.IsNotExist(err) {
+		t.Errorf("the command ran while another process held the kernel lock: %v", err)
+	}
+}
+
+func TestManyWaitersEachRunAloneAndAllRun(t *testing.T) {
+	dir := t.TempDir()
+	log := filepath.Join(dir, "log")
+	body := `echo "start $AVIOR_STACK" >> ` + log + `; sleep 0.3; echo "end $AVIOR_STACK" >> ` + log
+	stacks := []string{"a", "b", "c", "d", "e", "f"}
+
+	var wg sync.WaitGroup
+	errs := make([]error, len(stacks))
+	outs := make([][]byte, len(stacks))
+	for i, stack := range stacks {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			outs[i], errs[i] = exclusive(t, dir, stack, "bash", "-c", body).CombinedOutput()
+		}()
+	}
+	wg.Wait()
+	for i, err := range errs {
+		if err != nil {
+			t.Fatalf("holder %s: %v\n%s", stacks[i], err, outs[i])
+		}
+	}
+
+	raw, err := os.ReadFile(log)
+	if err != nil {
+		t.Fatalf("read log: %v", err)
+	}
+	words := strings.Fields(string(raw))
+	if len(words) != 4*len(stacks) {
+		t.Fatalf("log %q, want %d start/end pairs", raw, len(stacks))
+	}
+	seen := map[string]bool{}
+	for i := 0; i < len(words); i += 4 {
+		if words[i] != "start" || words[i+2] != "end" || words[i+1] != words[i+3] {
+			t.Fatalf("two runs overlapped: %q", raw)
+		}
+		seen[words[i+1]] = true
+	}
+	if len(seen) != len(stacks) {
+		t.Errorf("not every waiter ran exactly once: %q", raw)
+	}
+}
+
+func TestAHolderKilledOutrightFreesTheLockAndLeavesAStaleLabel(t *testing.T) {
+	dir := t.TempDir()
+	holder := exclusive(t, dir, "doomed", "sleep", "30")
+	startGroup(t, holder)
+	waitForOwner(t, dir, "doomed")
+	if err := syscall.Kill(-holder.Process.Pid, syscall.SIGKILL); err != nil {
+		t.Fatalf("kill the holder: %v", err)
+	}
+	_ = holder.Wait()
+
+	start := time.Now()
+	out, err := exclusive(t, dir, "next", "true").CombinedOutput()
+	if err != nil {
+		t.Fatalf("a killed holder's lock was not taken over: %v\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "which is gone") {
+		t.Errorf("the takeover of the stale label was silent: %s", out)
+	}
+	if time.Since(start) > 5*time.Second {
+		t.Errorf("taking over a killed holder's lock took %s", time.Since(start))
+	}
+}
+
+func TestABackgroundChildOfTheCommandDoesNotKeepTheLock(t *testing.T) {
+	dir := t.TempDir()
+	daemon := exclusive(t, dir, "spawner", "bash", "-c", "sleep 8 >/dev/null 2>&1 </dev/null &")
+	if err := daemon.Run(); err != nil {
+		t.Fatalf("the spawning holder failed: %v", err)
+	}
+
+	start := time.Now()
+	out, err := exclusive(t, dir, "next", "true").CombinedOutput()
+	if err != nil {
+		t.Fatalf("the next holder failed: %v\n%s", err, out)
+	}
+	if strings.Contains(string(out), "waiting") || time.Since(start) > 3*time.Second {
+		t.Errorf("a child left running by the command kept the lock for %s: %s", time.Since(start), out)
+	}
+}
+
+func TestATerminatedHolderExits143AndReleasesEverything(t *testing.T) {
+	dir := t.TempDir()
+	holder := exclusive(t, dir, "stopped", "sleep", "30")
+	startGroup(t, holder)
+	waitForOwner(t, dir, "stopped")
+	if err := syscall.Kill(-holder.Process.Pid, syscall.SIGTERM); err != nil {
+		t.Fatalf("terminate the holder: %v", err)
+	}
+	err := holder.Wait()
+	exit, ok := err.(*exec.ExitError)
+	if !ok || exit.ExitCode() != 143 {
+		t.Fatalf("exit = %v, want 143 for SIGTERM", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "avior-performance.lock")); !os.IsNotExist(err) {
+		t.Errorf("a terminated holder left its label behind: %v", err)
+	}
+	file, err := tryFlock(t, filepath.Join(dir, "avior-performance.flock"))
+	if err != nil {
+		t.Fatalf("a terminated holder still holds the kernel lock: %v", err)
+	}
+	_ = file.Close()
+}
+
+func TestTheLockRefusesToRunWithoutACommand(t *testing.T) {
+	err := exclusive(t, t.TempDir(), "empty").Run()
+	exit, ok := err.(*exec.ExitError)
+	if !ok || exit.ExitCode() != 64 {
+		t.Fatalf("exit = %v, want the usage status 64", err)
 	}
 }
