@@ -15,6 +15,7 @@ import (
 const (
 	ModeStore        = "store"
 	ModeLDAP         = "ldap"
+	ModeGoogle       = "google"
 	ModeTrustedLocal = "trusted-local"
 )
 
@@ -158,9 +159,45 @@ func NewVerifier(
 		return NewStoreVerifier(repo)
 	case ModeLDAP:
 		return NewLDAPVerifier(directory, repo, defaultRoles)
+	case ModeGoogle:
+		return NewDeclaredOnlyVerifier(repo)
 	case ModeTrustedLocal:
 		return NewTrustedLocalVerifier(repo)
 	default:
 		return nil, fmt.Errorf("auth: unknown credential verifier %q", mode)
 	}
+}
+
+// DeclaredOnlyVerifier authenticates only FEAT-056 declared local accounts on
+// the password endpoint while interactive operators sign in through Google
+// Workspace OIDC.
+//
+// Non-declared accounts, unknown names, and service accounts all compare
+// against the dummy hash and return ErrInvalidCredentials so response timing
+// does not reveal which declared accounts exist.
+type DeclaredOnlyVerifier struct {
+	repo Repository
+}
+
+// NewDeclaredOnlyVerifier returns a verifier for AVIOR_AUTH_MODE=google.
+func NewDeclaredOnlyVerifier(repo Repository) (*DeclaredOnlyVerifier, error) {
+	if repo == nil {
+		return nil, errors.New("auth: repository is required")
+	}
+	return &DeclaredOnlyVerifier{repo: repo}, nil
+}
+
+// Mode implements [CredentialVerifier].
+func (v *DeclaredOnlyVerifier) Mode() string { return ModeGoogle }
+
+// Verify implements [CredentialVerifier].
+func (v *DeclaredOnlyVerifier) Verify(ctx context.Context, username, password, code string) (Account, error) {
+	account, err := v.repo.FindAccount(ctx, username)
+	if err != nil || !account.Declared || account.Service {
+		if bcrypt.CompareHashAndPassword([]byte(dummyHash), []byte(password)) == nil {
+			return Account{}, ErrInvalidCredentials
+		}
+		return Account{}, ErrInvalidCredentials
+	}
+	return verifyLocally(account, password, code)
 }

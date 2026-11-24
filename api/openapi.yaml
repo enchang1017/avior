@@ -40,6 +40,85 @@ paths:
               schema:
                 $ref: "#/components/schemas/Health"
 
+  /auth/methods:
+    get:
+      tags: [auth]
+      operationId: getAuthMethods
+      summary: Authentication methods enabled on this deployment
+      security: []
+      responses:
+        "200":
+          description: Active sign-in methods
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthMethods"
+
+  /auth/google/start:
+    get:
+      tags: [auth]
+      operationId: startGoogleAuth
+      summary: Begin a Google Workspace OpenID Connect sign-in
+      security: []
+      parameters:
+        - name: redirect
+          in: query
+          required: false
+          description: Same-origin path to return to after sign-in completes.
+          schema:
+            type: string
+            maxLength: 512
+      responses:
+        "302":
+          description: Redirect to Google's authorization endpoint
+          headers:
+            Location:
+              schema:
+                type: string
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /auth/google/callback:
+    get:
+      tags: [auth]
+      operationId: googleAuthCallback
+      summary: Complete a Google Workspace OpenID Connect sign-in
+      security: []
+      parameters:
+        - name: code
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 2048
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 512
+        - name: error
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 256
+        - name: avior_oauth_state
+          in: cookie
+          required: false
+          schema:
+            type: string
+            maxLength: 4096
+      responses:
+        "302":
+          description: Redirect back into the console or to /login on refusal
+          headers:
+            Location:
+              schema:
+                type: string
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /auth/login:
     post:
       tags: [auth]
@@ -4369,6 +4448,23 @@ components:
                 enum: [ok, down]
               detail:
                 type: string
+
+    AuthMethods:
+      type: object
+      description: |
+        Which interactive sign-in flows this deployment accepts.
+      required: [mode, password, google]
+      additionalProperties: false
+      properties:
+        mode:
+          type: string
+          enum: [store, ldap, google, trusted-local]
+        password:
+          type: boolean
+          description: Whether POST /auth/login accepts credentials.
+        google:
+          type: boolean
+          description: Whether GET /auth/google/start is configured.
 
     LoginRequest:
       type: object

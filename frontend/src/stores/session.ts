@@ -1,12 +1,38 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
-import { api, classify, unreachable, type CurrentUser, type Failure } from '@/shared/api'
+import {
+  api,
+  classify,
+  unreachable,
+  type AuthMethods,
+  type CurrentUser,
+  type Failure,
+} from '@/shared/api'
+
+const defaultAuthMethods: AuthMethods = {
+  mode: 'store',
+  password: true,
+  google: false,
+}
 
 export const useSessionStore = defineStore('session', () => {
   const caller = ref<CurrentUser | null>(null)
   const failure = ref<Failure | null>(null)
   const busy = ref(false)
+  const authMethods = ref<AuthMethods>(defaultAuthMethods)
+
+  async function loadAuthMethods(): Promise<void> {
+    try {
+      const { data } = await api.GET('/auth/methods')
+      if (data !== undefined) {
+        authMethods.value = data
+      }
+    } catch {
+      // Fall back to password sign-in when the methods probe cannot be reached.
+      authMethods.value = defaultAuthMethods
+    }
+  }
 
   async function refresh(): Promise<void> {
     busy.value = true
@@ -75,5 +101,5 @@ export const useSessionStore = defineStore('session', () => {
     caller.value = null
   }
 
-  return { caller, failure, busy, refresh, signIn, signOut }
+  return { caller, failure, busy, authMethods, loadAuthMethods, refresh, signIn, signOut }
 })

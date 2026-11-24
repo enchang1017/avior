@@ -94,4 +94,19 @@ describe('session store', () => {
 
     expect(session.caller).toBeNull()
   })
+
+  it('loads auth methods and falls back on network failure', async () => {
+    get.mockResolvedValueOnce({
+      data: { mode: 'google', password: true, google: true },
+      response: { status: 200 },
+    })
+    const session = useSessionStore()
+
+    await session.loadAuthMethods()
+    expect(session.authMethods).toEqual({ mode: 'google', password: true, google: true })
+
+    get.mockRejectedValueOnce(new Error('offline'))
+    await session.loadAuthMethods()
+    expect(session.authMethods).toEqual({ mode: 'store', password: true, google: false })
+  })
 })

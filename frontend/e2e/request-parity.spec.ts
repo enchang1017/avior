@@ -26,6 +26,7 @@ import { administrator, get, serveFixedApi } from './visual/api'
 const recording = new URL('./request-parity/53c30bf.json', import.meta.url)
 
 const introduced = [
+  /^GET \/auth\/methods(\?|$)/u,
   /^GET \/search(\?|$)/u,
   /^GET \/schema\/graph(\?|$)/u,
   /^GET \/audit\/histogram(\?|$)/u,

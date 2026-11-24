@@ -650,7 +650,47 @@ func openSessions(
 	if err != nil {
 		return nil, err
 	}
-	return auth.NewService(metadata, verifier, cfg.SessionTTL)
+	service, err := auth.NewService(metadata, verifier, cfg.SessionTTL)
+	if err != nil {
+		return nil, err
+	}
+	if cfg.AuthMode == config.AuthModeGoogle {
+		googleAuth, err := openGoogleAuth(cfg, log, metadata)
+		if err != nil {
+			return nil, err
+		}
+		service.UseGoogle(googleAuth)
+	}
+	return service, nil
+}
+
+func openGoogleAuth(
+	cfg *config.Config, log *slog.Logger, metadata *store.Store,
+) (*auth.GoogleAuthenticator, error) {
+	provider, err := auth.NewHTTPGoogleProvider(auth.GoogleConfig{
+		IssuerURL:      cfg.GoogleIssuerURL,
+		ClientID:       cfg.GoogleClientID,
+		ClientSecret:   cfg.GoogleClientSecret,
+		RedirectURL:    cfg.GoogleRedirectURL,
+		AllowedDomains: cfg.GoogleAllowedDomains,
+		Timeout:        cfg.GoogleTimeout,
+		Logger:         log,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("configure google workspace oidc: %w", err)
+	}
+	authenticator, err := auth.NewGoogleAuthenticator(
+		provider,
+		metadata,
+		[]byte(cfg.SessionSecret),
+		cfg.GoogleAllowedDomains,
+		cfg.GoogleDefaultRoles,
+		log,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("wire google workspace authenticator: %w", err)
+	}
+	return authenticator, nil
 }
 
 // declareAccounts applies the deployment's declared accounts. FEAT-056.

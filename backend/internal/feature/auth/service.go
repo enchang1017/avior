@@ -62,6 +62,7 @@ type Repository interface {
 type Service struct {
 	repo     Repository
 	verifier CredentialVerifier
+	google   *GoogleAuthenticator
 	ttl      time.Duration
 	now      func() time.Time
 }
@@ -83,6 +84,44 @@ func NewService(repo Repository, verifier CredentialVerifier, ttl time.Duration)
 
 // Mode reports which verifier is in use, for logs and the health response.
 func (s *Service) Mode() string { return s.verifier.Mode() }
+
+// UseGoogle attaches Google Workspace OIDC sign-in to the auth service.
+func (s *Service) UseGoogle(authenticator *GoogleAuthenticator) {
+	s.google = authenticator
+}
+
+// GoogleConfigured reports whether Google Workspace sign-in is wired.
+func (s *Service) GoogleConfigured() bool {
+	return s.google != nil
+}
+
+// StartGoogleAuth begins a Google Workspace OIDC sign-in round-trip and returns
+// the Google authorization URL plus the sealed state cookie value.
+func (s *Service) StartGoogleAuth(ctx context.Context, redirect string) (string, string, error) {
+	if s.google == nil {
+		return "", "", ErrGoogleNotConfigured
+	}
+	return s.google.Start(ctx, redirect, s.now())
+}
+
+// CompleteGoogleAuth finishes the Google Workspace callback, provisions or
+// loads the operator's Avior account, and opens an Avior session.
+func (s *Service) CompleteGoogleAuth(
+	ctx context.Context, stateCookie, queryState, code string,
+) (*identity.Session, string, error) {
+	if s.google == nil {
+		return nil, "", ErrGoogleNotConfigured
+	}
+	account, redirect, err := s.google.VerifyCallback(ctx, stateCookie, queryState, code, s.now())
+	if err != nil {
+		return nil, "", err
+	}
+	session, err := s.open(ctx, account)
+	if err != nil {
+		return nil, "", err
+	}
+	return session, redirect, nil
+}
 
 // Authenticate verifies the credentials and opens a session.
 func (s *Service) Authenticate(ctx context.Context, username, password, code string) (*identity.Session, error) {

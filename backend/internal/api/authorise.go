@@ -77,8 +77,11 @@ func reads(permission string) requirement {
 //     not query.execute, which is a separation of duty rather than an oversight:
 //     the role that grants access is not the role that uses it.
 var operationAccess = map[string]requirement{
-	"GetHealth": {},
-	"Login":     {},
+	"GetHealth":          {},
+	"GetAuthMethods":     {},
+	"StartGoogleAuth":    {},
+	"GoogleAuthCallback": {},
+	"Login":              {},
 
 	"Logout":         {session: true},
 	"GetCurrentUser": {session: true, viaToken: true},

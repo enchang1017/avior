@@ -28,7 +28,11 @@ type QueryService interface {
 
 // AuthService is the part of the auth slice this layer needs.
 type AuthService interface {
+	Mode() string
+	GoogleConfigured() bool
 	Authenticate(ctx context.Context, username, password, totp string) (*identity.Session, error)
+	StartGoogleAuth(ctx context.Context, redirect string) (string, string, error)
+	CompleteGoogleAuth(ctx context.Context, stateCookie, queryState, code string) (*identity.Session, string, error)
 	Revoke(ctx context.Context, token string) error
 }
 
