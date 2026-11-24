@@ -3,6 +3,7 @@
 package docs_test
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -58,17 +59,19 @@ func TestTwoHoldersOfTheLockNeverOverlap(t *testing.T) {
 
 	var wg sync.WaitGroup
 	errs := make([]error, 2)
+	outs := make([][]byte, 2)
 	for i, stack := range []string{"one", "two"} {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			errs[i] = exclusive(t, dir, stack, "bash", "-c", body).Run()
+			outs[i], errs[i] = exclusive(t, dir, stack, "bash", "-c", body).CombinedOutput()
 		}()
 	}
 	wg.Wait()
+	said := fmt.Sprintf("holder one said %q, holder two said %q", outs[0], outs[1])
 	for i, err := range errs {
 		if err != nil {
-			t.Fatalf("holder %d: %v", i, err)
+			t.Fatalf("holder %d: %v; %s", i, err, said)
 		}
 	}
 
@@ -78,11 +81,11 @@ func TestTwoHoldersOfTheLockNeverOverlap(t *testing.T) {
 	}
 	lines := strings.Fields(strings.ReplaceAll(string(raw), "\n", " "))
 	if len(lines) != 8 {
-		t.Fatalf("log %q, want two start/end pairs", raw)
+		t.Fatalf("log %q, want two start/end pairs; %s", raw, said)
 	}
 	for i := 0; i < len(lines); i += 4 {
 		if lines[i] != "start" || lines[i+2] != "end" || lines[i+1] != lines[i+3] {
-			t.Fatalf("the two runs overlapped: %q", raw)
+			t.Fatalf("the two runs overlapped: %q; %s", raw, said)
 		}
 	}
 	if _, err := os.Stat(filepath.Join(dir, "avior-performance.lock")); !os.IsNotExist(err) {

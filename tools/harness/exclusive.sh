@@ -52,8 +52,8 @@ while ! mkdir "$lock" 2>/dev/null; do
       take_over_stale ""
       unowned=0
     fi
-  elif ! kill -0 "$pid" 2>/dev/null; then
-    echo "exclusive: $lock was left by pid $pid, which is gone; taking it over" >&2
+  elif ! reason="$(kill -0 "$pid" 2>&1)"; then
+    echo "exclusive: $lock was left by pid $pid (owner '$holder'), which is gone: ${reason:-kill gave no reason}; taking it over" >&2
     take_over_stale "$holder"
     continue
   else
