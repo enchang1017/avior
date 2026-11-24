@@ -230,6 +230,9 @@ type Querier interface {
 	RecordColumnChange(ctx context.Context, arg RecordColumnChangeParams) error
 	RecordDatabaseGrantChange(ctx context.Context, arg RecordDatabaseGrantChangeParams) error
 	RecordDefinitionRead(ctx context.Context, arg RecordDefinitionReadParams) error
+	// FEAT-077. Records the one-time binding of an existing account to its verified
+	// OpenID Connect issuer and subject in the append-only account_change ledger.
+	RecordOIDCBindingChange(ctx context.Context, arg RecordOIDCBindingChangeParams) error
 	RecordObservatoryReset(ctx context.Context, arg RecordObservatoryResetParams) error
 	RecordObservatoryRun(ctx context.Context, arg RecordObservatoryRunParams) error
 	// One hour's costliest statements, each with how much it cost since the last

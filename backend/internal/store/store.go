@@ -201,36 +201,54 @@ func (s *Store) FindAccountByOIDC(ctx context.Context, issuer, subject string) (
 }
 
 // BindOIDCIdentity permanently binds an existing unbound, enabled, non-declared
-// person account without TOTP to (issuer, subject).
+// person account without TOTP to (issuer, subject) and records one bind_oidc
+// event in the append-only account_change ledger in the same transaction.
 func (s *Store) BindOIDCIdentity(
 	ctx context.Context, userID uuid.UUID, issuer, subject string,
 ) (auth.Account, error) {
-	row, err := s.q.BindUserOIDCIdentity(ctx, storegen.BindUserOIDCIdentityParams{
-		ID:          fromUUID(userID),
-		OidcIssuer:  issuer,
-		OidcSubject: subject,
+	var account auth.Account
+	err := s.tx(ctx, func(q *storegen.Queries) error {
+		row, err := q.BindUserOIDCIdentity(ctx, storegen.BindUserOIDCIdentityParams{
+			ID:          fromUUID(userID),
+			OidcIssuer:  issuer,
+			OidcSubject: subject,
+		})
+		if errors.Is(err, pgx.ErrNoRows) {
+			return auth.ErrAccountNotFound
+		}
+		if err != nil {
+			return fmt.Errorf("bind oidc identity: %w", err)
+		}
+		id, err := toUUID(row.ID)
+		if err != nil {
+			return err
+		}
+		if err := q.RecordOIDCBindingChange(ctx, storegen.RecordOIDCBindingChangeParams{
+			ID:          fromUUID(uuid.New()),
+			ActorID:     row.ID,
+			SubjectID:   row.ID,
+			OidcIssuer:  row.OidcIssuer,
+			OidcSubject: row.OidcSubject,
+		}); err != nil {
+			return fmt.Errorf("record oidc binding: %w", err)
+		}
+		account = auth.Account{
+			ID:           id,
+			Username:     row.Username,
+			PasswordHash: row.PasswordHash,
+			TOTPSecret:   row.TotpSecret,
+			Disabled:     row.Disabled,
+			Declared:     row.Declared,
+			Service:      row.Kind == kindService,
+			OIDCIssuer:   row.OidcIssuer,
+			OIDCSubject:  row.OidcSubject,
+		}
+		return nil
 	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return auth.Account{}, auth.ErrAccountNotFound
-	}
-	if err != nil {
-		return auth.Account{}, fmt.Errorf("bind oidc identity: %w", err)
-	}
-	id, err := toUUID(row.ID)
 	if err != nil {
 		return auth.Account{}, err
 	}
-	return auth.Account{
-		ID:           id,
-		Username:     row.Username,
-		PasswordHash: row.PasswordHash,
-		TOTPSecret:   row.TotpSecret,
-		Disabled:     row.Disabled,
-		Declared:     row.Declared,
-		Service:      row.Kind == kindService,
-		OIDCIssuer:   row.OidcIssuer,
-		OIDCSubject:  row.OidcSubject,
-	}, nil
+	return account, nil
 }
 
 // ProvisionOIDCAccount provisions an operator vouched for by Google Workspace

@@ -108,6 +108,12 @@ UPDATE app_user SET disabled = $2 WHERE id = $1 AND disabled <> $2;
 INSERT INTO account_change (id, actor_id, subject_id, action, role)
 VALUES ($1, $2, $3, $4, $5);
 
+-- name: RecordOIDCBindingChange :exec
+-- FEAT-077. Records the one-time binding of an existing account to its verified
+-- OpenID Connect issuer and subject in the append-only account_change ledger.
+INSERT INTO account_change (id, actor_id, subject_id, action, role, oidc_issuer, oidc_subject)
+VALUES ($1, $2, $3, 'bind_oidc', '', $4, $5);
+
 -- name: ProvisionOperator :one
 -- FEAT-007. The account the directory vouched for, made on first sign-in.
 --

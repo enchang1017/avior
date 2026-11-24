@@ -136,13 +136,16 @@ func TestGoogleWorkspaceAuthFeature(t *testing.T) {
 			emailVerified: true,
 			hostedDomain:  "example.com",
 		})
-		recorded := changesFor(t, operatorID(t, email))
+		recorded := oidcAccountChanges(t, operatorID(t, email))
 		if len(recorded) != 2 {
 			t.Fatalf("%d account changes recorded, want 2 (one per default role): %v", len(recorded), recorded)
 		}
 		for _, ch := range recorded {
 			if ch.action != "provision" {
 				t.Errorf("change action = %q, want provision", ch.action)
+			}
+			if ch.oidcIssuer != "" || ch.oidcSubject != "" {
+				t.Errorf("provision row carried unexpected oidc fields: (%q, %q)", ch.oidcIssuer, ch.oidcSubject)
 			}
 		}
 	})
@@ -390,8 +393,30 @@ func TestGoogleWorkspaceAuthFeature(t *testing.T) {
 		if !strings.Contains(string(payload), "release_approver") {
 			t.Errorf("existing role not preserved on bind: %s", payload)
 		}
+		// First successful binding records exactly one bind_oidc audit event.
+		firstChanges := oidcAccountChanges(t, migratedID)
+		if len(firstChanges) != 1 {
+			t.Fatalf("after first bind: %d account changes, want 1: %+v", len(firstChanges), firstChanges)
+		}
+		ev := firstChanges[0]
+		if ev.actorID != migratedID || ev.subjectID != migratedID || ev.action != "bind_oidc" || ev.role != "" ||
+			ev.oidcIssuer != idp.server.URL || ev.oidcSubject != "sub-migrated-1" || ev.changedAt.IsZero() {
+			t.Errorf("unexpected bind_oidc audit event: %+v", ev)
+		}
 
-		// 2. A reassigned Workspace email with a different sub is refused.
+		// Signing in again with the same subject does not duplicate the audit event.
+		_, repeatLoc := completeGoogleSignIn(t, h, idp, "/", fakeGoogleAccount{
+			subject: "sub-migrated-1", email: migratedEmail, emailVerified: true, hostedDomain: "example.com",
+		})
+		if repeatLoc != "/" {
+			t.Fatalf("repeat sign-in redirect = %q, want /", repeatLoc)
+		}
+		if got := oidcAccountChanges(t, migratedID); len(got) != 1 {
+			t.Fatalf("repeat sign-in duplicated bind_oidc events: %+v", got)
+		}
+
+		// 2. A reassigned Workspace email with a different sub is refused,
+		// leaves the bound identity untouched, and writes no audit event.
 		reassignedClient, reassignedLoc := completeGoogleSignIn(t, h, idp, "/", fakeGoogleAccount{
 			subject: "sub-new-hire-2", email: migratedEmail, emailVerified: true, hostedDomain: "example.com",
 		})
@@ -401,8 +426,21 @@ func TestGoogleWorkspaceAuthFeature(t *testing.T) {
 		if s, _ := h.get(reassignedClient, "/auth/me"); s != http.StatusUnauthorized {
 			t.Errorf("reassigned email /auth/me = %d, want 401", s)
 		}
+		var stillIssuer, stillSubject string
+		if err := shared.pool.QueryRow(context.Background(),
+			`SELECT oidc_issuer, oidc_subject FROM app_user WHERE id = $1`, migratedID,
+		).Scan(&stillIssuer, &stillSubject); err != nil {
+			t.Fatalf("query bound identity after refusal: %v", err)
+		}
+		if stillIssuer != idp.server.URL || stillSubject != "sub-migrated-1" {
+			t.Errorf("refused binding mutated identity to (%q, %q)", stillIssuer, stillSubject)
+		}
+		if got := oidcAccountChanges(t, migratedID); len(got) != 1 {
+			t.Fatalf("refused reassigned-email attempt wrote extra audit rows: %+v", got)
+		}
 
-		// 3. Same subject signing in after an email rename resolves to the same account.
+		// 3. Same subject signing in after an email rename resolves to the same
+		// account, preserves existing roles, and does not duplicate bind_oidc.
 		renamedEmail := "renamed-" + uuid.New().String()[:8] + "@example.com"
 		renamedClient, renamedLoc := completeGoogleSignIn(t, h, idp, "/", fakeGoogleAccount{
 			subject: "sub-migrated-1", email: renamedEmail, emailVerified: true, hostedDomain: "example.com",
@@ -419,10 +457,17 @@ func TestGoogleWorkspaceAuthFeature(t *testing.T) {
 		if renamedCaller.Id != migratedID {
 			t.Errorf("renamed caller.Id = %s, want bound %s", renamedCaller.Id, migratedID)
 		}
+		if !strings.Contains(string(renamedPayload), "release_approver") {
+			t.Errorf("existing role lost after email rename: %s", renamedPayload)
+		}
+		if got := oidcAccountChanges(t, migratedID); len(got) != 1 {
+			t.Fatalf("renamed-email sign-in duplicated bind_oidc events: %+v", got)
+		}
 	})
 
 	// AC-11: fail-closed MFA migration policy. Accounts carrying a legacy Avior
-	// TOTP secret are refused on the Google path and remain unbound.
+	// TOTP secret (and disabled unbound accounts) are refused on the Google
+	// path, remain unbound, and write no bind_oidc audit event.
 	t.Run("account with legacy totp secret is refused and remains unbound", func(t *testing.T) {
 		idp := newFakeGoogleIDP(t)
 		h := googleHarness(t, limits, idp, []string{"example.com"}, []string{"developer"})
@@ -448,6 +493,31 @@ func TestGoogleWorkspaceAuthFeature(t *testing.T) {
 		}
 		if boundIssuer != "" || boundSubject != "" {
 			t.Errorf("legacy totp account was bound to (%q, %q), want unbound", boundIssuer, boundSubject)
+		}
+		if got := oidcAccountChanges(t, totpID); len(got) != 0 {
+			t.Errorf("refused legacy totp binding wrote audit rows: %+v", got)
+		}
+
+		// Disabled unbound account also refuses binding and records no event.
+		disabledEmail := "disabled-unbound-" + uuid.New().String()[:8] + "@example.com"
+		disabledID := insertUnboundPerson(t, disabledEmail, "", "developer")
+		disable(t, disabledEmail)
+		_, disLoc := completeGoogleSignIn(t, h, idp, "/", fakeGoogleAccount{
+			subject: "sub-disabled-unbound", email: disabledEmail, emailVerified: true, hostedDomain: "example.com",
+		})
+		if disLoc != "/login?error=google_failed" {
+			t.Errorf("disabled unbound redirect = %q, want /login?error=google_failed", disLoc)
+		}
+		if err := shared.pool.QueryRow(context.Background(),
+			`SELECT oidc_issuer, oidc_subject FROM app_user WHERE id = $1`, disabledID,
+		).Scan(&boundIssuer, &boundSubject); err != nil {
+			t.Fatalf("query disabled oidc columns: %v", err)
+		}
+		if boundIssuer != "" || boundSubject != "" {
+			t.Errorf("disabled unbound account was bound to (%q, %q), want unbound", boundIssuer, boundSubject)
+		}
+		if got := oidcAccountChanges(t, disabledID); len(got) != 0 {
+			t.Errorf("refused disabled binding wrote audit rows: %+v", got)
 		}
 	})
 
@@ -894,11 +964,59 @@ func insertUnboundPerson(t *testing.T, username, totpSecret string, roles ...str
 		}
 	}
 	t.Cleanup(func() {
-		if _, err := shared.pool.Exec(context.Background(), `DELETE FROM app_user WHERE id = $1`, id); err != nil {
+		ctx := context.Background()
+		var recorded bool
+		if err := shared.pool.QueryRow(ctx, `
+			SELECT EXISTS (
+				SELECT 1 FROM account_change WHERE actor_id = $1 OR subject_id = $1
+			)`, id).Scan(&recorded); err != nil {
+			t.Errorf("check account_change for %s: %v", username, err)
+			return
+		}
+		if recorded {
+			return
+		}
+		if _, err := shared.pool.Exec(ctx, `DELETE FROM app_user WHERE id = $1`, id); err != nil {
 			t.Errorf("cleanup unbound person %s: %v", username, err)
 		}
 	})
 	return id
+}
+
+type oidcChangeRow struct {
+	actorID     uuid.UUID
+	subjectID   uuid.UUID
+	action      string
+	role        string
+	oidcIssuer  string
+	oidcSubject string
+	changedAt   time.Time
+}
+
+func oidcAccountChanges(t *testing.T, subject uuid.UUID) []oidcChangeRow {
+	t.Helper()
+	rows, err := shared.pool.Query(context.Background(), `
+		SELECT actor_id, subject_id, action, role, oidc_issuer, oidc_subject, changed_at
+		FROM account_change
+		WHERE subject_id = $1
+		ORDER BY changed_at, id`, subject)
+	if err != nil {
+		t.Fatalf("read account_change for %s: %v", subject, err)
+	}
+	defer rows.Close()
+
+	var out []oidcChangeRow
+	for rows.Next() {
+		var r oidcChangeRow
+		if err := rows.Scan(&r.actorID, &r.subjectID, &r.action, &r.role, &r.oidcIssuer, &r.oidcSubject, &r.changedAt); err != nil {
+			t.Fatalf("scan account_change: %v", err)
+		}
+		out = append(out, r)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("iterate account_change: %v", err)
+	}
+	return out
 }
 
 type logRecorder struct {

@@ -14,7 +14,7 @@ identity (`iss`, `sub`, `email`, `email_verified`, and Workspace hosted domain
 `hd`); Avior's `app_user` and `app_user_role` tables remain the sole authority
 on access.
 
-## Identity binding and MFA migration policy
+## Identity binding, MFA policy, and operational limits
 
 Recorded in ADR 0006 (2026-11-24 amendment):
 
@@ -24,16 +24,32 @@ Recorded in ADR 0006 (2026-11-24 amendment):
   sign-ins resolve by `(oidc_issuer, oidc_subject)` first. If a recycled
   Workspace email matches an account bound to a different `sub`, sign-in is
   refused so a reassigned email cannot inherit roles or history.
-- **Pre-existing unbound accounts**: An existing enabled, non-declared `person`
-  account matching the verified Workspace email with empty `oidc_issuer`,
-  `oidc_subject`, and `totp_secret` is atomically bound once on its first Google
-  sign-in.
-- **TOTP / MFA policy (fail-closed migration)**: Under `AVIOR_AUTH_MODE=google`,
-  MFA is enforced by Google Workspace rather than by an Avior TOTP prompt on the
-  callback. To prevent silently removing an enrolled second factor when migrating
-  from `store` mode, any existing account carrying a non-empty `totp_secret` is
-  refused on the Google sign-in path until an administrator verifies Workspace
-  2-Step Verification and clears the legacy TOTP secret.
+- **One-time linking of eligible pre-existing accounts**: An existing enabled,
+  non-declared `person` account — whether originally created through LDAP or
+  local store authentication — whose `username` matches the verified Workspace
+  email and whose `oidc_issuer`, `oidc_subject`, and `totp_secret` are empty is
+  atomically bound once on its first Google sign-in. That first binding writes
+  exactly one `bind_oidc` row to the append-only `account_change` ledger
+  recording the affected account, verified `(oidc_issuer, oidc_subject)`, and
+  timestamp (never authorization codes, tokens, client secrets, or raw ID
+  tokens). Short LDAP usernames such as `alice` are **not** automatically mapped
+  to `alice@company.com`.
+- **Operational prerequisite for first-time email linking**: Issuer/subject
+  binding protects subsequent sign-ins, not the initial email-based claim of a
+  pre-existing unbound account. Administrators must review and disable stale
+  eligible accounts before enabling `AVIOR_AUTH_MODE=google`, and must disable
+  departing users in Avior before reassigning their Workspace email addresses.
+- **Workspace MFA enforcement & legacy TOTP policy (fail-closed)**: Google
+  Workspace MFA / 2-Step Verification must be enforced in Google Workspace by
+  the deployment administrator where required; enabling `AVIOR_AUTH_MODE=google`
+  does not itself guarantee MFA. Because the OIDC callback does not prompt for
+  an Avior TOTP code, any existing account carrying a non-empty `totp_secret` is
+  refused on the Google sign-in path and left unbound. There is currently **no**
+  supported administrative TOTP-migration operation or API in Avior.
+- **Declared local accounts separation**: Converting an OIDC-bound account into
+  a declared local account is out of scope. Declared / break-glass accounts
+  (FEAT-056) should use separate non-email names (for example `avior_admin`) and
+  remain refused on the Google sign-in path.
 
 ## What an operator can do
 
@@ -80,11 +96,14 @@ provider outage.
   `AVIOR_GOOGLE_DEFAULT_ROLE`.
 - **AC-10** — Subject binding prevents account takeover on reassigned emails:
   a different `sub` presenting a previously bound email is refused, an existing
-  unbound enabled account without TOTP binds once on first Google sign-in, and
-  a returning bound subject stays mapped to the same account even if its email
-  changes.
+  unbound enabled account without TOTP binds once on first Google sign-in
+  (recording exactly one `bind_oidc` event with verified `oidc_issuer`,
+  `oidc_subject`, and timestamp in `account_change`, never duplicated on
+  subsequent sign-ins), existing roles are preserved, and a returning bound
+  subject stays mapped to the same account even if its email changes.
 - **AC-11** — An existing account carrying a non-empty `totp_secret` is refused
-  on the Google sign-in path (fail-closed MFA migration policy) and is not bound.
+  on the Google sign-in path (fail-closed MFA migration policy), remains
+  unbound, and records no `bind_oidc` event.
 - **AC-12** — Internal callback faults (such as a provider outage or store error)
   are distinguished from expected credential refusals and logged at error level
   at the HTTP boundary without logging authorization codes, state cookies,

@@ -9,12 +9,14 @@ import (
 )
 
 type AccountChange struct {
-	ID        pgtype.UUID
-	ActorID   pgtype.UUID
-	SubjectID pgtype.UUID
-	Action    string
-	Role      string
-	ChangedAt pgtype.Timestamptz
+	ID          pgtype.UUID
+	ActorID     pgtype.UUID
+	SubjectID   pgtype.UUID
+	Action      string
+	Role        string
+	ChangedAt   pgtype.Timestamptz
+	OidcIssuer  string
+	OidcSubject string
 }
 
 type ApiToken struct {

@@ -593,6 +593,32 @@ func (q *Queries) RecordAccountChange(ctx context.Context, arg RecordAccountChan
 	return err
 }
 
+const recordOIDCBindingChange = `-- name: RecordOIDCBindingChange :exec
+INSERT INTO account_change (id, actor_id, subject_id, action, role, oidc_issuer, oidc_subject)
+VALUES ($1, $2, $3, 'bind_oidc', '', $4, $5)
+`
+
+type RecordOIDCBindingChangeParams struct {
+	ID          pgtype.UUID
+	ActorID     pgtype.UUID
+	SubjectID   pgtype.UUID
+	OidcIssuer  string
+	OidcSubject string
+}
+
+// FEAT-077. Records the one-time binding of an existing account to its verified
+// OpenID Connect issuer and subject in the append-only account_change ledger.
+func (q *Queries) RecordOIDCBindingChange(ctx context.Context, arg RecordOIDCBindingChangeParams) error {
+	_, err := q.db.Exec(ctx, recordOIDCBindingChange,
+		arg.ID,
+		arg.ActorID,
+		arg.SubjectID,
+		arg.OidcIssuer,
+		arg.OidcSubject,
+	)
+	return err
+}
+
 const recordProvision = `-- name: RecordProvision :exec
 INSERT INTO provision_change (id, actor_id, kind, name, created)
 VALUES ($1, $2, $3, $4, $5)
